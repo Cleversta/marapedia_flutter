@@ -3,10 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'blocs/article/article_bloc.dart';
 import 'blocs/article/article_event.dart';
 import 'repositories/article_repository.dart';
-// Note: ArticleRepository() is instantiated directly in route builders
-// because appRouter is a top-level variable — its builder closures run
-// with GoRouter's navigator context, not the widget tree context, so
-// context.read<ArticleRepository>() would throw ProviderNotFoundException.
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
 import 'screens/home/home_screen.dart';
@@ -41,7 +37,6 @@ final appRouter = GoRouter(
       },
     ),
 
-    // /articles/create MUST come before /articles/:slug
     GoRoute(
       path: '/articles/create',
       builder: (_, state) =>
@@ -50,7 +45,6 @@ final appRouter = GoRouter(
 
     GoRoute(
       path: '/articles/edit/:slug',
-      // EditArticleScreen uses ArticleRepository directly, no BLoC needed
       builder: (_, state) =>
           EditArticleScreen(slug: state.pathParameters['slug']!),
     ),
@@ -90,7 +84,23 @@ final appRouter = GoRouter(
     ),
     GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
     GoRoute(path: '/my-articles', builder: (_, __) => const ProfileScreen()),
-    GoRoute(path: '/editor', builder: (_, __) => const EditorScreen()),
-    GoRoute(path: '/admin', builder: (_, __) => const AdminScreen()),
+
+    GoRoute(
+      path: '/editor',
+      builder: (_, __) => BlocProvider(
+        create: (_) =>
+            ArticleBloc(ArticleRepository())..add(ArticleAllLoadRequested()),
+        child: const EditorScreen(),
+      ),
+    ),
+
+    GoRoute(
+      path: '/admin',
+      builder: (_, __) => BlocProvider(
+        create: (_) =>
+            ArticleBloc(ArticleRepository())..add(ArticleAllLoadRequested()),
+        child: const AdminScreen(),
+      ),
+    ),
   ],
 );
