@@ -1,0 +1,58 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'app_router.dart';
+import 'blocs/auth/auth_bloc.dart';
+import 'blocs/auth/auth_event.dart';
+import 'blocs/article/article_bloc.dart';
+import 'blocs/photo/photo_bloc.dart';
+import 'repositories/auth_repository.dart';
+import 'repositories/article_repository.dart';
+import 'repositories/photo_repository.dart';
+import 'utils/app_theme.dart';
+import 'utils/constants.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Supabase.initialize(
+    url: AppConstants.supabaseUrl,
+    anonKey: AppConstants.supabaseAnonKey,
+  );
+
+  runApp(const MarapediaApp());
+}
+
+class MarapediaApp extends StatelessWidget {
+  const MarapediaApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiRepositoryProvider(
+      providers: [
+        RepositoryProvider(create: (_) => AuthRepository()),
+        RepositoryProvider(create: (_) => ArticleRepository()),
+        RepositoryProvider(create: (_) => PhotoRepository()),
+      ],
+      child: MultiBlocProvider(
+        providers: [
+          BlocProvider<AuthBloc>(
+            create: (ctx) => AuthBloc(ctx.read<AuthRepository>())..add(AuthStarted()),
+          ),
+          BlocProvider<ArticleBloc>(
+            create: (ctx) => ArticleBloc(ctx.read<ArticleRepository>()),
+          ),
+          BlocProvider<PhotoBloc>(
+            create: (ctx) => PhotoBloc(ctx.read<PhotoRepository>()),
+          ),
+        ],
+        child: MaterialApp.router(
+          title: 'Marapedia',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.theme,
+          routerConfig: appRouter,
+        ),
+      ),
+    );
+  }
+}
