@@ -20,8 +20,6 @@ class CategoryScreen extends StatefulWidget {
 class _CategoryScreenState extends State<CategoryScreen> {
   String _activeType = 'all';
 
-  // No initState needed — router fires ArticleCategoryLoadRequested on BLoC creation
-
   @override
   Widget build(BuildContext context) {
     final cat = Helpers.getCategoryInfo(widget.category);
@@ -29,11 +27,18 @@ class _CategoryScreenState extends State<CategoryScreen> {
       appBar: const MarapediaAppBar(),
       body: BlocBuilder<ArticleBloc, ArticleState>(
         builder: (context, state) {
-          if (state is ArticleLoading)
-            return const Padding(
-              padding: EdgeInsets.all(16),
-              child: ShimmerList(),
+          if (state is ArticleLoading) {
+            return Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: 4,
+                itemBuilder: (_, __) => const Padding(
+                  padding: EdgeInsets.only(bottom: 12),
+                  child: ShimmerCard(),
+                ),
+              ),
             );
+          }
 
           if (state is ArticleCategoryLoaded) {
             final articles = state.articles;

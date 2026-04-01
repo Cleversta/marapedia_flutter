@@ -23,9 +23,24 @@ class ShimmerCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(height: 12, width: 80, color: Colors.white, margin: const EdgeInsets.only(bottom: 8)),
-                  Container(height: 14, width: double.infinity, color: Colors.white, margin: const EdgeInsets.only(bottom: 4)),
-                  Container(height: 14, width: 200, color: Colors.white, margin: const EdgeInsets.only(bottom: 8)),
+                  Container(
+                    height: 12,
+                    width: 80,
+                    color: Colors.white,
+                    margin: const EdgeInsets.only(bottom: 8),
+                  ),
+                  Container(
+                    height: 14,
+                    width: double.infinity,
+                    color: Colors.white,
+                    margin: const EdgeInsets.only(bottom: 4),
+                  ),
+                  Container(
+                    height: 14,
+                    width: 200,
+                    color: Colors.white,
+                    margin: const EdgeInsets.only(bottom: 8),
+                  ),
                   Container(height: 10, width: 120, color: Colors.white),
                 ],
               ),
@@ -43,9 +58,12 @@ class ShimmerList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
-    children: List.generate(count, (_) => const Padding(
-      padding: EdgeInsets.only(bottom: 12),
-      child: ShimmerCard(),
-    )),
+    children: List.generate(
+      count,
+      (_) => const Padding(
+        padding: EdgeInsets.only(bottom: 12),
+        child: ShimmerCard(),
+      ),
+    ),
   );
 }
