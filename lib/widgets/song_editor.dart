@@ -9,7 +9,7 @@ import '../../utils/app_theme.dart';
 class SongSection {
   final String id;
   final String type;
-  final String label;
+  String label; // mutable — custom sections can rename
   String content;
   String chords;
 
@@ -62,7 +62,7 @@ class SongMeta {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Section type config  (mirrors SECTION_TYPES in SongEditor.tsx)
+// Section type config
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _SCfg {
@@ -75,48 +75,14 @@ class _SCfg {
 }
 
 const _sectionTypes = [
-  _SCfg(
-    'verse',
-    'Verse',
-    Color(0xFF3B82F6),
-    Color(0xFFEFF6FF),
-    Color(0xFF1D4ED8),
-  ),
-  _SCfg(
-    'chorus',
-    'Chorus',
-    Color(0xFF16A34A),
-    Color(0xFFF0FDF4),
-    Color(0xFF15803D),
-  ),
-  _SCfg(
-    'bridge',
-    'Bridge',
-    Color(0xFF9333EA),
-    Color(0xFFFAF5FF),
-    Color(0xFF7E22CE),
-  ),
-  _SCfg(
-    'intro',
-    'Intro',
-    Color(0xFFD97706),
-    Color(0xFFFFFBEB),
-    Color(0xFF92400E),
-  ),
-  _SCfg(
-    'outro',
-    'Outro',
-    Color(0xFFEA580C),
-    Color(0xFFFFF7ED),
-    Color(0xFF9A3412),
-  ),
-  _SCfg(
-    'pre-chorus',
-    'Pre-Chorus',
-    Color(0xFF0D9488),
-    Color(0xFFF0FDFA),
-    Color(0xFF0F766E),
-  ),
+  _SCfg('verse',      'Verse',      Color(0xFF3B82F6), Color(0xFFEFF6FF), Color(0xFF1D4ED8)),
+  _SCfg('chorus',     'Chorus',     Color(0xFF16A34A), Color(0xFFF0FDF4), Color(0xFF15803D)),
+  _SCfg('bridge',     'Bridge',     Color(0xFF9333EA), Color(0xFFFAF5FF), Color(0xFF7E22CE)),
+  _SCfg('intro',      'Intro',      Color(0xFFD97706), Color(0xFFFFFBEB), Color(0xFF92400E)),
+  _SCfg('outro',      'Outro',      Color(0xFFEA580C), Color(0xFFFFF7ED), Color(0xFF9A3412)),
+  _SCfg('pre-chorus', 'Pre-Chorus', Color(0xFF0D9488), Color(0xFFF0FDFA), Color(0xFF0F766E)),
+  // ✅ NEW: custom type — pink/rose accent, label is user-editable
+  _SCfg('custom',     'Custom',     Color(0xFFDB2777), Color(0xFFFDF2F8), Color(0xFF9D174D)),
 ];
 
 _SCfg _cfgFor(String type) => _sectionTypes.firstWhere(
@@ -129,40 +95,25 @@ _SCfg _cfgFor(String type) => _sectionTypes.firstWhere(
 // ─────────────────────────────────────────────────────────────────────────────
 
 const _musicalKeys = [
-  'C',
-  'C#',
-  'Db',
-  'D',
-  'Eb',
-  'E',
-  'F',
-  'F#',
-  'Gb',
-  'G',
-  'Ab',
-  'A',
-  'Bb',
-  'B',
+  'C', 'C#', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B',
 ];
 const _timeSignatures = ['4/4', '3/4', '6/8', '2/4', '12/8'];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// HTML serialize / parse  (mirrors serialize() + htmlToSections())
+// HTML serialize / parse
 // ─────────────────────────────────────────────────────────────────────────────
 
 String serializeSong(List<SongSection> sections, SongMeta meta) {
   final metaComment = '<!--meta:${jsonEncode(meta.toJson())}-->';
-  final body = sections
-      .map((s) {
-        final lines = s.content
-            .split('\n')
-            .map((l) => '<p>${l.isEmpty ? '&nbsp;' : l}</p>')
-            .join('');
-        return '<div class="song-section" data-type="${s.type}" '
-            'data-label="${s.label}" data-chords="${s.chords}">'
-            '<h4>[${s.label}]</h4>$lines</div>';
-      })
-      .join('\n');
+  final body = sections.map((s) {
+    final lines = s.content
+        .split('\n')
+        .map((l) => '<p>${l.isEmpty ? '&nbsp;' : l}</p>')
+        .join('');
+    return '<div class="song-section" data-type="${s.type}" '
+        'data-label="${s.label}" data-chords="${s.chords}">'
+        '<h4>[${s.label}]</h4>$lines</div>';
+  }).join('\n');
   return '$metaComment\n$body';
 }
 
@@ -177,12 +128,9 @@ List<SongSection> _parseSections(String html) {
   for (final m in divRx.allMatches(html)) {
     final tag = m.group(0)!;
     final inner = m.group(1) ?? '';
-    final type =
-        RegExp(r'data-type="([^"]*)"').firstMatch(tag)?.group(1) ?? 'verse';
-    final label =
-        RegExp(r'data-label="([^"]*)"').firstMatch(tag)?.group(1) ?? 'Verse';
-    final chords =
-        RegExp(r'data-chords="([^"]*)"').firstMatch(tag)?.group(1) ?? '';
+    final type  = RegExp(r'data-type="([^"]*)"').firstMatch(tag)?.group(1) ?? 'verse';
+    final label = RegExp(r'data-label="([^"]*)"').firstMatch(tag)?.group(1) ?? 'Verse';
+    final chords = RegExp(r'data-chords="([^"]*)"').firstMatch(tag)?.group(1) ?? '';
     final body = inner.replaceAll(RegExp(r'<h4[^>]*>[\s\S]*?<\/h4>'), '');
     final lines = <String>[];
     for (final p in RegExp(r'<p>([\s\S]*?)<\/p>').allMatches(body)) {
@@ -195,15 +143,7 @@ List<SongSection> _parseSections(String html) {
           .replaceAll('&gt;', '>');
       lines.add(t == '\u00A0' ? '' : t);
     }
-    result.add(
-      SongSection(
-        id: '${i++}',
-        type: type,
-        label: label,
-        content: lines.join('\n'),
-        chords: chords,
-      ),
-    );
+    result.add(SongSection(id: '${i++}', type: type, label: label, content: lines.join('\n'), chords: chords));
   }
   return result;
 }
@@ -223,6 +163,7 @@ SongMeta _parseMeta(String html) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 String _makeLabel(List<SongSection> sections, String type) {
+  if (type == 'custom') return 'Custom';
   final base = _cfgFor(type).label;
   if (['chorus', 'bridge', 'intro', 'outro'].contains(type)) return base;
   final count = sections.where((s) => s.type == type).length;
@@ -260,7 +201,7 @@ class _SongEditorState extends State<SongEditor> {
   bool _showAddMenu = false;
   final Set<String> _expanded = {};
 
-  // Per-section controllers  key = '{id}_c' (content) or '{id}_h' (chords)
+  // Per-section controllers — key = '{id}_c' (content), '{id}_h' (chords), '{id}_l' (label for custom)
   final Map<String, TextEditingController> _ctrls = {};
 
   // Meta controllers
@@ -268,6 +209,9 @@ class _SongEditorState extends State<SongEditor> {
   late TextEditingController _writerCtrl;
   late TextEditingController _singerCtrl;
   late TextEditingController _referenceCtrl;
+
+  // Tracks which custom sections are in label-edit mode
+  final Set<String> _editingLabel = {};
 
   // ── init ─────────────────────────────────────────────────────────────────
 
@@ -282,7 +226,7 @@ class _SongEditorState extends State<SongEditor> {
     _meta = _parseMeta(html);
     if (_sections.isEmpty) {
       _sections = [
-        SongSection(id: _makeId(), type: 'verse', label: 'Verse 1'),
+        SongSection(id: _makeId(), type: 'verse',  label: 'Verse 1'),
         SongSection(id: _makeId(), type: 'chorus', label: 'Chorus'),
       ];
     }
@@ -291,11 +235,14 @@ class _SongEditorState extends State<SongEditor> {
       _expanded.add(s.id);
       _ctrls['${s.id}_c'] = TextEditingController(text: s.content);
       _ctrls['${s.id}_h'] = TextEditingController(text: s.chords);
+      if (s.type == 'custom') {
+        _ctrls['${s.id}_l'] = TextEditingController(text: s.label);
+      }
     }
     _songNumberCtrl = TextEditingController(text: _meta.songNumber);
-    _writerCtrl = TextEditingController(text: _meta.writer);
-    _singerCtrl = TextEditingController(text: _meta.singer);
-    _referenceCtrl = TextEditingController(text: _meta.reference);
+    _writerCtrl     = TextEditingController(text: _meta.writer);
+    _singerCtrl     = TextEditingController(text: _meta.singer);
+    _referenceCtrl  = TextEditingController(text: _meta.reference);
   }
 
   void _teardown() {
@@ -327,12 +274,16 @@ class _SongEditorState extends State<SongEditor> {
   void _emit() {
     for (final s in _sections) {
       s.content = _ctrls['${s.id}_c']?.text ?? s.content;
-      s.chords = _ctrls['${s.id}_h']?.text ?? s.chords;
+      s.chords  = _ctrls['${s.id}_h']?.text ?? s.chords;
+      if (s.type == 'custom') {
+        final labelText = _ctrls['${s.id}_l']?.text.trim() ?? '';
+        if (labelText.isNotEmpty) s.label = labelText;
+      }
     }
     _meta.songNumber = _songNumberCtrl.text;
-    _meta.writer = _writerCtrl.text;
-    _meta.singer = _singerCtrl.text;
-    _meta.reference = _referenceCtrl.text;
+    _meta.writer     = _writerCtrl.text;
+    _meta.singer     = _singerCtrl.text;
+    _meta.reference  = _referenceCtrl.text;
     widget.onChange(serializeSong(_sections, _meta));
   }
 
@@ -344,9 +295,14 @@ class _SongEditorState extends State<SongEditor> {
 
   void _addSection(String type) {
     final label = _makeLabel(_sections, type);
-    final id = _makeId();
+    final id    = _makeId();
     _ctrls['${id}_c'] = TextEditingController();
     _ctrls['${id}_h'] = TextEditingController();
+    if (type == 'custom') {
+      // ✅ Custom sections get a label controller; start in edit mode so user names it immediately
+      _ctrls['${id}_l'] = TextEditingController(text: 'Custom');
+      _editingLabel.add(id);
+    }
     setState(() {
       _sections.add(SongSection(id: id, type: type, label: label));
       _expanded.add(id);
@@ -358,17 +314,19 @@ class _SongEditorState extends State<SongEditor> {
   void _removeSection(String id) {
     _ctrls.remove('${id}_c')?.dispose();
     _ctrls.remove('${id}_h')?.dispose();
+    _ctrls.remove('${id}_l')?.dispose();
+    _editingLabel.remove(id);
     setState(() => _sections.removeWhere((s) => s.id == id));
     _emit();
   }
 
   void _move(String id, int dir) {
-    final idx = _sections.indexWhere((s) => s.id == id);
+    final idx    = _sections.indexWhere((s) => s.id == id);
     final newIdx = idx + dir;
     if (newIdx < 0 || newIdx >= _sections.length) return;
     setState(() {
       final tmp = _sections[idx];
-      _sections[idx] = _sections[newIdx];
+      _sections[idx]    = _sections[newIdx];
       _sections[newIdx] = tmp;
     });
     _emit();
@@ -426,14 +384,7 @@ class _SongEditorState extends State<SongEditor> {
       children: [
         const Text('🎵', style: TextStyle(fontSize: 14)),
         const SizedBox(width: 6),
-        const Text(
-          'Song Editor',
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF374151),
-          ),
-        ),
+        const Text('Song Editor', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF374151))),
         const SizedBox(width: 6),
         Container(width: 1, height: 14, color: const Color(0xFFD1D5DB)),
         const SizedBox(width: 6),
@@ -449,9 +400,7 @@ class _SongEditorState extends State<SongEditor> {
           label: _showChords ? 'Chords on' : 'Chords off',
           icon: Icons.music_note_outlined,
           active: _showChords,
-          aColor: const Color(0xFFD97706),
-          aBg: const Color(0xFFFFFBEB),
-          aBorder: const Color(0xFFFDE68A),
+          aColor: const Color(0xFFD97706), aBg: const Color(0xFFFFFBEB), aBorder: const Color(0xFFFDE68A),
           onTap: () => setState(() => _showChords = !_showChords),
         ),
         const SizedBox(width: 6),
@@ -459,18 +408,9 @@ class _SongEditorState extends State<SongEditor> {
           label: 'Song details',
           icon: Icons.info_outline,
           active: _showMeta,
-          aColor: const Color(0xFF1D4ED8),
-          aBg: const Color(0xFFEFF6FF),
-          aBorder: const Color(0xFFBFDBFE),
+          aColor: const Color(0xFF1D4ED8), aBg: const Color(0xFFEFF6FF), aBorder: const Color(0xFFBFDBFE),
           trailing: _meta.hasAny
-              ? Container(
-                  width: 6,
-                  height: 6,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF3B82F6),
-                    shape: BoxShape.circle,
-                  ),
-                )
+              ? Container(width: 6, height: 6, decoration: const BoxDecoration(color: Color(0xFF3B82F6), shape: BoxShape.circle))
               : null,
           onTap: () => setState(() => _showMeta = !_showMeta),
         ),
@@ -499,20 +439,9 @@ class _SongEditorState extends State<SongEditor> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            size: 13,
-            color: active ? aColor : const Color(0xFF6B7280),
-          ),
+          Icon(icon, size: 13, color: active ? aColor : const Color(0xFF6B7280)),
           const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: active ? aColor : const Color(0xFF6B7280),
-            ),
-          ),
+          Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: active ? aColor : const Color(0xFF6B7280))),
           if (trailing != null) ...[const SizedBox(width: 4), trailing],
         ],
       ),
@@ -530,207 +459,102 @@ class _SongEditorState extends State<SongEditor> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // header
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFFEFF6FF), Color(0xFFEEF2FF)],
-            ),
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(12),
-              topRight: Radius.circular(12),
-            ),
+            gradient: LinearGradient(colors: [Color(0xFFEFF6FF), Color(0xFFEEF2FF)]),
+            borderRadius: BorderRadius.only(topLeft: Radius.circular(12), topRight: Radius.circular(12)),
             border: Border(bottom: BorderSide(color: Color(0xFFDFEAFF))),
           ),
-          child: const Row(
-            children: [
-              Text('🎼', style: TextStyle(fontSize: 13)),
-              SizedBox(width: 6),
-              Text(
-                'Song Information',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF1E40AF),
-                ),
-              ),
-            ],
-          ),
+          child: const Row(children: [
+            Text('🎼', style: TextStyle(fontSize: 13)),
+            SizedBox(width: 6),
+            Text('Song Information', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1E40AF))),
+          ]),
         ),
-        // fields
         Padding(
           padding: const EdgeInsets.all(14),
-          child: LayoutBuilder(
-            builder: (ctx, bc) {
-              final w = (bc.maxWidth - 12) / 2;
-              return Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: [
-                  _mField('🔢', 'Song No.', _songNumberCtrl, 'e.g. 541', w),
-                  _mDrop('🎹', 'Key (Doh is...)', _meta.key, _musicalKeys, (v) {
-                    setState(() => _meta.key = v);
-                    _emit();
-                  }, w),
-                  _mDrop('⏱️', 'Time', _meta.timeSignature, _timeSignatures, (
-                    v,
-                  ) {
-                    setState(() => _meta.timeSignature = v);
-                    _emit();
-                  }, w),
-                  _mField(
-                    '✍️',
-                    'Written by',
-                    _writerCtrl,
-                    'Songwriter name',
-                    w,
-                  ),
-                  _mField('🎤', 'Sung by', _singerCtrl, 'Artist or group', w),
-                  _mField(
-                    '📖',
-                    'Reference',
-                    _referenceCtrl,
-                    'e.g. Psalm 23:1',
-                    w,
-                  ),
-                ],
-              );
-            },
-          ),
+          child: LayoutBuilder(builder: (ctx, bc) {
+            final w = (bc.maxWidth - 12) / 2;
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                _mField('🔢', 'Song No.',     _songNumberCtrl, 'e.g. 541',        w),
+                _mDrop ('🎹', 'Key (Doh is...)', _meta.key, _musicalKeys, (v) { setState(() => _meta.key = v); _emit(); }, w),
+                _mDrop ('⏱️', 'Time',         _meta.timeSignature, _timeSignatures, (v) { setState(() => _meta.timeSignature = v); _emit(); }, w),
+                _mField('✍️', 'Written by',   _writerCtrl,    'Songwriter name',  w),
+                _mField('🎤', 'Sung by',      _singerCtrl,    'Artist or group',  w),
+                _mField('📖', 'Reference',    _referenceCtrl, 'e.g. Psalm 23:1',  w),
+              ],
+            );
+          }),
         ),
       ],
     ),
   );
 
-  Widget _mField(
-    String emoji,
-    String label,
-    TextEditingController ctrl,
-    String hint,
-    double w,
-  ) => SizedBox(
+  Widget _mField(String emoji, String label, TextEditingController ctrl, String hint, double w) => SizedBox(
     width: w,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text(emoji, style: const TextStyle(fontSize: 11)),
-            const SizedBox(width: 4),
-            Text(
-              label.toUpperCase(),
-              style: const TextStyle(
-                fontSize: 9,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF6B7280),
-                letterSpacing: 0.5,
-              ),
-            ),
-          ],
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Text(emoji, style: const TextStyle(fontSize: 11)),
+        const SizedBox(width: 4),
+        Text(label.toUpperCase(), style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFF6B7280), letterSpacing: 0.5)),
+      ]),
+      const SizedBox(height: 5),
+      TextField(
+        controller: ctrl,
+        onChanged: (_) => _emit(),
+        style: const TextStyle(fontSize: 13),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: const TextStyle(fontSize: 12, color: Color(0xFFD1D5DB)),
+          filled: true, fillColor: const Color(0xFFF9FAFB),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5)),
         ),
-        const SizedBox(height: 5),
-        TextField(
-          controller: ctrl,
-          onChanged: (_) => _emit(),
-          style: const TextStyle(fontSize: 13),
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: const TextStyle(fontSize: 12, color: Color(0xFFD1D5DB)),
-            filled: true,
-            fillColor: const Color(0xFFF9FAFB),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 10,
-              vertical: 8,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(
-                color: Color(0xFF3B82F6),
-                width: 1.5,
-              ),
-            ),
-          ),
-        ),
-      ],
-    ),
+      ),
+    ]),
   );
 
-  Widget _mDrop(
-    String emoji,
-    String label,
-    String value,
-    List<String> opts,
-    ValueChanged<String> onChanged,
-    double w,
-  ) => SizedBox(
+  Widget _mDrop(String emoji, String label, String value, List<String> opts, ValueChanged<String> onChanged, double w) => SizedBox(
     width: w,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text(emoji, style: const TextStyle(fontSize: 11)),
-            const SizedBox(width: 4),
-            Expanded(
-              child: Text(
-                label.toUpperCase(),
-                style: const TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF6B7280),
-                  letterSpacing: 0.5,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 5),
-        Container(
-          height: 38,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF9FAFB),
-            border: Border.all(color: const Color(0xFFE5E7EB)),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: value.isEmpty ? null : value,
-              hint: const Text(
-                'Select',
-                style: TextStyle(fontSize: 12, color: Color(0xFFD1D5DB)),
-              ),
-              isExpanded: true,
-              style: const TextStyle(fontSize: 13, color: Color(0xFF111827)),
-              items: opts
-                  .map((k) => DropdownMenuItem(value: k, child: Text(k)))
-                  .toList(),
-              onChanged: (v) {
-                if (v != null) onChanged(v);
-              },
-            ),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Text(emoji, style: const TextStyle(fontSize: 11)),
+        const SizedBox(width: 4),
+        Expanded(child: Text(label.toUpperCase(), style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFF6B7280), letterSpacing: 0.5), overflow: TextOverflow.ellipsis)),
+      ]),
+      const SizedBox(height: 5),
+      Container(
+        height: 38,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(color: const Color(0xFFF9FAFB), border: Border.all(color: const Color(0xFFE5E7EB)), borderRadius: BorderRadius.circular(8)),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            value: value.isEmpty ? null : value,
+            hint: const Text('Select', style: TextStyle(fontSize: 12, color: Color(0xFFD1D5DB))),
+            isExpanded: true,
+            style: const TextStyle(fontSize: 13, color: Color(0xFF111827)),
+            items: opts.map((k) => DropdownMenuItem(value: k, child: Text(k))).toList(),
+            onChanged: (v) { if (v != null) onChanged(v); },
           ),
         ),
-      ],
-    ),
+      ),
+    ]),
   );
 
   // ── Section card ─────────────────────────────────────────────────────────
 
   Widget _sectionCard(SongSection s, int idx) {
-    final cfg = _cfgFor(s.type);
+    final cfg        = _cfgFor(s.type);
     final isExpanded = _expanded.contains(s.id);
-    final hasChords = (_ctrls['${s.id}_h']?.text ?? s.chords).trim().isNotEmpty;
+    final hasChords  = (_ctrls['${s.id}_h']?.text ?? s.chords).trim().isNotEmpty;
+    final isCustom   = s.type == 'custom';
+    final isEditingLbl = _editingLabel.contains(s.id);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -738,13 +562,7 @@ class _SongEditorState extends State<SongEditor> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 4, offset: const Offset(0, 1))],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
@@ -752,266 +570,63 @@ class _SongEditorState extends State<SongEditor> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Left accent bar
               Container(width: 3, color: cfg.accent),
-
               Expanded(
                 child: Column(
                   children: [
-                    // ── Header ──────────────────────────────────────────────
+                    // ── Header ──────────────────────────────────────────
                     Container(
                       color: const Color(0xFFF9FAFB),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       child: Row(
                         children: [
-                          // Badge + collapse
+                          // Badge — custom shows editable label
                           GestureDetector(
-                            onTap: () => _toggle(s.id),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 3,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: cfg.bg,
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    s.label,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                      color: cfg.fg,
-                                    ),
-                                  ),
-                                ),
-                                if (hasChords && _showChords) ...[
-                                  const SizedBox(width: 6),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFFEF3C7),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: const Text(
-                                      'chords',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: Color(0xFFD97706),
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
+                            onTap: () {
+                              if (isCustom) {
+                                setState(() => isEditingLbl
+                                    ? _editingLabel.remove(s.id)
+                                    : _editingLabel.add(s.id));
+                              } else {
+                                _toggle(s.id);
+                              }
+                            },
+                            child: isCustom && isEditingLbl
+                                ? _customLabelField(s, cfg)
+                                : _labelBadge(s, cfg, isCustom, hasChords),
                           ),
                           const Spacer(),
-                          // Chevron
-                          GestureDetector(
-                            onTap: () => _toggle(s.id),
-                            child: AnimatedRotation(
-                              turns: isExpanded ? 0 : -0.25,
-                              duration: const Duration(milliseconds: 200),
-                              child: const Icon(
-                                Icons.expand_more,
-                                size: 18,
-                                color: Color(0xFF9CA3AF),
-                              ),
+                          // Collapse chevron (for custom, separate tap)
+                          if (isCustom)
+                            GestureDetector(
+                              onTap: () => _toggle(s.id),
+                              child: _chevron(isExpanded),
+                            )
+                          else
+                            GestureDetector(
+                              onTap: () => _toggle(s.id),
+                              child: _chevron(isExpanded),
                             ),
-                          ),
                           const SizedBox(width: 2),
-                          // Up
-                          _arrowBtn(
-                            Icons.arrow_upward,
-                            idx == 0,
-                            () => _move(s.id, -1),
-                          ),
-                          // Down
-                          _arrowBtn(
-                            Icons.arrow_downward,
-                            idx == _sections.length - 1,
-                            () => _move(s.id, 1),
-                          ),
+                          _arrowBtn(Icons.arrow_upward,   idx == 0,                    () => _move(s.id, -1)),
+                          _arrowBtn(Icons.arrow_downward, idx == _sections.length - 1, () => _move(s.id,  1)),
                           const SizedBox(width: 2),
-                          // Delete
                           GestureDetector(
                             onTap: () => _removeSection(s.id),
                             child: const Padding(
                               padding: EdgeInsets.all(4),
-                              child: Icon(
-                                Icons.close,
-                                size: 14,
-                                color: Color(0xFFD1D5DB),
-                              ),
+                              child: Icon(Icons.close, size: 14, color: Color(0xFFD1D5DB)),
                             ),
                           ),
                         ],
                       ),
                     ),
 
-                    // ── Body ────────────────────────────────────────────────
+                    // ── Body ────────────────────────────────────────────
                     if (isExpanded) ...[
-                      // Chords row
                       if (_showChords)
-                        Container(
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFFFFDF0),
-                            border: Border(
-                              top: BorderSide(color: Color(0xFFFDE68A)),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  12,
-                                  8,
-                                  12,
-                                  0,
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Text(
-                                      'CHORDS',
-                                      style: TextStyle(
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w700,
-                                        color: Color(0xFFD97706),
-                                        letterSpacing: 1.5,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Container(
-                                        height: 1,
-                                        color: const Color(0xFFFDE68A),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  12,
-                                  4,
-                                  12,
-                                  10,
-                                ),
-                                child: TextField(
-                                  controller: _ctrls['${s.id}_h'],
-                                  onChanged: (_) => _emit(),
-                                  maxLines: 2,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    color: Color(0xFF92400E),
-                                    fontFamily: 'monospace',
-                                    letterSpacing: 0.8,
-                                  ),
-                                  decoration: const InputDecoration(
-                                    hintText: 'Am  G  C  F  |  G  Em  Am...',
-                                    hintStyle: TextStyle(
-                                      fontSize: 12,
-                                      color: Color(0xFFFBD38D),
-                                    ),
-                                    border: InputBorder.none,
-                                    filled: false,
-                                    contentPadding: EdgeInsets.zero,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                      // Lyrics row
-                      Container(
-                        decoration: const BoxDecoration(
-                          border: Border(
-                            top: BorderSide(color: Color(0xFFF3F4F6)),
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-                              child: Row(
-                                children: [
-                                  const Text(
-                                    'LYRICS',
-                                    style: TextStyle(
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w700,
-                                      color: Color(0xFF9CA3AF),
-                                      letterSpacing: 1.5,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Container(
-                                      height: 1,
-                                      color: const Color(0xFFF3F4F6),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(12, 6, 12, 4),
-                              child: TextField(
-                                controller: _ctrls['${s.id}_c'],
-                                onChanged: (_) {
-                                  setState(() {});
-                                  _emit();
-                                },
-                                maxLines: null,
-                                minLines: 5,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  height: 1.9,
-                                  fontFamily: 'monospace',
-                                  color: Color(0xFF374151),
-                                ),
-                                decoration: InputDecoration(
-                                  hintText: _placeholder,
-                                  hintStyle: const TextStyle(
-                                    fontSize: 13,
-                                    color: Color(0xFFD1D5DB),
-                                  ),
-                                  border: InputBorder.none,
-                                  filled: false,
-                                  contentPadding: EdgeInsets.zero,
-                                ),
-                              ),
-                            ),
-                            // line count
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-                              child: Align(
-                                alignment: Alignment.centerRight,
-                                child: Text(
-                                  '${(_ctrls['${s.id}_c']?.text ?? '').split('\n').where((l) => l.trim().isNotEmpty).length} lines',
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    color: Color(0xFFD1D5DB),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                        _chordsRow(s),
+                      _lyricsRow(s),
                     ],
                   ],
                 ),
@@ -1023,18 +638,173 @@ class _SongEditorState extends State<SongEditor> {
     );
   }
 
-  Widget _arrowBtn(IconData icon, bool disabled, VoidCallback onTap) =>
-      GestureDetector(
-        onTap: disabled ? null : onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(3),
-          child: Icon(
-            icon,
-            size: 13,
-            color: disabled ? const Color(0xFFE5E7EB) : const Color(0xFF9CA3AF),
+  /// Normal badge for standard section types
+  Widget _labelBadge(SongSection s, _SCfg cfg, bool isCustom, bool hasChords) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(color: cfg.bg, borderRadius: BorderRadius.circular(6)),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(s.label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: cfg.fg)),
+              // ✅ Edit pencil icon for custom sections (when not in edit mode)
+              if (isCustom) ...[
+                const SizedBox(width: 4),
+                Icon(Icons.edit_outlined, size: 11, color: cfg.fg.withOpacity(0.6)),
+              ],
+            ],
           ),
         ),
-      );
+        if (hasChords && _showChords) ...[
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(color: const Color(0xFFFEF3C7), borderRadius: BorderRadius.circular(4)),
+            child: const Text('chords', style: TextStyle(fontSize: 10, color: Color(0xFFD97706), fontWeight: FontWeight.w500)),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// ✅ Inline label editor for custom sections — shown when _editingLabel contains the id
+  Widget _customLabelField(SongSection s, _SCfg cfg) {
+    final ctrl = _ctrls['${s.id}_l']!;
+    return Container(
+      width: 140,
+      height: 30,
+      decoration: BoxDecoration(
+        color: cfg.bg,
+        border: Border.all(color: cfg.accent.withOpacity(0.4), width: 1.5),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        children: [
+          const SizedBox(width: 6),
+          Expanded(
+            child: TextField(
+              controller: ctrl,
+              autofocus: true,
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: cfg.fg),
+              decoration: const InputDecoration(
+                border: InputBorder.none,
+                filled: false,
+                contentPadding: EdgeInsets.zero,
+                isDense: true,
+              ),
+              onChanged: (v) {
+                if (v.trim().isNotEmpty) {
+                  setState(() => s.label = v.trim());
+                }
+                _emit();
+              },
+              onSubmitted: (_) {
+                setState(() => _editingLabel.remove(s.id));
+                _emit();
+              },
+            ),
+          ),
+          GestureDetector(
+            onTap: () {
+              setState(() => _editingLabel.remove(s.id));
+              _emit();
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Icon(Icons.check, size: 13, color: cfg.fg),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _chevron(bool isExpanded) => AnimatedRotation(
+    turns: isExpanded ? 0 : -0.25,
+    duration: const Duration(milliseconds: 200),
+    child: const Icon(Icons.expand_more, size: 18, color: Color(0xFF9CA3AF)),
+  );
+
+  Widget _chordsRow(SongSection s) => Container(
+    decoration: const BoxDecoration(
+      color: Color(0xFFFFFDF0),
+      border: Border(top: BorderSide(color: Color(0xFFFDE68A))),
+    ),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+        child: Row(children: [
+          const Text('CHORDS', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFFD97706), letterSpacing: 1.5)),
+          const SizedBox(width: 8),
+          Expanded(child: Container(height: 1, color: const Color(0xFFFDE68A))),
+        ]),
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
+        child: TextField(
+          controller: _ctrls['${s.id}_h'],
+          onChanged: (_) => _emit(),
+          maxLines: 2,
+          style: const TextStyle(fontSize: 13, color: Color(0xFF92400E), fontFamily: 'monospace', letterSpacing: 0.8),
+          decoration: const InputDecoration(
+            hintText: 'Am  G  C  F  |  G  Em  Am...',
+            hintStyle: TextStyle(fontSize: 12, color: Color(0xFFFBD38D)),
+            border: InputBorder.none, filled: false, contentPadding: EdgeInsets.zero,
+          ),
+        ),
+      ),
+    ]),
+  );
+
+  Widget _lyricsRow(SongSection s) => Container(
+    decoration: const BoxDecoration(border: Border(top: BorderSide(color: Color(0xFFF3F4F6)))),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+        child: Row(children: [
+          const Text('LYRICS', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFF9CA3AF), letterSpacing: 1.5)),
+          const SizedBox(width: 8),
+          Expanded(child: Container(height: 1, color: const Color(0xFFF3F4F6))),
+        ]),
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(12, 6, 12, 4),
+        child: TextField(
+          controller: _ctrls['${s.id}_c'],
+          onChanged: (_) { setState(() {}); _emit(); },
+          maxLines: null,
+          minLines: 5,
+          style: const TextStyle(fontSize: 14, height: 1.9, fontFamily: 'monospace', color: Color(0xFF374151)),
+          decoration: InputDecoration(
+            hintText: _placeholder,
+            hintStyle: const TextStyle(fontSize: 13, color: Color(0xFFD1D5DB)),
+            border: InputBorder.none, filled: false, contentPadding: EdgeInsets.zero,
+          ),
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+        child: Align(
+          alignment: Alignment.centerRight,
+          child: Text(
+            '${(_ctrls['${s.id}_c']?.text ?? '').split('\n').where((l) => l.trim().isNotEmpty).length} lines',
+            style: const TextStyle(fontSize: 10, color: Color(0xFFD1D5DB)),
+          ),
+        ),
+      ),
+    ]),
+  );
+
+  Widget _arrowBtn(IconData icon, bool disabled, VoidCallback onTap) => GestureDetector(
+    onTap: disabled ? null : onTap,
+    child: Padding(
+      padding: const EdgeInsets.all(3),
+      child: Icon(icon, size: 13, color: disabled ? const Color(0xFFE5E7EB) : const Color(0xFF9CA3AF)),
+    ),
+  );
 
   // ── Add button ───────────────────────────────────────────────────────────
 
@@ -1047,9 +817,7 @@ class _SongEditorState extends State<SongEditor> {
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
             border: Border.all(
-              color: _showAddMenu
-                  ? const Color(0xFF86EFAC)
-                  : const Color(0xFFE5E7EB),
+              color: _showAddMenu ? const Color(0xFF86EFAC) : const Color(0xFFE5E7EB),
               width: 1.5,
             ),
             borderRadius: BorderRadius.circular(12),
@@ -1058,24 +826,9 @@ class _SongEditorState extends State<SongEditor> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.add,
-                size: 18,
-                color: _showAddMenu
-                    ? AppTheme.greenPrimary
-                    : const Color(0xFF9CA3AF),
-              ),
+              Icon(Icons.add, size: 18, color: _showAddMenu ? AppTheme.greenPrimary : const Color(0xFF9CA3AF)),
               const SizedBox(width: 6),
-              Text(
-                'Add section',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: _showAddMenu
-                      ? AppTheme.greenPrimary
-                      : const Color(0xFF9CA3AF),
-                ),
-              ),
+              Text('Add section', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: _showAddMenu ? AppTheme.greenPrimary : const Color(0xFF9CA3AF))),
             ],
           ),
         ),
@@ -1088,61 +841,38 @@ class _SongEditorState extends State<SongEditor> {
             color: Colors.white,
             border: Border.all(color: const Color(0xFFE5E7EB)),
             borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.06),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 12, offset: const Offset(0, 4))],
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'CHOOSE SECTION TYPE',
-                style: TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF9CA3AF),
-                  letterSpacing: 1.5,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('CHOOSE SECTION TYPE', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFF9CA3AF), letterSpacing: 1.5)),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _sectionTypes.map((t) => GestureDetector(
+                onTap: () => _addSection(t.type),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: t.bg,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: t.accent.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(t.label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: t.fg)),
+                      // ✅ Show hint that custom type is renameable
+                      if (t.type == 'custom') ...[
+                        const SizedBox(width: 4),
+                        Icon(Icons.edit_outlined, size: 11, color: t.fg.withOpacity(0.6)),
+                      ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _sectionTypes
-                    .map(
-                      (t) => GestureDetector(
-                        onTap: () => _addSection(t.type),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: t.bg,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: t.accent.withOpacity(0.3),
-                            ),
-                          ),
-                          child: Text(
-                            t.label,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: t.fg,
-                            ),
-                          ),
-                        ),
-                      ),
-                    )
-                    .toList(),
-              ),
-            ],
-          ),
+              )).toList(),
+            ),
+          ]),
         ),
       ],
     ],
@@ -1152,48 +882,20 @@ class _SongEditorState extends State<SongEditor> {
 
   Widget _footer() => Row(
     children: [
-      Text(
-        '${_sections.length} section${_sections.length != 1 ? 's' : ''}',
-        style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
-      ),
-      const Text(
-        ' · ',
-        style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
-      ),
-      Text(
-        '$_totalLines lines',
-        style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
-      ),
+      Text('${_sections.length} section${_sections.length != 1 ? 's' : ''}', style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+      const Text(' · ', style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+      Text('$_totalLines lines', style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
       if (_meta.key.isNotEmpty) ...[
-        const Text(
-          ' · ',
-          style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
-        ),
-        Text(
-          'Key of ${_meta.key}',
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFFD97706),
-          ),
-        ),
+        const Text(' · ', style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+        Text('Key of ${_meta.key}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFFD97706))),
       ],
       if (_meta.timeSignature.isNotEmpty) ...[
-        const Text(
-          ' · ',
-          style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
-        ),
-        Text(
-          _meta.timeSignature,
-          style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
-        ),
+        const Text(' · ', style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+        Text(_meta.timeSignature, style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
       ],
       const Spacer(),
       if (_hasChords)
-        const Text(
-          '♪ chords added',
-          style: TextStyle(fontSize: 11, color: Color(0xFFD97706)),
-        ),
+        const Text('♪ chords added', style: TextStyle(fontSize: 11, color: Color(0xFFD97706))),
     ],
   );
 }

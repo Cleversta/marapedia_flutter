@@ -11,6 +11,7 @@ import '../../services/upload_service.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/constants.dart';
 import '../../utils/helpers.dart';
+import '../../widgets/song_editor.dart';
 
 class CreateArticleScreen extends StatefulWidget {
   final String? category;
@@ -27,6 +28,12 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
   String _error = '';
 
   final Map<String, Map<String, TextEditingController>> _ctrls = {};
+  final Map<String, String> _songContent = {
+    'mara': '',
+    'english': '',
+    'myanmar': '',
+    'mizo': '',
+  };
   final List<File> _images = [];
   final List<String> _captions = [];
 
@@ -52,6 +59,10 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
   }
 
   bool _hasContent(String lang) {
+    if (_category == 'songs') {
+      return (_ctrls[lang]?['title']?.text.trim().isNotEmpty ?? false) ||
+          (_songContent[lang]?.isNotEmpty ?? false);
+    }
     return (_ctrls[lang]?['title']?.text.trim().isNotEmpty ?? false) ||
         (_ctrls[lang]?['content']?.text.trim().isNotEmpty ?? false);
   }
@@ -75,11 +86,14 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
     if (authState is! AuthAuthenticated) return;
 
     final filledLangs = ['mara', 'english', 'myanmar', 'mizo']
-        .where(
-          (l) =>
-              (_ctrls[l]?['title']?.text.trim().isNotEmpty ?? false) &&
-              (_ctrls[l]?['content']?.text.trim().isNotEmpty ?? false),
-        )
+        .where((l) {
+          final hasTitle =
+              _ctrls[l]?['title']?.text.trim().isNotEmpty ?? false;
+          final hasContent = _category == 'songs'
+              ? (_songContent[l]?.isNotEmpty ?? false)
+              : (_ctrls[l]?['content']?.text.trim().isNotEmpty ?? false);
+          return hasTitle && hasContent;
+        })
         .toList();
 
     if (filledLangs.isEmpty) {
@@ -133,7 +147,9 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
 
       // Insert translations
       for (final lang in filledLangs) {
-        final content = _ctrls[lang]!['content']!.text;
+        final content = _category == 'songs'
+            ? _songContent[lang]!
+            : _ctrls[lang]!['content']!.text;
         await repo.upsertTranslation(
           articleId: article.id,
           language: lang,
@@ -163,9 +179,9 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
+        title: const Text(
           'New Article',
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, size: 16),
@@ -402,36 +418,31 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
                                   ),
                                 ),
                               ),
-                              child: Column(
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Container(
-                                        width: 6,
-                                        height: 6,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: hasCont
-                                              ? AppTheme.greenPrimary
-                                              : Colors.grey[300],
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        AppConstants.languageLabels[lang] ??
-                                            lang,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: isActive
-                                              ? FontWeight.w600
-                                              : FontWeight.w400,
-                                          color: isActive
-                                              ? AppTheme.greenPrimary
-                                              : Colors.grey[500],
-                                        ),
-                                      ),
-                                    ],
+                                  Container(
+                                    width: 6,
+                                    height: 6,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: hasCont
+                                          ? AppTheme.greenPrimary
+                                          : Colors.grey[300],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    AppConstants.languageLabels[lang] ?? lang,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: isActive
+                                          ? FontWeight.w600
+                                          : FontWeight.w400,
+                                      color: isActive
+                                          ? AppTheme.greenPrimary
+                                          : Colors.grey[500],
+                                    ),
                                   ),
                                 ],
                               ),
@@ -442,45 +453,58 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
                     ),
                   ),
 
-                  // Title + Content
+                  // Title
                   Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        TextField(
-                          controller: _ctrls[_currentLang]!['title'],
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                          ),
-                          decoration: const InputDecoration(
-                            hintText: 'Article title...',
-                            border: InputBorder.none,
-                            filled: false,
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                        ),
-                        const Divider(),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: _ctrls[_currentLang]!['content'],
-                          maxLines: null,
-                          minLines: 15,
-                          style: const TextStyle(fontSize: 15, height: 1.8),
-                          decoration: const InputDecoration(
-                            hintText: 'Write your content here...',
-                            border: InputBorder.none,
-                            filled: false,
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                        ),
-                      ],
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    child: TextField(
+                      controller: _ctrls[_currentLang]!['title'],
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      decoration: const InputDecoration(
+                        hintText: 'Article title...',
+                        border: InputBorder.none,
+                        filled: false,
+                        contentPadding: EdgeInsets.zero,
+                      ),
                     ),
                   ),
 
-                  // Save draft button
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: Divider(),
+                  ),
+
+                  // Content — dispatches to SongEditor or plain TextField
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 40),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                    child: _category == 'songs'
+                        ? SongEditor(
+                            key: ValueKey(_currentLang),
+                            content: _songContent[_currentLang]!,
+                            language: _currentLang,
+                            onChange: (val) => setState(
+                              () => _songContent[_currentLang] = val,
+                            ),
+                          )
+                        : TextField(
+                            controller: _ctrls[_currentLang]!['content'],
+                            maxLines: null,
+                            minLines: 15,
+                            style: const TextStyle(fontSize: 15, height: 1.8),
+                            decoration: const InputDecoration(
+                              hintText: 'Write your content here...',
+                              border: InputBorder.none,
+                              filled: false,
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                  ),
+
+                  // Bottom buttons
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 24, 16, 40),
                     child: Row(
                       children: [
                         Expanded(
