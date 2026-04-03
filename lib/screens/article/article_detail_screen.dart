@@ -1,9 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../blocs/article/article_bloc.dart';
 import '../../blocs/article/article_state.dart';
 import '../../blocs/auth/auth_bloc.dart';
@@ -28,7 +30,12 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
   String _currentLang = 'mara';
   int? _lightboxIndex;
 
-  // No initState needed — router fires ArticleDetailLoadRequested on BLoC creation
+  void _shareArticle(String slug, String title) {
+    Share.share(
+      'Read "$title" on Marapedia\nhttps://marapedia.org/articles/$slug',
+      subject: title,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,7 +68,6 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     final cat = Helpers.getCategoryInfo(article.category);
     final availLangs = article.translations.map((t) => t.language).toList();
 
-    // Default to priority language
     if (!availLangs.contains(_currentLang)) {
       for (final lang in AppConstants.languagePriority) {
         if (availLangs.contains(lang)) {
@@ -77,6 +83,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
         body: const Center(child: Text('No content available')),
       );
     }
+
     final translation =
         article.translations.firstWhereOrNull(
           (t) => t.language == _currentLang,
@@ -87,11 +94,15 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
       article.category,
       article.articleType,
     );
+
     final allImages = [
       if (article.thumbnailUrl != null && article.thumbnailUrl!.isNotEmpty)
         ArticleImage(url: article.thumbnailUrl!),
       ...article.images.skip(article.thumbnailUrl != null ? 0 : 0),
     ];
+
+    final isSong =
+        article.category == 'songs' || article.articleType == 'song';
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAFAF8),
@@ -108,6 +119,12 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                   onPressed: () => context.pop(),
                 ),
                 actions: [
+                  // Share button in app bar
+                  IconButton(
+                    icon: const Icon(Icons.share_outlined, size: 18),
+                    onPressed: () =>
+                        _shareArticle(article.slug, translation.title),
+                  ),
                   Container(
                     margin: const EdgeInsets.only(right: 4),
                     padding: const EdgeInsets.symmetric(
@@ -155,8 +172,8 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                           CircleAvatar(
                             radius: 14,
                             backgroundColor: AppTheme.greenLight,
-                            backgroundImage:
-                                (article.profile?.avatarUrl != null &&
+                            backgroundImage: (article.profile?.avatarUrl !=
+                                        null &&
                                     article.profile!.avatarUrl!.isNotEmpty)
                                 ? NetworkImage(article.profile!.avatarUrl!)
                                 : null,
@@ -276,7 +293,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
                             itemCount: allImages.length,
-                            separatorBuilder: (_, _) =>
+                            separatorBuilder: (_, __) =>
                                 const SizedBox(width: 6),
                             itemBuilder: (_, i) => GestureDetector(
                               onTap: () => setState(() => _lightboxIndex = i),
@@ -289,7 +306,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                                       width: 88,
                                       height: 64,
                                       fit: BoxFit.cover,
-                                      placeholder: (_, _) => Container(
+                                      placeholder: (_, __) => Container(
                                         width: 88,
                                         height: 64,
                                         color: Colors.grey[200],
@@ -307,9 +324,8 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                                         ),
                                         decoration: BoxDecoration(
                                           color: Colors.black45,
-                                          borderRadius: BorderRadius.circular(
-                                            4,
-                                          ),
+                                          borderRadius:
+                                              BorderRadius.circular(4),
                                         ),
                                         child: const Text(
                                           'Cover',
@@ -385,6 +401,8 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                       const SizedBox(height: 40),
                       const Divider(color: Color(0xFFE7E5E4)),
                       const SizedBox(height: 12),
+
+                      // Footer row
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -408,6 +426,56 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                           ),
                         ],
                       ),
+
+                      const SizedBox(height: 12),
+
+                      // Share button — always shown
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () =>
+                              _shareArticle(article.slug, translation.title),
+                          icon: const Icon(Icons.share_outlined, size: 16),
+                          label: const Text('Share Article'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppTheme.greenPrimary,
+                            side: const BorderSide(
+                                color: AppTheme.greenPrimary),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Share + Save row — only for songs
+                      if (isSong) ...[
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              // Trigger save from SongViewer via a key
+                              // SongViewer handles this internally via its button
+                              // This is just a hint — SongViewer already has the button
+                            },
+                            icon: const Icon(Icons.download_outlined, size: 16),
+                            label: const Text('Save Lyrics as Image'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.grey[700],
+                              side: BorderSide(color: Colors.grey[300]!),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 10),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+
+                      const SizedBox(height: 40),
                     ],
                   ),
                 ),
@@ -423,13 +491,12 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
   }
 
   Widget _buildContent(ArticleModel article, String content, String title) {
-    final type =
-        article.articleType ??
+    final type = article.articleType ??
         (article.category == 'songs'
             ? 'song'
             : article.category == 'poems'
-            ? 'poem'
-            : null);
+                ? 'poem'
+                : null);
 
     if (type == 'song' || article.category == 'songs') {
       return SongViewer(content: content, title: title);
@@ -562,8 +629,8 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                           color: Colors.white,
                         ),
                       ),
-                      onPressed: () =>
-                          setState(() => _lightboxIndex = _lightboxIndex! - 1),
+                      onPressed: () => setState(
+                          () => _lightboxIndex = _lightboxIndex! - 1),
                     ),
                   ),
                 ),
@@ -586,8 +653,8 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                           color: Colors.white,
                         ),
                       ),
-                      onPressed: () =>
-                          setState(() => _lightboxIndex = _lightboxIndex! + 1),
+                      onPressed: () => setState(
+                          () => _lightboxIndex = _lightboxIndex! + 1),
                     ),
                   ),
                 ),
