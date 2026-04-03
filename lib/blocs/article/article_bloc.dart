@@ -69,7 +69,7 @@ class ArticleBloc extends Bloc<ArticleEvent, ArticleState> {
         emit(const ArticleError('Article not found'));
         return;
       }
-      await _repo.incrementViewCount(article.id, article.viewCount);
+      await _repo.incrementViewCount(article.id);
       emit(ArticleDetailLoaded(article));
     } catch (err) {
       emit(ArticleError(err.toString()));

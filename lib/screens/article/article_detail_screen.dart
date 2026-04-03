@@ -1,4 +1,4 @@
-import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -146,13 +146,17 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                   ),
                   BlocBuilder<AuthBloc, AuthState>(
                     builder: (ctx, authState) {
-                      if (authState is AuthAuthenticated &&
-                          authState.userId == article.authorId) {
-                        return IconButton(
-                          icon: const Icon(Icons.edit_outlined, size: 18),
-                          onPressed: () =>
-                              context.push('/articles/edit/${article.slug}'),
-                        );
+                      if (authState is AuthAuthenticated) {
+                        final isOwner = authState.userId == article.authorId;
+                        final isAdmin = authState.profile.isAdmin;
+                        final isEditor = authState.profile.isEditor;
+                        if (isOwner || isAdmin || isEditor) {
+                          return IconButton(
+                            icon: const Icon(Icons.edit_outlined, size: 18),
+                            onPressed: () =>
+                                context.push('/articles/edit/${article.slug}'),
+                          );
+                        }
                       }
                       return const SizedBox.shrink();
                     },

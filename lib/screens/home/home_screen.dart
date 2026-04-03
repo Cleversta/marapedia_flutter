@@ -22,7 +22,7 @@ const _border = Color(0xFFDDD4C0);
 const _ink = Color(0xFF1C1812);
 const _inkMid = Color(0xFF4A4035);
 const _inkLight = Color(0xFF8C7E6A);
-const _sage = Color(0xFF5A7A5C); // muted sage — replaces harsh green
+const _sage = Color(0xFF5A7A5C);
 const _sageBg = Color(0xFFEBF1EB);
 const _sageLight = Color(0xFFD4E4D4);
 
@@ -59,14 +59,12 @@ class _HomeScreenState extends State<HomeScreen>
     super.dispose();
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final state = context.read<ArticleBloc>().state;
-    if (state is! ArticleHomeLoaded) {
-      context.read<ArticleBloc>().add(ArticleHomeLoadRequested());
-    }
-  }
+  // ✅ REMOVED didChangeDependencies entirely.
+  //    The router's BlocProvider already fires ArticleHomeLoadRequested()
+  //    before this widget is built, so manually triggering it here would
+  //    cause a redundant reload and — more importantly — was previously
+  //    checking for ArticleHomeLoaded which would fail if another screen
+  //    had put a different state (e.g. ArticleMyListLoaded) on the bloc.
 
   @override
   Widget build(BuildContext context) {
@@ -122,11 +120,7 @@ class _HomeScreenState extends State<HomeScreen>
               onPressed: () => context.push('/articles/create'),
               backgroundColor: _sage,
               elevation: 2,
-              icon: const Icon(
-                Icons.edit_outlined,
-                color: Colors.white,
-                size: 18,
-              ),
+              icon: const Icon(Icons.edit_outlined, color: Colors.white, size: 18),
               label: Text(
                 'Contribute',
                 style: GoogleFonts.lora(
@@ -206,12 +200,8 @@ class _HomeScreenState extends State<HomeScreen>
             padding: const EdgeInsets.fromLTRB(24, 26, 24, 22),
             child: Column(
               children: [
-                // Eyebrow label
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 5,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                   decoration: BoxDecoration(
                     border: Border.all(color: _border),
                     borderRadius: BorderRadius.circular(20),
@@ -228,8 +218,6 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ),
                 const SizedBox(height: 14),
-
-                // Heading
                 Text(
                   'Preserving Mara\nHistory & Culture',
                   textAlign: TextAlign.center,
@@ -244,11 +232,9 @@ class _HomeScreenState extends State<HomeScreen>
                 Text(
                   'A community-built encyclopedia for the Mara people.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 13, color: _inkLight, height: 1.5),
+                  style: const TextStyle(fontSize: 13, color: _inkLight, height: 1.5),
                 ),
                 const SizedBox(height: 16),
-
-                // Language chips
                 Wrap(
                   spacing: 6,
                   runSpacing: 6,
@@ -278,8 +264,6 @@ class _HomeScreenState extends State<HomeScreen>
                       .toList(),
                 ),
                 const SizedBox(height: 18),
-
-                // Stats
                 Row(
                   children: [
                     Expanded(
@@ -364,7 +348,9 @@ class _HomeScreenState extends State<HomeScreen>
             child: Container(
               height: 1,
               decoration: BoxDecoration(
-                gradient: LinearGradient(colors: [_border, Colors.transparent]),
+                gradient: LinearGradient(
+                  colors: [_border, Colors.transparent],
+                ),
               ),
             ),
           ),
@@ -420,8 +406,9 @@ class _HomeScreenState extends State<HomeScreen>
                       child: CachedNetworkImage(
                         imageUrl: article.thumbnailUrl!,
                         fit: BoxFit.cover,
-                        placeholder: (_, _) => Container(color: _parchmentDk),
-                        errorWidget: (_, _, _) =>
+                        placeholder: (_, __) =>
+                            Container(color: _parchmentDk),
+                        errorWidget: (_, __, ___) =>
                             Container(color: _parchmentDk),
                       ),
                     ),
@@ -491,7 +478,6 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   ),
                 ),
-
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
                 child: Column(
@@ -670,11 +656,7 @@ class _PatternPainter extends CustomPainter {
 
     const spacing = 26.0;
     for (double i = -size.height; i < size.width + size.height; i += spacing) {
-      canvas.drawLine(
-        Offset(i, 0),
-        Offset(i + size.height, size.height),
-        paint,
-      );
+      canvas.drawLine(Offset(i, 0), Offset(i + size.height, size.height), paint);
     }
 
     final accentPaint = Paint()

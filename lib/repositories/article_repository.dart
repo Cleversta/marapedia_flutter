@@ -1,132 +1,82 @@
+// lib/repositories/article_repository.dart
+
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/article_model.dart';
 
-const _fields = '''
-  id, slug, category, article_type, status, featured, thumbnail_url,
-  view_count, created_at, updated_at, author_id,
-  profiles(id, username, avatar_url, role, created_at),
-  article_translations(id, article_id, language, title, excerpt, content)
-''';
+// ─── READ: goes through Vercel edge cache (free, fast) ───────────────────────
+const _base = 'https://marapedia.vercel.app/api';
 
+// ─── WRITE: goes direct to Supabase (writes can't be cached anyway) ──────────
 class ArticleRepository {
   final _db = Supabase.instance.client;
 
+  // ── READS (all cached by Vercel) ────────────────────────────────────────────
+
   Future<List<ArticleModel>> getRecentArticles({int limit = 10}) async {
-    final res = await _db
-        .from('articles')
-        .select(_fields)
-        .eq('status', 'published')
-        .order('updated_at', ascending: false)
-        .limit(limit);
-    return (res as List)
-        .map((j) => ArticleModel.fromJson(Map<String, dynamic>.from(j)))
-        .toList();
+    final res = await http.get(Uri.parse('$_base/articles?type=recent&limit=$limit'));
+    return _parseList(res.body);
   }
 
   Future<List<ArticleModel>> getMostViewed({int limit = 10}) async {
-    final res = await _db
-        .from('articles')
-        .select(_fields)
-        .eq('status', 'published')
-        .order('view_count', ascending: false)
-        .limit(limit);
-    return (res as List)
-        .map((j) => ArticleModel.fromJson(Map<String, dynamic>.from(j)))
-        .toList();
+    final res = await http.get(Uri.parse('$_base/articles?type=viewed&limit=$limit'));
+    return _parseList(res.body);
   }
 
   Future<ArticleModel?> getFeatured() async {
-    final res = await _db
-        .from('articles')
-        .select(_fields)
-        .eq('status', 'published')
-        .eq('featured', true)
-        .order('updated_at', ascending: false)
-        .limit(1)
-        .maybeSingle();
-    if (res == null) return null;
-    return ArticleModel.fromJson(Map<String, dynamic>.from(res));
-  }
-
-  Future<List<ArticleModel>> getByCategory(
-    String category, {
-    int limit = 30,
-  }) async {
-    final res = await _db
-        .from('articles')
-        .select(_fields)
-        .eq('status', 'published')
-        .eq('category', category)
-        .order('updated_at', ascending: false)
-        .limit(limit);
-    return (res as List)
-        .map((j) => ArticleModel.fromJson(Map<String, dynamic>.from(j)))
-        .toList();
+    final res = await http.get(Uri.parse('$_base/articles?type=featured'));
+    final list = _parseList(res.body);
+    return list.isEmpty ? null : list.first;
   }
 
   Future<ArticleModel?> getBySlug(String slug) async {
-    final res = await _db
-        .from('articles')
-        .select('$_fields, images(url, caption)')
-        .eq('slug', slug)
-        .maybeSingle();
-    if (res == null) return null;
-    return ArticleModel.fromJson(Map<String, dynamic>.from(res));
+    final res = await http.get(Uri.parse('$_base/articles/$slug'));
+    if (res.statusCode == 404) return null;
+    return ArticleModel.fromJson(jsonDecode(res.body));
+  }
+
+  Future<List<ArticleModel>> getByCategory(String category, {int limit = 30}) async {
+    final res = await http.get(Uri.parse('$_base/articles?category=$category&limit=$limit'));
+    return _parseList(res.body);
   }
 
   Future<List<ArticleModel>> search(String query) async {
-    final transRes = await _db
-        .from('article_translations')
-        .select('article_id')
-        .or('title.ilike.%$query%,content.ilike.%$query%');
-    if ((transRes as List).isEmpty) return [];
+    final res = await http.get(Uri.parse('$_base/articles/search?q=${Uri.encodeComponent(query)}'));
+    return _parseList(res.body);
+  }
 
-    final ids = (transRes as List)
-        .map((t) => t['article_id'] as String)
-        .toSet()
-        .toList();
+  Future<Map<String, int>> getStats() async {
+    final res = await http.get(Uri.parse('$_base/stats'));
+    final json = jsonDecode(res.body);
+    return {'articles': json['articles'], 'users': json['users']};
+  }
+
+  // ── WRITES (direct to Supabase — can't cache writes) ────────────────────────
+
+  Future<List<ArticleModel>> getMyArticles(String userId) async {
     final res = await _db
         .from('articles')
         .select(_fields)
-        .inFilter('id', ids)
-        .eq('status', 'published');
-    return (res as List)
-        .map((j) => ArticleModel.fromJson(Map<String, dynamic>.from(j)))
-        .toList();
+        .eq('author_id', userId)
+        .order('created_at', ascending: false);
+    return _fromSupabase(res);
   }
 
-Future<List<ArticleModel>> getMyArticles(String userId) async {
-  final res = await _db
-      .from('articles')
-      .select(_fields)   // ← change '$_fields, article_translations(*)' to just _fields
-      .eq('author_id', userId)
-      .order('created_at', ascending: false);
-  return (res as List)
-      .map((j) => ArticleModel.fromJson(Map<String, dynamic>.from(j)))
-      .toList();
-}
   Future<List<ArticleModel>> getAllArticles() async {
     final res = await _db
         .from('articles')
         .select(_fields)
         .order('created_at', ascending: false);
-    return (res as List)
-        .map((j) => ArticleModel.fromJson(Map<String, dynamic>.from(j)))
-        .toList();
+    return _fromSupabase(res);
   }
 
-  Future<Map<String, int>> getStats() async {
-    final articles = await _db
-        .from('articles')
-        .select('*')
-        .eq('status', 'published')
-        .count();
-    final users = await _db.from('profiles').select('*').count();
-    return {'articles': articles.count, 'users': users.count};
-  }
-
-  Future<void> incrementViewCount(String id, int current) async {
-    await _db.from('articles').update({'view_count': current + 1}).eq('id', id);
+Future<void> incrementViewCount(String id) async {
+  await http.post(
+    Uri.parse('https://marapedia.vercel.app/api/view'),  // ← fixed 
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'id': id}),
+    );
   }
 
   Future<ArticleModel> createArticle({
@@ -186,19 +136,32 @@ Future<List<ArticleModel>> getMyArticles(String userId) async {
   ) async {
     if (images.isEmpty) return;
     await _db.from('images').delete().eq('article_id', articleId);
-    await _db
-        .from('images')
-        .insert(
-          images
-              .map(
-                (img) => {
-                  'article_id': articleId,
-                  'url': img['url'],
-                  'caption': img['caption'],
-                  'uploaded_by': userId,
-                },
-              )
-              .toList(),
-        );
+    await _db.from('images').insert(
+      images.map((img) => {
+        'article_id': articleId,
+        'url': img['url'],
+        'caption': img['caption'],
+        'uploaded_by': userId,
+      }).toList(),
+    );
+  }
+
+  // ── Helpers ─────────────────────────────────────────────────────────────────
+
+  List<ArticleModel> _parseList(String body) {
+    final data = jsonDecode(body);
+    if (data is! List) return [];
+    return data.map((j) => ArticleModel.fromJson(Map<String, dynamic>.from(j))).toList();
+  }
+
+  List<ArticleModel> _fromSupabase(List<dynamic> res) {
+    return res.map((j) => ArticleModel.fromJson(Map<String, dynamic>.from(j))).toList();
   }
 }
+
+const _fields = '''
+  id, slug, category, article_type, status, featured, thumbnail_url,
+  view_count, created_at, updated_at, author_id,
+  profiles(id, username, avatar_url, role, created_at),
+  article_translations(id, article_id, language, title, excerpt, content)
+''';

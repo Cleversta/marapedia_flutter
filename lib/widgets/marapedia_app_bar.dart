@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../blocs/auth/auth_bloc.dart';
 import '../blocs/auth/auth_event.dart';
 import '../blocs/auth/auth_state.dart';
@@ -8,7 +9,6 @@ import '../utils/app_theme.dart';
 
 class MarapediaAppBar extends StatefulWidget implements PreferredSizeWidget {
   final bool showSearch;
-
   const MarapediaAppBar({super.key, this.showSearch = true});
 
   @override
@@ -45,7 +45,6 @@ class _MarapediaAppBarState extends State<MarapediaAppBar> {
       elevation: 0,
       scrolledUnderElevation: 1,
       shadowColor: Colors.black12,
-      // Use leadingWidth to give logo enough space
       leadingWidth: _searching ? 56 : 160,
       leading: _searching
           ? IconButton(
@@ -105,7 +104,7 @@ class _MarapediaAppBarState extends State<MarapediaAppBar> {
           ? TextField(
               controller: _ctrl,
               autofocus: true,
-              autofillHints: const [], // ← add this
+              autofillHints: const [],
               enableIMEPersonalizedLearning: false,
               decoration: const InputDecoration(
                 hintText: 'Search the encyclopedia...',
@@ -139,75 +138,54 @@ class _MarapediaAppBarState extends State<MarapediaAppBar> {
                   itemBuilder: (_) => [
                     const PopupMenuItem(
                       value: 'profile',
-                      child: Row(
-                        children: [
-                          Icon(Icons.person_outline, size: 18),
-                          SizedBox(width: 8),
-                          Text('My Profile'),
-                        ],
-                      ),
+                      child: Row(children: [
+                        Icon(Icons.person_outline, size: 18),
+                        SizedBox(width: 8),
+                        Text('My Profile'),
+                      ]),
                     ),
                     const PopupMenuItem(
                       value: 'articles',
-                      child: Row(
-                        children: [
-                          Icon(Icons.article_outlined, size: 18),
-                          SizedBox(width: 8),
-                          Text('My Articles'),
-                        ],
-                      ),
+                      child: Row(children: [
+                        Icon(Icons.article_outlined, size: 18),
+                        SizedBox(width: 8),
+                        Text('My Articles'),
+                      ]),
                     ),
                     if (state.profile.isEditor)
                       const PopupMenuItem(
                         value: 'editor',
-                        child: Row(
-                          children: [
-                            Icon(Icons.edit_outlined, size: 18),
-                            SizedBox(width: 8),
-                            Text('Editor Panel'),
-                          ],
-                        ),
+                        child: Row(children: [
+                          Icon(Icons.edit_outlined, size: 18),
+                          SizedBox(width: 8),
+                          Text('Editor Panel'),
+                        ]),
                       ),
                     if (state.profile.isAdmin)
                       const PopupMenuItem(
                         value: 'admin',
-                        child: Row(
-                          children: [
-                            Icon(Icons.admin_panel_settings_outlined, size: 18),
-                            SizedBox(width: 8),
-                            Text('Admin Panel'),
-                          ],
-                        ),
+                        child: Row(children: [
+                          Icon(Icons.admin_panel_settings_outlined, size: 18),
+                          SizedBox(width: 8),
+                          Text('Admin Panel'),
+                        ]),
                       ),
                     const PopupMenuDivider(),
                     PopupMenuItem(
                       value: 'logout',
-                      child: Row(
-                        children: [
-                          Icon(Icons.logout, size: 18, color: Colors.red[400]),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Sign out',
-                            style: TextStyle(color: Colors.red[400]),
-                          ),
-                        ],
-                      ),
+                      child: Row(children: [
+                        Icon(Icons.logout, size: 18, color: Colors.red[400]),
+                        const SizedBox(width: 8),
+                        Text('Sign out', style: TextStyle(color: Colors.red[400])),
+                      ]),
                     ),
                   ],
                   onSelected: (val) {
                     switch (val) {
-                      case 'profile':
-                        context.push('/profile');
-                        break;
-                      case 'articles':
-                        context.push('/my-articles');
-                        break;
-                      case 'editor':
-                        context.push('/editor');
-                        break;
-                      case 'admin':
-                        context.push('/admin');
-                        break;
+                      case 'profile': context.push('/profile'); break;
+                      case 'articles': context.push('/my-articles'); break;
+                      case 'editor': context.push('/editor'); break;
+                      case 'admin': context.push('/admin'); break;
                       case 'logout':
                         context.read<AuthBloc>().add(AuthLogoutRequested());
                         context.go('/');
@@ -216,7 +194,6 @@ class _MarapediaAppBarState extends State<MarapediaAppBar> {
                   },
                 );
               }
-              // Not logged in
               return Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -229,16 +206,10 @@ class _MarapediaAppBarState extends State<MarapediaAppBar> {
                     child: ElevatedButton(
                       onPressed: () => context.push('/register'),
                       style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         minimumSize: Size.zero,
                       ),
-                      child: const Text(
-                        'Register',
-                        style: TextStyle(fontSize: 13),
-                      ),
+                      child: const Text('Register', style: TextStyle(fontSize: 13)),
                     ),
                   ),
                 ],
@@ -253,13 +224,12 @@ class _MarapediaAppBarState extends State<MarapediaAppBar> {
 
   Widget _buildAvatar(AuthAuthenticated state) {
     final url = state.profile.avatarUrl;
-    // Safe check — treat empty string same as null
     if (url != null && url.isNotEmpty) {
       return CircleAvatar(
         radius: 16,
         backgroundColor: AppTheme.greenLight,
         backgroundImage: NetworkImage(url),
-        onBackgroundImageError: (_, _) {},
+        onBackgroundImageError: (_, __) {},
       );
     }
     return CircleAvatar(

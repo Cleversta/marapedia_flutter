@@ -21,18 +21,27 @@ import 'screens/admin/admin_screen.dart';
 final appRouter = GoRouter(
   initialLocation: '/',
   routes: [
-    GoRoute(path: '/', builder: (_, _) => const HomeScreen()),
-    GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
-    GoRoute(path: '/register', builder: (_, _) => const RegisterScreen()),
+    // ✅ Home gets its own isolated bloc — prevents state pollution from
+    //    profile/my-articles screens bleeding back on navigation
+    GoRoute(
+      path: '/',
+      builder: (_, __) => BlocProvider(
+        create: (_) => ArticleBloc(ArticleRepository())
+          ..add(ArticleHomeLoadRequested()),
+        child: const HomeScreen(),
+      ),
+    ),
+
+    GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
+    GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
 
     GoRoute(
       path: '/category/:name',
       builder: (_, state) {
         final category = state.pathParameters['name']!;
         return BlocProvider(
-          create: (_) =>
-              ArticleBloc(ArticleRepository())
-                ..add(ArticleCategoryLoadRequested(category)),
+          create: (_) => ArticleBloc(ArticleRepository())
+            ..add(ArticleCategoryLoadRequested(category)),
           child: CategoryScreen(category: category),
         );
       },
@@ -40,8 +49,9 @@ final appRouter = GoRouter(
 
     GoRoute(
       path: '/articles/create',
-      builder: (_, state) =>
-          CreateArticleScreen(category: state.uri.queryParameters['category']),
+      builder: (_, state) => CreateArticleScreen(
+        category: state.uri.queryParameters['category'],
+      ),
     ),
 
     GoRoute(
@@ -55,9 +65,8 @@ final appRouter = GoRouter(
       builder: (_, state) {
         final slug = state.pathParameters['slug']!;
         return BlocProvider(
-          create: (_) =>
-              ArticleBloc(ArticleRepository())
-                ..add(ArticleDetailLoadRequested(slug)),
+          create: (_) => ArticleBloc(ArticleRepository())
+            ..add(ArticleDetailLoadRequested(slug)),
           child: ArticleDetailScreen(slug: slug),
         );
       },
@@ -78,28 +87,33 @@ final appRouter = GoRouter(
       },
     ),
 
-    GoRoute(path: '/photos', builder: (_, _) => const PhotosScreen()),
+    GoRoute(path: '/photos', builder: (_, __) => const PhotosScreen()),
     GoRoute(
       path: '/photos/:id',
-      builder: (_, state) => AlbumDetailScreen(id: state.pathParameters['id']!),
+      builder: (_, state) =>
+          AlbumDetailScreen(id: state.pathParameters['id']!),
     ),
-    GoRoute(path: '/profile', builder: (_, _) => const ProfileScreen()),
-    GoRoute(path: '/my-articles', builder: (_, __) => const MyArticlesScreen()),
+
+    GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
+    GoRoute(
+      path: '/my-articles',
+      builder: (_, __) => const MyArticlesScreen(),
+    ),
 
     GoRoute(
       path: '/editor',
-      builder: (_, _) => BlocProvider(
-        create: (_) =>
-            ArticleBloc(ArticleRepository())..add(ArticleAllLoadRequested()),
+      builder: (_, __) => BlocProvider(
+        create: (_) => ArticleBloc(ArticleRepository())
+          ..add(ArticleAllLoadRequested()),
         child: const EditorScreen(),
       ),
     ),
 
     GoRoute(
       path: '/admin',
-      builder: (_, _) => BlocProvider(
-        create: (_) =>
-            ArticleBloc(ArticleRepository())..add(ArticleAllLoadRequested()),
+      builder: (_, __) => BlocProvider(
+        create: (_) => ArticleBloc(ArticleRepository())
+          ..add(ArticleAllLoadRequested()),
         child: const AdminScreen(),
       ),
     ),
