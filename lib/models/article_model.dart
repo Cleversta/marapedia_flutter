@@ -19,6 +19,7 @@ class ArticleModel {
   final int viewCount;
   final String? thumbnailUrl;
   final String? excerpt;
+  final String? sourceUrl;
   final String createdAt;
   final String? updatedAt;
   final String? authorId;
@@ -36,6 +37,7 @@ class ArticleModel {
     required this.viewCount,
     this.thumbnailUrl,
     this.excerpt,
+    this.sourceUrl,
     required this.createdAt,
     this.updatedAt,
     this.authorId,
@@ -70,6 +72,7 @@ class ArticleModel {
       viewCount: json['view_count'] ?? 0,
       thumbnailUrl: json['thumbnail_url'],
       excerpt: json['excerpt'],
+      sourceUrl: json['source_url'],
       createdAt: json['created_at'] ?? '',
       updatedAt: json['updated_at'],
       authorId: json['author_id'],
@@ -85,6 +88,7 @@ extension ArticleModelX on ArticleModel {
     'id': id, 'slug': slug, 'category': category, 'article_type': articleType,
     'status': status, 'featured': featured, 'view_count': viewCount,
     'thumbnail_url': thumbnailUrl, 'excerpt': excerpt,
+    'source_url': sourceUrl,
     'created_at': createdAt, 'updated_at': updatedAt, 'author_id': authorId,
     'profiles': profile?.toJson(),
     'article_translations': translations.map((t) => {

@@ -28,15 +28,15 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
   bool _saving = false;
   String _error = '';
 
-  // Title controllers per language
   final Map<String, TextEditingController> _titleCtrls = {};
-  // HTML content per language (songs + all rich/poem categories)
   final Map<String, String> _contentMap = {
     'mara': '',
     'english': '',
     'myanmar': '',
     'mizo': '',
   };
+
+  final TextEditingController _sourceUrlCtrl = TextEditingController();
 
   final List<File> _images = [];
   final List<String> _captions = [];
@@ -52,9 +52,8 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
 
   @override
   void dispose() {
-    for (final c in _titleCtrls.values) {
-      c.dispose();
-    }
+    for (final c in _titleCtrls.values) c.dispose();
+    _sourceUrlCtrl.dispose();
     super.dispose();
   }
 
@@ -124,6 +123,7 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
         authorId: authState.userId,
         thumbnailUrl: thumbnailUrl,
         articleType: _articleType.isEmpty ? null : _articleType,
+        sourceUrl: _sourceUrlCtrl.text.trim().isEmpty ? null : _sourceUrlCtrl.text.trim(),
       );
 
       // Insert images
@@ -221,7 +221,7 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
                       child: Text(_error, style: TextStyle(fontSize: 13, color: Colors.red[700])),
                     ),
 
-                  // ── Category ─────────────────────────────────────────────
+                  // ── Category ──────────────────────────────────────────────
                   _sectionTitle('Category'),
                   SizedBox(
                     height: 40,
@@ -235,7 +235,7 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
                     ),
                   ),
 
-                  // ── Article type ─────────────────────────────────────────
+                  // ── Article type ──────────────────────────────────────────
                   if (typeOptions.isNotEmpty) ...[
                     _sectionTitle('Type'),
                     Padding(
@@ -250,7 +250,7 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
                     ),
                   ],
 
-                  // ── Images ───────────────────────────────────────────────
+                  // ── Images ────────────────────────────────────────────────
                   _sectionTitle('Images'),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -263,7 +263,7 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
                             child: ListView.separated(
                               scrollDirection: Axis.horizontal,
                               itemCount: _images.length,
-                              separatorBuilder: (_, _) => const SizedBox(width: 8),
+                              separatorBuilder: (_, __) => const SizedBox(width: 8),
                               itemBuilder: (_, i) => Stack(
                                 children: [
                                   ClipRRect(
@@ -315,6 +315,49 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
                           ),
                         ),
                       ],
+                    ),
+                  ),
+
+                  // ── Source URL ────────────────────────────────────────────
+                  _sectionTitle('Source'),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: const Color(0xFFE5E7EB)),
+                        borderRadius: BorderRadius.circular(10),
+                        color: Colors.white,
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.link, size: 15, color: Color(0xFFD1D5DB)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              controller: _sourceUrlCtrl,
+                              keyboardType: TextInputType.url,
+                              style: const TextStyle(fontSize: 13, color: Color(0xFF4B5563)),
+                              decoration: const InputDecoration(
+                                hintText: 'Source / related link (optional)  e.g. https://...',
+                                hintStyle: TextStyle(fontSize: 13, color: Color(0xFFD1D5DB)),
+                                border: InputBorder.none,
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(vertical: 10),
+                              ),
+                            ),
+                          ),
+                          ValueListenableBuilder(
+                            valueListenable: _sourceUrlCtrl,
+                            builder: (_, __, ___) => _sourceUrlCtrl.text.isNotEmpty
+                                ? GestureDetector(
+                                    onTap: () => setState(() => _sourceUrlCtrl.clear()),
+                                    child: const Icon(Icons.close, size: 14, color: Color(0xFFD1D5DB)),
+                                  )
+                                : const SizedBox.shrink(),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
 

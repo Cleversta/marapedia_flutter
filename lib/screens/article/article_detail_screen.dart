@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -6,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../blocs/article/article_bloc.dart';
 import '../../blocs/article/article_state.dart';
 import '../../blocs/auth/auth_bloc.dart';
@@ -35,6 +35,13 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
       'Read "$title" on Marapedia\nhttps://marapedia.org/articles/$slug',
       subject: title,
     );
+  }
+
+  Future<void> _launchUrl(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri != null) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   @override
@@ -95,6 +102,12 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
       article.articleType,
     );
 
+    final sourceUrlDisplay = article.sourceUrl != null
+        ? article.sourceUrl!
+            .replaceAll(RegExp(r'^https?://'), '')
+            .replaceAll(RegExp(r'/$'), '')
+        : null;
+
     final allImages = [
       if (article.thumbnailUrl != null && article.thumbnailUrl!.isNotEmpty)
         ArticleImage(url: article.thumbnailUrl!),
@@ -110,7 +123,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
         children: [
           CustomScrollView(
             slivers: [
-              // App bar
+              // ── App bar ──────────────────────────────────────────────────
               SliverAppBar(
                 pinned: true,
                 backgroundColor: const Color(0xFFFAFAF8).withOpacity(0.92),
@@ -119,7 +132,6 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                   onPressed: () => context.pop(),
                 ),
                 actions: [
-                  // Share button in app bar
                   IconButton(
                     icon: const Icon(Icons.share_outlined, size: 18),
                     onPressed: () =>
@@ -170,21 +182,19 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Author row
+                      // ── Author row ────────────────────────────────────────
                       Row(
                         children: [
                           CircleAvatar(
                             radius: 14,
                             backgroundColor: AppTheme.greenLight,
-                            backgroundImage: (article.profile?.avatarUrl !=
-                                        null &&
+                            backgroundImage: (article.profile?.avatarUrl != null &&
                                     article.profile!.avatarUrl!.isNotEmpty)
                                 ? NetworkImage(article.profile!.avatarUrl!)
                                 : null,
                             child: article.profile?.avatarUrl == null
                                 ? Text(
-                                    (article.profile?.username ?? 'A')[0]
-                                        .toUpperCase(),
+                                    (article.profile?.username ?? 'A')[0].toUpperCase(),
                                     style: const TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold,
@@ -206,44 +216,20 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                                     color: Color(0xFF44403C),
                                   ),
                                 ),
+                                Text('·', style: TextStyle(color: Colors.grey[400], fontSize: 12)),
                                 Text(
-                                  '·',
-                                  style: TextStyle(
-                                    color: Colors.grey[400],
-                                    fontSize: 12,
-                                  ),
+                                  Helpers.formatDate(article.updatedAt ?? article.createdAt),
+                                  style: TextStyle(fontSize: 12, color: Colors.grey[400]),
                                 ),
-                                Text(
-                                  Helpers.formatDate(
-                                    article.updatedAt ?? article.createdAt,
-                                  ),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey[400],
-                                  ),
-                                ),
-                                Text(
-                                  '·',
-                                  style: TextStyle(
-                                    color: Colors.grey[400],
-                                    fontSize: 12,
-                                  ),
-                                ),
+                                Text('·', style: TextStyle(color: Colors.grey[400], fontSize: 12)),
                                 Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Icon(
-                                      Icons.remove_red_eye_outlined,
-                                      size: 11,
-                                      color: Colors.grey,
-                                    ),
+                                    const Icon(Icons.remove_red_eye_outlined, size: 11, color: Colors.grey),
                                     const SizedBox(width: 2),
                                     Text(
                                       '${article.viewCount}',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey[400],
-                                      ),
+                                      style: TextStyle(fontSize: 12, color: Colors.grey[400]),
                                     ),
                                   ],
                                 ),
@@ -254,7 +240,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                       ),
                       const SizedBox(height: 12),
 
-                      // Title
+                      // ── Title ─────────────────────────────────────────────
                       Text(
                         translation.title,
                         style: GoogleFonts.lora(
@@ -264,32 +250,68 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                           height: 1.25,
                         ),
                       ),
+                      const SizedBox(height: 10),
 
-                      // Type label
-                      if (typeLabel != null) ...[
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[100],
-                            border: Border.all(color: Colors.grey[200]!),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            typeLabel,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey[600],
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
+                      // ── Type label + Source URL row ───────────────────────
+                      if (typeLabel != null || article.sourceUrl != null)
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            if (typeLabel != null)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[100],
+                                  border: Border.all(color: Colors.grey[200]!),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  typeLabel,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey[600],
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            if (article.sourceUrl != null && article.sourceUrl!.isNotEmpty)
+                              GestureDetector(
+                                onTap: () => _launchUrl(article.sourceUrl!),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFEFF6FF),
+                                    border: Border.all(color: const Color(0xFFBFDBFE)),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.link, size: 13, color: Color(0xFF3B82F6)),
+                                      const SizedBox(width: 4),
+                                      ConstrainedBox(
+                                        constraints: const BoxConstraints(maxWidth: 180),
+                                        child: Text(
+                                          sourceUrlDisplay ?? '',
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            color: Color(0xFF2563EB),
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      const Icon(Icons.open_in_new, size: 11, color: Color(0xFF93C5FD)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
-                      ],
 
-                      // Image strip
+                      // ── Image strip ───────────────────────────────────────
                       if (allImages.isNotEmpty) ...[
                         const SizedBox(height: 12),
                         SizedBox(
@@ -297,8 +319,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
                             itemCount: allImages.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(width: 6),
+                            separatorBuilder: (_, __) => const SizedBox(width: 6),
                             itemBuilder: (_, i) => GestureDetector(
                               onTap: () => setState(() => _lightboxIndex = i),
                               child: Stack(
@@ -322,21 +343,14 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                                       top: 4,
                                       left: 4,
                                       child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 4,
-                                          vertical: 2,
-                                        ),
+                                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                                         decoration: BoxDecoration(
                                           color: Colors.black45,
-                                          borderRadius:
-                                              BorderRadius.circular(4),
+                                          borderRadius: BorderRadius.circular(4),
                                         ),
                                         child: const Text(
                                           'Cover',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 8,
-                                          ),
+                                          style: TextStyle(color: Colors.white, fontSize: 8),
                                         ),
                                       ),
                                     ),
@@ -351,7 +365,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                       const Divider(color: Color(0xFFE7E5E4)),
                       const SizedBox(height: 16),
 
-                      // Language switcher
+                      // ── Language switcher ─────────────────────────────────
                       if (availLangs.length > 1)
                         SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
@@ -359,20 +373,14 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                             children: availLangs.map((lang) {
                               final isActive = _currentLang == lang;
                               return GestureDetector(
-                                onTap: () =>
-                                    setState(() => _currentLang = lang),
+                                onTap: () => setState(() => _currentLang = lang),
                                 child: Container(
                                   margin: const EdgeInsets.only(right: 4),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 14,
-                                    vertical: 8,
-                                  ),
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                                   decoration: BoxDecoration(
                                     border: Border(
                                       bottom: BorderSide(
-                                        color: isActive
-                                            ? AppTheme.greenPrimary
-                                            : Colors.transparent,
+                                        color: isActive ? AppTheme.greenPrimary : Colors.transparent,
                                         width: 2,
                                       ),
                                     ),
@@ -382,9 +390,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                                     style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w500,
-                                      color: isActive
-                                          ? AppTheme.greenPrimary
-                                          : Colors.grey[400],
+                                      color: isActive ? AppTheme.greenPrimary : Colors.grey[400],
                                     ),
                                   ),
                                 ),
@@ -395,27 +401,20 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
 
                       const SizedBox(height: 20),
 
-                      // Content
-                      _buildContent(
-                        article,
-                        translation.content,
-                        translation.title,
-                      ),
+                      // ── Content ───────────────────────────────────────────
+                      _buildContent(article, translation.content, translation.title),
 
                       const SizedBox(height: 40),
                       const Divider(color: Color(0xFFE7E5E4)),
                       const SizedBox(height: 12),
 
-                      // Footer row
+                      // ── Footer ────────────────────────────────────────────
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
                             'Updated ${Helpers.timeAgo(article.updatedAt ?? article.createdAt)}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey[400],
-                            ),
+                            style: TextStyle(fontSize: 11, color: Colors.grey[400]),
                           ),
                           GestureDetector(
                             onTap: () => context.go('/'),
@@ -433,18 +432,16 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
 
                       const SizedBox(height: 12),
 
-                      // Share button — always shown
+                      // ── Share button ──────────────────────────────────────
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton.icon(
-                          onPressed: () =>
-                              _shareArticle(article.slug, translation.title),
+                          onPressed: () => _shareArticle(article.slug, translation.title),
                           icon: const Icon(Icons.share_outlined, size: 16),
                           label: const Text('Share Article'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppTheme.greenPrimary,
-                            side: const BorderSide(
-                                color: AppTheme.greenPrimary),
+                            side: const BorderSide(color: AppTheme.greenPrimary),
                             padding: const EdgeInsets.symmetric(vertical: 10),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
@@ -453,24 +450,18 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                         ),
                       ),
 
-                      // Share + Save row — only for songs
                       if (isSong) ...[
                         const SizedBox(height: 8),
                         SizedBox(
                           width: double.infinity,
                           child: OutlinedButton.icon(
-                            onPressed: () {
-                              // Trigger save from SongViewer via a key
-                              // SongViewer handles this internally via its button
-                              // This is just a hint — SongViewer already has the button
-                            },
+                            onPressed: () {},
                             icon: const Icon(Icons.download_outlined, size: 16),
                             label: const Text('Save Lyrics as Image'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: Colors.grey[700],
                               side: BorderSide(color: Colors.grey[300]!),
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 10),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
@@ -487,7 +478,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
             ],
           ),
 
-          // Lightbox
+          // ── Lightbox ────────────────────────────────────────────────────
           if (_lightboxIndex != null) _buildLightbox(allImages),
         ],
       ),
@@ -605,11 +596,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                       color: Colors.white.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
-                      Icons.close,
-                      color: Colors.white,
-                      size: 16,
-                    ),
+                    child: const Icon(Icons.close, color: Colors.white, size: 16),
                   ),
                   onPressed: () => setState(() => _lightboxIndex = null),
                 ),
@@ -628,13 +615,9 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                           color: Colors.white.withOpacity(0.1),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(
-                          Icons.chevron_left,
-                          color: Colors.white,
-                        ),
+                        child: const Icon(Icons.chevron_left, color: Colors.white),
                       ),
-                      onPressed: () => setState(
-                          () => _lightboxIndex = _lightboxIndex! - 1),
+                      onPressed: () => setState(() => _lightboxIndex = _lightboxIndex! - 1),
                     ),
                   ),
                 ),
@@ -652,13 +635,9 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                           color: Colors.white.withOpacity(0.1),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(
-                          Icons.chevron_right,
-                          color: Colors.white,
-                        ),
+                        child: const Icon(Icons.chevron_right, color: Colors.white),
                       ),
-                      onPressed: () => setState(
-                          () => _lightboxIndex = _lightboxIndex! + 1),
+                      onPressed: () => setState(() => _lightboxIndex = _lightboxIndex! + 1),
                     ),
                   ),
                 ),

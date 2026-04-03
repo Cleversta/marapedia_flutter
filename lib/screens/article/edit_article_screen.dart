@@ -14,7 +14,6 @@ import '../../utils/helpers.dart';
 import '../../widgets/song_editor.dart';
 import '../../widgets/rich_editor.dart';
 
-// ── Editor type detection (mirrors getEditorType() in Next.js EditArticlePage)
 enum _EditorType { rich, song, poem }
 
 _EditorType _editorType(String category) {
@@ -43,6 +42,7 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
 
   final Map<String, TextEditingController> _titleCtrls = {};
   final Map<String, String> _contentMap = {};
+  final TextEditingController _sourceUrlCtrl = TextEditingController();
 
   List<Map<String, dynamic>> _existingImages = [];
   final List<File> _newImages = [];
@@ -59,9 +59,8 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
 
   @override
   void dispose() {
-    for (final c in _titleCtrls.values) {
-      c.dispose();
-    }
+    for (final c in _titleCtrls.values) c.dispose();
+    _sourceUrlCtrl.dispose();
     super.dispose();
   }
 
@@ -77,6 +76,7 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
       _article = article;
       _articleType = article.articleType ?? '';
       _featured = article.featured;
+      _sourceUrlCtrl.text = article.sourceUrl ?? '';
       _existingImages = article.images
           .map((i) => {'url': i.url, 'caption': i.caption ?? ''})
           .toList();
@@ -115,6 +115,7 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
         'article_type': _articleType.isEmpty ? null : _articleType,
         'thumbnail_url': allImages.isNotEmpty ? allImages.first['url'] : null,
         'featured': _featured,
+        'source_url': _sourceUrlCtrl.text.trim().isEmpty ? null : _sourceUrlCtrl.text.trim(),
         'updated_at': DateTime.now().toIso8601String(),
       });
 
@@ -123,10 +124,8 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
       for (final lang in ['mara', 'english', 'myanmar', 'mizo']) {
         final title = _titleCtrls[lang]?.text.trim() ?? '';
         if (title.isEmpty) continue;
-
         final content = _contentMap[lang] ?? '';
         if (content.isEmpty) continue;
-
         await repo.upsertTranslation(
           articleId: _article!.id,
           language: lang,
@@ -243,7 +242,7 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
                 child: Text(_error, style: TextStyle(fontSize: 13, color: Colors.red[700])),
               ),
 
-            // ── Article type ─────────────────────────────────────────────
+            // ── Article type ──────────────────────────────────────────────
             if (typeOptions.isNotEmpty) ...[
               _sectionLabel('Type'),
               Padding(
@@ -279,7 +278,7 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
               ),
             ],
 
-            // ── Images ───────────────────────────────────────────────────
+            // ── Images ────────────────────────────────────────────────────
             _sectionLabel('Images'),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -375,7 +374,50 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
               ),
             ),
 
-            // ── Featured ─────────────────────────────────────────────────
+            // ── Source URL ────────────────────────────────────────────────
+            _sectionLabel('Source'),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                  borderRadius: BorderRadius.circular(10),
+                  color: Colors.white,
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                child: Row(
+                  children: [
+                    const Icon(Icons.link, size: 15, color: Color(0xFFD1D5DB)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: _sourceUrlCtrl,
+                        keyboardType: TextInputType.url,
+                        style: const TextStyle(fontSize: 13, color: Color(0xFF4B5563)),
+                        decoration: const InputDecoration(
+                          hintText: 'Source / related link (optional)  e.g. https://...',
+                          hintStyle: TextStyle(fontSize: 13, color: Color(0xFFD1D5DB)),
+                          border: InputBorder.none,
+                          isDense: true,
+                          contentPadding: EdgeInsets.symmetric(vertical: 10),
+                        ),
+                      ),
+                    ),
+                    ValueListenableBuilder(
+                      valueListenable: _sourceUrlCtrl,
+                      builder: (_, __, ___) => _sourceUrlCtrl.text.isNotEmpty
+                          ? GestureDetector(
+                              onTap: () => setState(() => _sourceUrlCtrl.clear()),
+                              child: const Icon(Icons.close, size: 14, color: Color(0xFFD1D5DB)),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // ── Featured ──────────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(

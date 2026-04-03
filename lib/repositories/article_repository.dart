@@ -1,18 +1,14 @@
-// lib/repositories/article_repository.dart
-
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/article_model.dart';
 
-// ─── READ: goes through Vercel edge cache (free, fast) ───────────────────────
 const _base = 'https://marapedia.vercel.app/api';
 
-// ─── WRITE: goes direct to Supabase (writes can't be cached anyway) ──────────
 class ArticleRepository {
   final _db = Supabase.instance.client;
 
-  // ── READS (all cached by Vercel) ────────────────────────────────────────────
+  // ── READS ────────────────────────────────────────────────────────────────────
 
   Future<List<ArticleModel>> getRecentArticles({int limit = 10}) async {
     final res = await http.get(Uri.parse('$_base/articles?type=recent&limit=$limit'));
@@ -52,7 +48,7 @@ class ArticleRepository {
     return {'articles': json['articles'], 'users': json['users']};
   }
 
-  // ── WRITES (direct to Supabase — can't cache writes) ────────────────────────
+  // ── WRITES ───────────────────────────────────────────────────────────────────
 
   Future<List<ArticleModel>> getMyArticles(String userId) async {
     final res = await _db
@@ -71,9 +67,9 @@ class ArticleRepository {
     return _fromSupabase(res);
   }
 
-Future<void> incrementViewCount(String id) async {
-  await http.post(
-    Uri.parse('https://marapedia.vercel.app/api/view'),  // ← fixed 
+  Future<void> incrementViewCount(String id) async {
+    await http.post(
+      Uri.parse('https://marapedia.vercel.app/api/view'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'id': id}),
     );
@@ -86,6 +82,7 @@ Future<void> incrementViewCount(String id) async {
     required String authorId,
     String? thumbnailUrl,
     String? articleType,
+    String? sourceUrl,
   }) async {
     final res = await _db
         .from('articles')
@@ -96,6 +93,7 @@ Future<void> incrementViewCount(String id) async {
           'author_id': authorId,
           'thumbnail_url': thumbnailUrl,
           'article_type': articleType,
+          'source_url': sourceUrl,
         })
         .select()
         .single();
@@ -146,7 +144,7 @@ Future<void> incrementViewCount(String id) async {
     );
   }
 
-  // ── Helpers ─────────────────────────────────────────────────────────────────
+  // ── Helpers ──────────────────────────────────────────────────────────────────
 
   List<ArticleModel> _parseList(String body) {
     final data = jsonDecode(body);
@@ -161,7 +159,7 @@ Future<void> incrementViewCount(String id) async {
 
 const _fields = '''
   id, slug, category, article_type, status, featured, thumbnail_url,
-  view_count, created_at, updated_at, author_id,
+  source_url, view_count, created_at, updated_at, author_id,
   profiles(id, username, avatar_url, role, created_at),
   article_translations(id, article_id, language, title, excerpt, content)
 ''';
