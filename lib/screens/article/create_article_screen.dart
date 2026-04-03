@@ -52,7 +52,9 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
 
   @override
   void dispose() {
-    for (final c in _titleCtrls.values) c.dispose();
+    for (final c in _titleCtrls.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -261,7 +263,7 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
                             child: ListView.separated(
                               scrollDirection: Axis.horizontal,
                               itemCount: _images.length,
-                              separatorBuilder: (_, __) => const SizedBox(width: 8),
+                              separatorBuilder: (_, _) => const SizedBox(width: 8),
                               itemBuilder: (_, i) => Stack(
                                 children: [
                                   ClipRRect(

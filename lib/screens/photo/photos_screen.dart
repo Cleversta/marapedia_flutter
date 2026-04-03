@@ -53,11 +53,12 @@ class _PhotosScreenState extends State<PhotosScreen> {
       ),
       body: BlocBuilder<PhotoBloc, PhotoState>(
         builder: (context, state) {
-          if (state is PhotoLoading)
+          if (state is PhotoLoading) {
             return const Center(child: CircularProgressIndicator());
+          }
 
           if (state is PhotoAllLoaded) {
-            if (state.albums.isEmpty)
+            if (state.albums.isEmpty) {
               return Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -95,6 +96,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
                   ],
                 ),
               );
+            }
 
             return RefreshIndicator(
               onRefresh: () async =>
@@ -386,7 +388,7 @@ class _UploadSheetState extends State<_UploadSheet> {
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
                             itemCount: _files.length,
-                            separatorBuilder: (_, __) =>
+                            separatorBuilder: (_, _) =>
                                 const SizedBox(width: 6),
                             itemBuilder: (_, i) => Stack(
                               children: [

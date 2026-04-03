@@ -22,7 +22,7 @@ class CategoryTabs extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         itemCount: AppConstants.categories.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 6),
+        separatorBuilder: (_, _) => const SizedBox(width: 6),
         itemBuilder: (context, i) {
           final cat = AppConstants.categories[i];
           final isSelected = selected == cat['value'];

@@ -246,7 +246,9 @@ class _SongEditorState extends State<SongEditor> {
   }
 
   void _teardown() {
-    for (final c in _ctrls.values) c.dispose();
+    for (final c in _ctrls.values) {
+      c.dispose();
+    }
     _ctrls.clear();
     _songNumberCtrl.dispose();
     _writerCtrl.dispose();

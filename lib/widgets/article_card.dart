@@ -56,8 +56,8 @@ class ArticleCard extends StatelessWidget {
                 child: CachedNetworkImage(
                   imageUrl: thumbUrl,
                   fit: BoxFit.cover,
-                  placeholder: (_, __) => Container(color: Colors.grey[100]),
-                  errorWidget: (_, __, ___) => Container(
+                  placeholder: (_, _) => Container(color: Colors.grey[100]),
+                  errorWidget: (_, _, _) => Container(
                     color: Colors.grey[100],
                     child: Center(
                       child: Text(
@@ -205,7 +205,7 @@ class _Avatar extends StatelessWidget {
             width: 16,
             height: 16,
             fit: BoxFit.cover,
-            errorWidget: (_, __, ___) => _initial(username),
+            errorWidget: (_, _, _) => _initial(username),
           ),
         ),
       );

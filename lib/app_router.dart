@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:marapedia_flutter/screens/profile/my_articles_screen.dart';
 import 'blocs/article/article_bloc.dart';
 import 'blocs/article/article_event.dart';
 import 'repositories/article_repository.dart';
@@ -20,9 +21,9 @@ import 'screens/admin/admin_screen.dart';
 final appRouter = GoRouter(
   initialLocation: '/',
   routes: [
-    GoRoute(path: '/', builder: (_, __) => const HomeScreen()),
-    GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
-    GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
+    GoRoute(path: '/', builder: (_, _) => const HomeScreen()),
+    GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
+    GoRoute(path: '/register', builder: (_, _) => const RegisterScreen()),
 
     GoRoute(
       path: '/category/:name',
@@ -77,17 +78,17 @@ final appRouter = GoRouter(
       },
     ),
 
-    GoRoute(path: '/photos', builder: (_, __) => const PhotosScreen()),
+    GoRoute(path: '/photos', builder: (_, _) => const PhotosScreen()),
     GoRoute(
       path: '/photos/:id',
       builder: (_, state) => AlbumDetailScreen(id: state.pathParameters['id']!),
     ),
-    GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
-    GoRoute(path: '/my-articles', builder: (_, __) => const ProfileScreen()),
+    GoRoute(path: '/profile', builder: (_, _) => const ProfileScreen()),
+    GoRoute(path: '/my-articles', builder: (_, __) => const MyArticlesScreen()),
 
     GoRoute(
       path: '/editor',
-      builder: (_, __) => BlocProvider(
+      builder: (_, _) => BlocProvider(
         create: (_) =>
             ArticleBloc(ArticleRepository())..add(ArticleAllLoadRequested()),
         child: const EditorScreen(),
@@ -96,7 +97,7 @@ final appRouter = GoRouter(
 
     GoRoute(
       path: '/admin',
-      builder: (_, __) => BlocProvider(
+      builder: (_, _) => BlocProvider(
         create: (_) =>
             ArticleBloc(ArticleRepository())..add(ArticleAllLoadRequested()),
         child: const AdminScreen(),

@@ -420,8 +420,8 @@ class _HomeScreenState extends State<HomeScreen>
                       child: CachedNetworkImage(
                         imageUrl: article.thumbnailUrl!,
                         fit: BoxFit.cover,
-                        placeholder: (_, __) => Container(color: _parchmentDk),
-                        errorWidget: (_, __, ___) =>
+                        placeholder: (_, _) => Container(color: _parchmentDk),
+                        errorWidget: (_, _, _) =>
                             Container(color: _parchmentDk),
                       ),
                     ),

@@ -104,8 +104,9 @@ class SongViewer extends StatelessWidget {
 
             // Trim trailing empty lines
             final trimmed = [...lines];
-            while (trimmed.isNotEmpty && trimmed.last.isEmpty)
+            while (trimmed.isNotEmpty && trimmed.last.isEmpty) {
               trimmed.removeLast();
+            }
 
             if (type == 'verse') {
               final numMatch = RegExp(

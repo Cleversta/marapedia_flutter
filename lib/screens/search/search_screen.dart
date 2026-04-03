@@ -60,11 +60,12 @@ class _SearchScreenState extends State<SearchScreen> {
       ),
       body: BlocBuilder<ArticleBloc, ArticleState>(
         builder: (context, state) {
-          if (state is ArticleLoading)
+          if (state is ArticleLoading) {
             return const Padding(
               padding: EdgeInsets.all(16),
               child: ShimmerList(),
             );
+          }
 
           if (state is ArticleSearchLoaded) {
             if (state.results.isEmpty) {

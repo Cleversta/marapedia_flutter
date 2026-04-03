@@ -30,16 +30,17 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
   /// If [state] is [PhotoLoading], shows a loading indicator.
   /// If [state] is [PhotoAlbumLoaded], shows the album detail.
   /// If [state] is neither of the above, shows a "not found" message.
-  /*******  6cdb3016-19f3-43ab-b528-2330bdb40f36  *******/
+  /// *****  6cdb3016-19f3-43ab-b528-2330bdb40f36  ******
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<PhotoBloc, PhotoState>(
       builder: (context, state) {
-        if (state is PhotoLoading)
+        if (state is PhotoLoading) {
           return Scaffold(
             appBar: AppBar(leading: BackButton(onPressed: () => context.pop())),
             body: const Center(child: CircularProgressIndicator()),
           );
+        }
 
         if (state is PhotoAlbumLoaded) return _buildAlbum(state.album);
 
@@ -135,7 +136,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
                                   width: double.infinity,
                                   height: double.infinity,
                                   fit: BoxFit.cover,
-                                  placeholder: (_, __) =>
+                                  placeholder: (_, _) =>
                                       Container(color: Colors.grey[200]),
                                 ),
                                 if (isFirst)

@@ -59,7 +59,9 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
 
   @override
   void dispose() {
-    for (final c in _titleCtrls.values) c.dispose();
+    for (final c in _titleCtrls.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -383,7 +385,7 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
                   Switch(
                     value: _featured,
                     onChanged: (v) => setState(() => _featured = v),
-                    activeColor: AppTheme.greenPrimary,
+                    activeThumbColor: AppTheme.greenPrimary,
                   ),
                 ],
               ),

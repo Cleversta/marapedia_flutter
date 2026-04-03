@@ -55,8 +55,8 @@ class AuthRepository {
 
   Future<ProfileModel?> updateProfile(String userId, {String? fullName, String? bio}) async {
     await _db.from('profiles').update({
-      if (fullName != null) 'full_name': fullName,
-      if (bio != null) 'bio': bio,
+      'full_name': ?fullName,
+      'bio': ?bio,
     }).eq('id', userId);
     return fetchProfile(userId);
   }

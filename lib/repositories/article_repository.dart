@@ -95,17 +95,16 @@ class ArticleRepository {
         .toList();
   }
 
-  Future<List<ArticleModel>> getMyArticles(String userId) async {
-    final res = await _db
-        .from('articles')
-        .select('$_fields, article_translations(*)')
-        .eq('author_id', userId)
-        .order('created_at', ascending: false);
-    return (res as List)
-        .map((j) => ArticleModel.fromJson(Map<String, dynamic>.from(j)))
-        .toList();
-  }
-
+Future<List<ArticleModel>> getMyArticles(String userId) async {
+  final res = await _db
+      .from('articles')
+      .select(_fields)   // ← change '$_fields, article_translations(*)' to just _fields
+      .eq('author_id', userId)
+      .order('created_at', ascending: false);
+  return (res as List)
+      .map((j) => ArticleModel.fromJson(Map<String, dynamic>.from(j)))
+      .toList();
+}
   Future<List<ArticleModel>> getAllArticles() async {
     final res = await _db
         .from('articles')

@@ -12,6 +12,8 @@ import '../../blocs/article/article_state.dart';
 import '../../blocs/photo/photo_bloc.dart';
 import '../../blocs/photo/photo_event.dart';
 import '../../blocs/photo/photo_state.dart';
+import '../../models/article_model.dart';
+import '../../models/article_translation_model.dart';
 import '../../models/profile_model.dart';
 import '../../services/upload_service.dart';
 import '../../utils/app_theme.dart';
@@ -69,10 +71,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
     } finally {
       if (mounted) setState(() => _avatarUploading = false);
     }
@@ -107,18 +110,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         final profile = authState.profile;
         return Scaffold(
-          appBar: AppBar(
-            title: const Text(
-              'My Profile',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-            ),
-            actions: [
-              IconButton(
-                icon: Icon(_editing ? Icons.close : Icons.edit_outlined),
-                onPressed: () => setState(() => _editing = !_editing),
-              ),
-            ],
-          ),
+appBar: AppBar(
+  leading: IconButton(
+    icon: const Icon(Icons.arrow_back),
+    onPressed: () => context.pop(),
+  ),
+  title: const Text(
+    'My Profile',
+    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+  ),
+  actions: [
+    IconButton(
+      icon: Icon(_editing ? Icons.close : Icons.edit_outlined),
+      onPressed: () => setState(() => _editing = !_editing),
+    ),
+  ],
+),
           body: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -286,7 +293,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     builder: (context, artState) {
                       final articles = artState is ArticleMyListLoaded
                           ? artState.articles
-                          : <dynamic>[];
+                          : <ArticleModel>[];
                       final published = articles
                           .where((a) => a.status == 'published')
                           .length;
@@ -414,17 +421,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
     ),
   );
 
-  Widget _buildArticlesTab() => BlocBuilder<ArticleBloc, ArticleState>(
+Widget _buildArticlesTab() => BlocBuilder<ArticleBloc, ArticleState>(
     builder: (context, state) {
-      if (state is ArticleLoading)
+      if (state is ArticleLoading) {
         return const Padding(
           padding: EdgeInsets.all(16),
           child: Center(child: CircularProgressIndicator()),
         );
+      }
+
       final articles = state is ArticleMyListLoaded
           ? state.articles
-          : <dynamic>[];
-      if (articles.isEmpty)
+          : <ArticleModel>[];
+
+      if (articles.isEmpty) {
         return Padding(
           padding: const EdgeInsets.all(24),
           child: Center(
@@ -445,14 +455,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
         );
+      }
 
       return Column(
         children: articles.map<Widget>((a) {
-          final t = a.translations.firstWhere(
-            (t) => t.language == 'english',
-            orElse: () =>
-                a.translations.isNotEmpty ? a.translations.first : null,
-          );
+          final ArticleTranslationModel? t = a.translations.isNotEmpty
+              ? a.translations.firstWhere(
+                  (t) => t.language == 'english',
+                  orElse: () => a.translations.first,
+                )
+              : null;
           final cat = Helpers.getCategoryInfo(a.category);
           return GestureDetector(
             onTap: () => context.push('/articles/${a.slug}'),
@@ -515,6 +527,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                   const SizedBox(width: 6),
+                  // Edit button
                   GestureDetector(
                     onTap: () => context.push('/articles/edit/${a.slug}'),
                     child: Container(
@@ -529,45 +542,97 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: const Text('Edit', style: TextStyle(fontSize: 11)),
                     ),
                   ),
+                  const SizedBox(width: 6),
+                  // Delete button
+                  GestureDetector(
+                    onTap: () => _confirmDelete(context, a.id, t?.title ?? a.slug),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.red[200]!),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'Delete',
+                        style: TextStyle(fontSize: 11, color: Colors.red[400]),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
           );
-        }).toList()..add(const SizedBox(height: 40)),
+        }).toList()
+          ..add(const SizedBox(height: 40)),
       );
     },
   );
-
-  Widget _buildPhotosTab(
-    ProfileModel profile,
-  ) => BlocBuilder<PhotoBloc, PhotoState>(
-    builder: (context, state) {
-      final albums = state is PhotoMyAlbumsLoaded ? state.albums : <dynamic>[];
-      if (albums.isEmpty)
-        return Padding(
-          padding: const EdgeInsets.all(24),
-          child: Center(
-            child: Column(
-              children: [
-                const Text('📷', style: TextStyle(fontSize: 40)),
-                const SizedBox(height: 8),
-                Text(
-                  "No photo albums yet.",
-                  style: TextStyle(color: Colors.grey[400]),
-                ),
-                const SizedBox(height: 12),
-                ElevatedButton(
-                  onPressed: () => context.push('/photos'),
-                  child: const Text('Upload Photos'),
-                ),
-              ],
-            ),
+  void _confirmDelete(BuildContext context, String id, String title) {
+  showDialog(
+    context: context,
+    builder: (_) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Text(
+        'Delete Article',
+        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+      ),
+      content: Text(
+        'Are you sure you want to delete "$title"? This cannot be undone.',
+        style: const TextStyle(fontSize: 13),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            Navigator.pop(context);
+            context.read<ArticleBloc>().add(ArticleDeleteRequested(id));
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red[400],
+            foregroundColor: Colors.white,
           ),
-        );
+          child: const Text('Delete'),
+        ),
+      ],
+    ),
+  );
+}
+  Widget _buildPhotosTab(ProfileModel profile) =>
+      BlocBuilder<PhotoBloc, PhotoState>(
+        builder: (context, state) {
+          final albums =
+              state is PhotoMyAlbumsLoaded ? state.albums : <dynamic>[];
+          if (albums.isEmpty) {
+            return Padding(
+              padding: const EdgeInsets.all(24),
+              child: Center(
+                child: Column(
+                  children: [
+                    const Text('📷', style: TextStyle(fontSize: 40)),
+                    const SizedBox(height: 8),
+                    Text(
+                      "No photo albums yet.",
+                      style: TextStyle(color: Colors.grey[400]),
+                    ),
+                    const SizedBox(height: 12),
+                    ElevatedButton(
+                      onPressed: () => context.push('/photos'),
+                      child: const Text('Upload Photos'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
 
-      return Column(
-        children:
-            albums
+          return Column(
+            children: albums
                 .map<Widget>(
                   (a) => GestureDetector(
                     onTap: () => context.push('/photos/${a.id}'),
@@ -630,7 +695,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 )
                 .toList()
               ..add(const SizedBox(height: 40)),
+          );
+        },
       );
-    },
-  );
 }

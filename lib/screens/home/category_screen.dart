@@ -32,7 +32,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
               child: ListView.builder(
                 padding: const EdgeInsets.all(16),
                 itemCount: 4,
-                itemBuilder: (_, __) => const Padding(
+                itemBuilder: (_, _) => const Padding(
                   padding: EdgeInsets.only(bottom: 12),
                   child: ShimmerCard(),
                 ),

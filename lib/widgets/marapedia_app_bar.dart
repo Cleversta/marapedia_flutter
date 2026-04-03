@@ -259,7 +259,7 @@ class _MarapediaAppBarState extends State<MarapediaAppBar> {
         radius: 16,
         backgroundColor: AppTheme.greenLight,
         backgroundImage: NetworkImage(url),
-        onBackgroundImageError: (_, __) {},
+        onBackgroundImageError: (_, _) {},
       );
     }
     return CircleAvatar(

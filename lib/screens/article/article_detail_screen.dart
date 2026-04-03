@@ -276,7 +276,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
                             itemCount: allImages.length,
-                            separatorBuilder: (_, __) =>
+                            separatorBuilder: (_, _) =>
                                 const SizedBox(width: 6),
                             itemBuilder: (_, i) => GestureDetector(
                               onTap: () => setState(() => _lightboxIndex = i),
@@ -289,7 +289,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                                       width: 88,
                                       height: 64,
                                       fit: BoxFit.cover,
-                                      placeholder: (_, __) => Container(
+                                      placeholder: (_, _) => Container(
                                         width: 88,
                                         height: 64,
                                         color: Colors.grey[200],
