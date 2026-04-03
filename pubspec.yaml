@@ -48,6 +48,7 @@ dependencies:
   shimmer: ^3.0.0
   equatable: ^2.0.8
   collection: ^1.19.1
+  flutter_quill: ^11.5.0
 
 dev_dependencies:
   flutter_test:

@@ -12,6 +12,7 @@ import '../../utils/app_theme.dart';
 import '../../utils/constants.dart';
 import '../../utils/helpers.dart';
 import '../../widgets/song_editor.dart';
+import '../../widgets/rich_editor.dart';
 
 class CreateArticleScreen extends StatefulWidget {
   final String? category;
@@ -27,13 +28,16 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
   bool _saving = false;
   String _error = '';
 
-  final Map<String, Map<String, TextEditingController>> _ctrls = {};
-  final Map<String, String> _songContent = {
+  // Title controllers per language
+  final Map<String, TextEditingController> _titleCtrls = {};
+  // HTML content per language (songs + all rich/poem categories)
+  final Map<String, String> _contentMap = {
     'mara': '',
     'english': '',
     'myanmar': '',
     'mizo': '',
   };
+
   final List<File> _images = [];
   final List<String> _captions = [];
 
@@ -42,30 +46,19 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
     super.initState();
     _category = widget.category ?? 'history';
     for (final lang in ['mara', 'english', 'myanmar', 'mizo']) {
-      _ctrls[lang] = {
-        'title': TextEditingController(),
-        'content': TextEditingController(),
-      };
+      _titleCtrls[lang] = TextEditingController();
     }
   }
 
   @override
   void dispose() {
-    for (final m in _ctrls.values) {
-      m['title']?.dispose();
-      m['content']?.dispose();
-    }
+    for (final c in _titleCtrls.values) c.dispose();
     super.dispose();
   }
 
-  bool _hasContent(String lang) {
-    if (_category == 'songs') {
-      return (_ctrls[lang]?['title']?.text.trim().isNotEmpty ?? false) ||
-          (_songContent[lang]?.isNotEmpty ?? false);
-    }
-    return (_ctrls[lang]?['title']?.text.trim().isNotEmpty ?? false) ||
-        (_ctrls[lang]?['content']?.text.trim().isNotEmpty ?? false);
-  }
+  bool _hasContent(String lang) =>
+      (_titleCtrls[lang]?.text.trim().isNotEmpty ?? false) ||
+      (_contentMap[lang]?.isNotEmpty ?? false);
 
   Future<void> _pickImages() async {
     final picker = ImagePicker();
@@ -85,22 +78,14 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
     final authState = context.read<AuthBloc>().state;
     if (authState is! AuthAuthenticated) return;
 
-    final filledLangs = ['mara', 'english', 'myanmar', 'mizo']
-        .where((l) {
-          final hasTitle =
-              _ctrls[l]?['title']?.text.trim().isNotEmpty ?? false;
-          final hasContent = _category == 'songs'
-              ? (_songContent[l]?.isNotEmpty ?? false)
-              : (_ctrls[l]?['content']?.text.trim().isNotEmpty ?? false);
-          return hasTitle && hasContent;
-        })
-        .toList();
+    final filledLangs = ['mara', 'english', 'myanmar', 'mizo'].where((l) {
+      final hasTitle = _titleCtrls[l]?.text.trim().isNotEmpty ?? false;
+      final hasContent = _contentMap[l]?.isNotEmpty ?? false;
+      return hasTitle && hasContent;
+    }).toList();
 
     if (filledLangs.isEmpty) {
-      setState(
-        () => _error =
-            'Please write at least one language version with title and content.',
-      );
+      setState(() => _error = 'Please write at least one language version with title and content.');
       return;
     }
 
@@ -110,12 +95,11 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
     });
 
     try {
-      final baseTitle =
-          _ctrls['english']?['title']?.text.trim().isNotEmpty == true
-          ? _ctrls['english']!['title']!.text.trim()
-          : _ctrls[filledLangs.first]!['title']!.text.trim();
+      final baseTitle = _titleCtrls['english']?.text.trim().isNotEmpty == true
+          ? _titleCtrls['english']!.text.trim()
+          : _titleCtrls[filledLangs.first]!.text.trim();
 
-      String slug = slugify(baseTitle);
+      final slug = slugify(baseTitle);
       final repo = ArticleRepository();
 
       // Upload images
@@ -147,13 +131,11 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
 
       // Insert translations
       for (final lang in filledLangs) {
-        final content = _category == 'songs'
-            ? _songContent[lang]!
-            : _ctrls[lang]!['content']!.text;
+        final content = _contentMap[lang]!;
         await repo.upsertTranslation(
           articleId: article.id,
           language: lang,
-          title: _ctrls[lang]!['title']!.text.trim(),
+          title: _titleCtrls[lang]!.text.trim(),
           content: content,
           excerpt: Helpers.makeExcerpt(content),
           updatedBy: authState.userId,
@@ -179,10 +161,7 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'New Article',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-        ),
+        title: const Text('New Article', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, size: 16),
           onPressed: () => context.pop(),
@@ -191,21 +170,14 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
           if (_saving)
             const Padding(
               padding: EdgeInsets.all(12),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
+              child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
             )
           else
             TextButton(
               onPressed: () => _save(canPublish ? 'published' : 'draft'),
               child: Text(
                 canPublish ? 'Publish' : 'Submit',
-                style: const TextStyle(
-                  color: AppTheme.greenPrimary,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: const TextStyle(color: AppTheme.greenPrimary, fontWeight: FontWeight.w700),
               ),
             ),
         ],
@@ -244,13 +216,10 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: Colors.red[200]!),
                       ),
-                      child: Text(
-                        _error,
-                        style: TextStyle(fontSize: 13, color: Colors.red[700]),
-                      ),
+                      child: Text(_error, style: TextStyle(fontSize: 13, color: Colors.red[700])),
                     ),
 
-                  // Category selector
+                  // ── Category ─────────────────────────────────────────────
                   _sectionTitle('Category'),
                   SizedBox(
                     height: 40,
@@ -259,17 +228,12 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       children: AppConstants.categories
                           .where((c) => c['value'] != 'photos')
-                          .map(
-                            (c) => _categoryChip(
-                              c['value']!,
-                              '${c['icon']} ${c['label']!}',
-                            ),
-                          )
+                          .map((c) => _categoryChip(c['value']!, '${c['icon']} ${c['label']!}'))
                           .toList(),
                     ),
                   ),
 
-                  // Article type
+                  // ── Article type ─────────────────────────────────────────
                   if (typeOptions.isNotEmpty) ...[
                     _sectionTitle('Type'),
                     Padding(
@@ -284,7 +248,7 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
                     ),
                   ],
 
-                  // Images
+                  // ── Images ───────────────────────────────────────────────
                   _sectionTitle('Images'),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -297,42 +261,24 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
                             child: ListView.separated(
                               scrollDirection: Axis.horizontal,
                               itemCount: _images.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(width: 8),
+                              separatorBuilder: (_, __) => const SizedBox(width: 8),
                               itemBuilder: (_, i) => Stack(
                                 children: [
                                   ClipRRect(
                                     borderRadius: BorderRadius.circular(8),
-                                    child: Image.file(
-                                      _images[i],
-                                      width: 72,
-                                      height: 72,
-                                      fit: BoxFit.cover,
-                                    ),
+                                    child: Image.file(_images[i], width: 72, height: 72, fit: BoxFit.cover),
                                   ),
                                   if (i == 0)
                                     Positioned(
                                       top: 2,
                                       left: 2,
                                       child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 4,
-                                          vertical: 2,
-                                        ),
+                                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                                         decoration: BoxDecoration(
                                           color: AppTheme.greenPrimary,
-                                          borderRadius: BorderRadius.circular(
-                                            4,
-                                          ),
+                                          borderRadius: BorderRadius.circular(4),
                                         ),
-                                        child: const Text(
-                                          'C',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 8,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
+                                        child: const Text('C', style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
                                       ),
                                     ),
                                   Positioned(
@@ -346,15 +292,8 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
                                       child: Container(
                                         width: 18,
                                         height: 18,
-                                        decoration: const BoxDecoration(
-                                          color: Colors.red,
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: const Icon(
-                                          Icons.close,
-                                          size: 10,
-                                          color: Colors.white,
-                                        ),
+                                        decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                                        child: const Icon(Icons.close, size: 10, color: Colors.white),
                                       ),
                                     ),
                                   ),
@@ -365,42 +304,26 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
                         const SizedBox(height: 8),
                         OutlinedButton.icon(
                           onPressed: _pickImages,
-                          icon: const Icon(
-                            Icons.add_photo_alternate_outlined,
-                            size: 16,
-                          ),
-                          label: Text(
-                            _images.isEmpty
-                                ? 'Add Images'
-                                : '${_images.length} images · Add more',
-                          ),
+                          icon: const Icon(Icons.add_photo_alternate_outlined, size: 16),
+                          label: Text(_images.isEmpty ? 'Add Images' : '${_images.length} images · Add more'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppTheme.greenPrimary,
-                            side: const BorderSide(
-                              color: AppTheme.greenPrimary,
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
+                            side: const BorderSide(color: AppTheme.greenPrimary),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           ),
                         ),
                       ],
                     ),
                   ),
 
-                  // Language tabs
+                  // ── Language tabs ─────────────────────────────────────────
                   _sectionTitle('Content'),
                   Container(
                     decoration: const BoxDecoration(
-                      border: Border(
-                        bottom: BorderSide(color: Color(0xFFE5E7EB)),
-                      ),
+                      border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB))),
                     ),
                     child: Row(
-                      children: ['mara', 'english', 'myanmar', 'mizo'].map((
-                        lang,
-                      ) {
+                      children: ['mara', 'english', 'myanmar', 'mizo'].map((lang) {
                         final isActive = _currentLang == lang;
                         final hasCont = _hasContent(lang);
                         return Expanded(
@@ -411,9 +334,7 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
                               decoration: BoxDecoration(
                                 border: Border(
                                   bottom: BorderSide(
-                                    color: isActive
-                                        ? AppTheme.greenPrimary
-                                        : Colors.transparent,
+                                    color: isActive ? AppTheme.greenPrimary : Colors.transparent,
                                     width: 2,
                                   ),
                                 ),
@@ -426,9 +347,7 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
                                     height: 6,
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
-                                      color: hasCont
-                                          ? AppTheme.greenPrimary
-                                          : Colors.grey[300],
+                                      color: hasCont ? AppTheme.greenPrimary : Colors.grey[300],
                                     ),
                                   ),
                                   const SizedBox(width: 4),
@@ -436,12 +355,8 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
                                     AppConstants.languageLabels[lang] ?? lang,
                                     style: TextStyle(
                                       fontSize: 12,
-                                      fontWeight: isActive
-                                          ? FontWeight.w600
-                                          : FontWeight.w400,
-                                      color: isActive
-                                          ? AppTheme.greenPrimary
-                                          : Colors.grey[500],
+                                      fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                                      color: isActive ? AppTheme.greenPrimary : Colors.grey[500],
                                     ),
                                   ),
                                 ],
@@ -453,15 +368,12 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
                     ),
                   ),
 
-                  // Title
+                  // ── Title ─────────────────────────────────────────────────
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                     child: TextField(
-                      controller: _ctrls[_currentLang]!['title'],
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      controller: _titleCtrls[_currentLang],
+                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
                       decoration: const InputDecoration(
                         hintText: 'Article title...',
                         border: InputBorder.none,
@@ -470,39 +382,32 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
                       ),
                     ),
                   ),
-
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16),
                     child: Divider(),
                   ),
 
-                  // Content — dispatches to SongEditor or plain TextField
+                  // ── Content editor ────────────────────────────────────────
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                     child: _category == 'songs'
                         ? SongEditor(
-                            key: ValueKey(_currentLang),
-                            content: _songContent[_currentLang]!,
+                            key: ValueKey('song_$_currentLang'),
+                            content: _contentMap[_currentLang]!,
                             language: _currentLang,
-                            onChange: (val) => setState(
-                              () => _songContent[_currentLang] = val,
-                            ),
+                            onChange: (val) => setState(() => _contentMap[_currentLang] = val),
                           )
-                        : TextField(
-                            controller: _ctrls[_currentLang]!['content'],
-                            maxLines: null,
-                            minLines: 15,
-                            style: const TextStyle(fontSize: 15, height: 1.8),
-                            decoration: const InputDecoration(
-                              hintText: 'Write your content here...',
-                              border: InputBorder.none,
-                              filled: false,
-                              contentPadding: EdgeInsets.zero,
-                            ),
+                        : RichEditorWidget(
+                            key: ValueKey('rich_${_category}_$_currentLang'),
+                            content: _contentMap[_currentLang]!,
+                            onChange: (html) => setState(() => _contentMap[_currentLang] = html),
+                            placeholder: _category == 'poems'
+                                ? 'Write poem here...'
+                                : 'Write your content here...',
                           ),
                   ),
 
-                  // Bottom buttons
+                  // ── Bottom buttons ────────────────────────────────────────
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 24, 16, 40),
                     child: Row(
@@ -519,16 +424,11 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: _saving
-                                ? null
-                                : () =>
-                                      _save(canPublish ? 'published' : 'draft'),
+                            onPressed: _saving ? null : () => _save(canPublish ? 'published' : 'draft'),
                             style: ElevatedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
-                            child: Text(
-                              canPublish ? 'Publish' : 'Submit for Review',
-                            ),
+                            child: Text(canPublish ? 'Publish' : 'Submit for Review'),
                           ),
                         ),
                       ],
@@ -547,12 +447,7 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
     padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
     child: Text(
       title,
-      style: const TextStyle(
-        fontSize: 12,
-        fontWeight: FontWeight.w700,
-        color: Colors.grey,
-        letterSpacing: 0.5,
-      ),
+      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.grey, letterSpacing: 0.5),
     ),
   );
 
