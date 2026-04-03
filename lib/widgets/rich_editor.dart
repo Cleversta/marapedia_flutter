@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_quill_delta_from_html/flutter_quill_delta_from_html.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Delta → HTML  (lightweight, no extra package)
-// ─────────────────────────────────────────────────────────────────────────────
 class _DeltaToHtml {
   static String convert(Document doc) {
     final ops = doc.toDelta().toJson() as List<dynamic>;
@@ -60,7 +57,8 @@ class _DeltaToHtml {
       if (op is! Map) continue;
       final insert = op['insert'];
       if (insert is! String) continue;
-      final attrs = (op['attributes'] as Map?)?.cast<String, dynamic>() ?? {};
+      final attrs =
+          (op['attributes'] as Map?)?.cast<String, dynamic>() ?? {};
       if (insert == '\n') {
         if (attrs.isNotEmpty) lineAttrs = attrs;
         flushLine();
@@ -95,33 +93,17 @@ class _DeltaToHtml {
       .replaceAll('>', '&gt;');
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Design tokens
-// ─────────────────────────────────────────────────────────────────────────────
 abstract class _EditorTheme {
-  static const Color surface       = Color(0xFFFFFFFF);
-  static const Color toolbarBg     = Color(0xFFFAFAFA);
-  static const Color border        = Color(0xFFE8E8E8);
+  static const Color surface = Color(0xFFFFFFFF);
+  static const Color toolbarBg = Color(0xFFFAFAFA);
+  static const Color border = Color(0xFFE8E8E8);
   static const Color borderFocused = Color(0xFF1A1A1A);
-  static const Color divider       = Color(0xFFEEEEEE);
-  static const Color inkPrimary    = Color(0xFF1A1A1A);
-  static const Color inkMuted      = Color(0xFF8A8A8A);
-  static const double radius       = 10.0;
+  static const Color divider = Color(0xFFEEEEEE);
+  static const Color inkPrimary = Color(0xFF1A1A1A);
+  static const Color inkMuted = Color(0xFF8A8A8A);
+  static const double radius = 10.0;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// RichEditorWidget — flutter_quill ^11.5.0
-//
-// pubspec.yaml:
-//   flutter_quill: ^11.5.0
-//   flutter_quill_delta_from_html: ^2.0.0
-//
-// MaterialApp.localizationsDelegates:
-//   FlutterQuillLocalizations.delegate,
-//   GlobalMaterialLocalizations.delegate,
-//   GlobalCupertinoLocalizations.delegate,
-//   GlobalWidgetsLocalizations.delegate,
-// ─────────────────────────────────────────────────────────────────────────────
 class RichEditorWidget extends StatefulWidget {
   final String content;
   final ValueChanged<String> onChange;
@@ -146,7 +128,6 @@ class _RichEditorWidgetState extends State<RichEditorWidget>
   final FocusNode _focusNode = FocusNode();
   bool _suppressCallback = false;
   bool _focused = false;
-  int _charCount = 0;
 
   late final AnimationController _borderAnim;
   late final Animation<double> _borderProgress;
@@ -154,7 +135,6 @@ class _RichEditorWidgetState extends State<RichEditorWidget>
   @override
   void initState() {
     super.initState();
-
     _borderAnim = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 180),
@@ -163,14 +143,11 @@ class _RichEditorWidgetState extends State<RichEditorWidget>
       parent: _borderAnim,
       curve: Curves.easeOut,
     );
-
     _controller = QuillController(
       document: _fromHtml(widget.content),
       selection: const TextSelection.collapsed(offset: 0),
     );
-    _charCount = _controller.document.toPlainText().trim().length;
     _controller.addListener(_onChanged);
-
     _focusNode.addListener(() {
       setState(() => _focused = _focusNode.hasFocus);
       _focused ? _borderAnim.forward() : _borderAnim.reverse();
@@ -199,9 +176,7 @@ class _RichEditorWidgetState extends State<RichEditorWidget>
 
   void _onChanged() {
     if (_suppressCallback) return;
-    setState(() {
-      _charCount = _controller.document.toPlainText().trim().length;
-    });
+    // ← no setState here — fixes delete repeat on Android
     widget.onChange(_DeltaToHtml.convert(_controller.document));
   }
 
@@ -214,10 +189,6 @@ class _RichEditorWidgetState extends State<RichEditorWidget>
     super.dispose();
   }
 
-  // ── v11 toolbar config ───────────────────────────────────────────────────
-  // QuillIconTheme in v11 uses iconButtonUnselectedData / iconButtonSelectedData
-  // (type IconButtonData with a ButtonStyle). The old color-based properties
-  // were removed in the v9→v10 breaking change.
   QuillSimpleToolbarConfig get _toolbarConfig => QuillSimpleToolbarConfig(
         multiRowsDisplay: false,
         buttonOptions: QuillSimpleToolbarButtonOptions(
@@ -272,7 +243,6 @@ class _RichEditorWidgetState extends State<RichEditorWidget>
         showFontSize: false,
       );
 
-  // ── Typography ───────────────────────────────────────────────────────────
   DefaultStyles _buildEditorStyles() {
     const baseText = TextStyle(
       fontSize: 15,
@@ -386,7 +356,8 @@ class _RichEditorWidgetState extends State<RichEditorWidget>
             return Container(
               decoration: BoxDecoration(
                 color: _EditorTheme.surface,
-                borderRadius: BorderRadius.circular(_EditorTheme.radius),
+                borderRadius:
+                    BorderRadius.circular(_EditorTheme.radius),
                 border: Border.all(color: borderColor, width: 1.5),
                 boxShadow: _focused
                     ? [
@@ -402,7 +373,8 @@ class _RichEditorWidgetState extends State<RichEditorWidget>
             );
           },
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(_EditorTheme.radius - 1),
+            borderRadius:
+                BorderRadius.circular(_EditorTheme.radius - 1),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -432,12 +404,15 @@ class _RichEditorWidgetState extends State<RichEditorWidget>
             ),
             Padding(
               padding: const EdgeInsets.only(right: 10),
-              child: Text(
-                '$_charCount',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: _EditorTheme.inkMuted,
-                  fontFeatures: const [FontFeature.tabularFigures()],
+              child: ListenableBuilder(
+                listenable: _controller,
+                builder: (_, __) => Text(
+                  '${_controller.document.toPlainText().trim().length}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: _EditorTheme.inkMuted,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
                 ),
               ),
             ),
@@ -452,7 +427,6 @@ class _RichEditorWidgetState extends State<RichEditorWidget>
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Animated left accent bar
               AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 curve: Curves.easeOut,
@@ -514,14 +488,21 @@ class _RichEditorWidgetState extends State<RichEditorWidget>
               child: Text(_focused ? 'Editing' : 'Click to edit'),
             ),
             const Spacer(),
-            Text(
-              '$_charCount char${_charCount == 1 ? '' : 's'}',
-              style: const TextStyle(
-                fontSize: 10.5,
-                color: _EditorTheme.inkMuted,
-                letterSpacing: 0.3,
-                fontFeatures: [FontFeature.tabularFigures()],
-              ),
+            ListenableBuilder(
+              listenable: _controller,
+              builder: (_, __) {
+                final count =
+                    _controller.document.toPlainText().trim().length;
+                return Text(
+                  '$count char${count == 1 ? '' : 's'}',
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    color: _EditorTheme.inkMuted,
+                    letterSpacing: 0.3,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                );
+              },
             ),
           ],
         ),
