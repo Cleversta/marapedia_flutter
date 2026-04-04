@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../utils/constants.dart';
-import '../utils/app_theme.dart';
 
 class CategoryTabs extends StatelessWidget {
   final String? selected;
@@ -15,40 +14,45 @@ class CategoryTabs extends StatelessWidget {
       height: 40,
       decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border(bottom: BorderSide(color: Color(0xFFF3F4F6))),
+        border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB), width: 1)),
       ),
       child: ListView.separated(
         controller: scrollController,
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
         itemCount: AppConstants.categories.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 6),
+        separatorBuilder: (_, __) => const SizedBox(width: 6),
         itemBuilder: (context, i) {
           final cat = AppConstants.categories[i];
           final isSelected = selected == cat['value'];
           return GestureDetector(
             onTap: () => onTap(cat['value']!),
-            child: Container(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
               alignment: Alignment.center,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: isSelected ? AppTheme.greenPrimary : Colors.white,
+                color: isSelected ? const Color(0xFF15803D) : Colors.white,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: isSelected ? AppTheme.greenPrimary : const Color(0xFFE5E7EB),
+                  color: isSelected ? const Color(0xFF166534) : const Color(0xFF9CA3AF),
+                  width: isSelected ? 2 : 1.5,
                 ),
+                boxShadow: isSelected
+                    ? [BoxShadow(color: const Color(0xFF14532D).withOpacity(0.25), blurRadius: 6, offset: const Offset(0, 2))]
+                    : null,
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(cat['icon']!, style: const TextStyle(fontSize: 12)),
+                  Text(cat['icon']!, style: const TextStyle(fontSize: 11)),
                   const SizedBox(width: 4),
                   Text(
                     cat['label']!,
                     style: TextStyle(
                       fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: isSelected ? Colors.white : const Color(0xFF6B7280),
+                      fontWeight: FontWeight.w700,
+                      color: isSelected ? Colors.white : const Color(0xFF334155),
                     ),
                   ),
                 ],

@@ -574,21 +574,23 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildArticleList(BuildContext context, List<ArticleModel> articles) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        children: articles
-            .map(
-              (a) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: ArticleCard(article: a),
-              ),
-            )
-            .toList(),
+Widget _buildArticleList(BuildContext context, List<ArticleModel> articles) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    child: GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        childAspectRatio: 0.78,
       ),
-    );
-  }
+      itemCount: articles.length,
+      itemBuilder: (_, i) => ArticleCard(article: articles[i]),
+    ),
+  );
+}
 
   Widget _buildError(BuildContext context, String message) {
     return Center(

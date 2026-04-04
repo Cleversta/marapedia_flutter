@@ -60,23 +60,12 @@ class _MarapediaAppBarState extends State<MarapediaAppBar> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
+                    // ── Logo image ──
+                    Image.asset(
+                      'assets/logo.png',
                       width: 32,
                       height: 32,
-                      decoration: BoxDecoration(
-                        color: AppTheme.greenBg,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Center(
-                        child: Text(
-                          'M',
-                          style: TextStyle(
-                            color: AppTheme.greenPrimary,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 18,
-                          ),
-                        ),
-                      ),
+                      fit: BoxFit.contain,
                     ),
                     const SizedBox(width: 6),
                     RichText(
