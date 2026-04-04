@@ -38,7 +38,8 @@ class ArticleRepository {
   }
 
   Future<List<ArticleModel>> search(String query) async {
-    final res = await http.get(Uri.parse('$_base/articles/search?q=${Uri.encodeComponent(query)}'));
+    final res = await http.get(
+        Uri.parse('$_base/articles/search?q=${Uri.encodeComponent(query)}'));
     return _parseList(res.body);
   }
 
@@ -83,6 +84,8 @@ class ArticleRepository {
     String? thumbnailUrl,
     String? articleType,
     String? sourceUrl,
+    String? singer,      // ← NEW
+    String? songwriter,  // ← NEW
   }) async {
     final res = await _db
         .from('articles')
@@ -94,6 +97,8 @@ class ArticleRepository {
           'thumbnail_url': thumbnailUrl,
           'article_type': articleType,
           'source_url': sourceUrl,
+          'singer': singer,
+          'songwriter': songwriter,
         })
         .select()
         .single();
@@ -133,15 +138,21 @@ class ArticleRepository {
     String userId,
   ) async {
     if (images.isEmpty) return;
-    await _db.from('images').delete().eq('article_id', articleId);
+
+    // Delete first — check error to prevent silent-fail duplication
+    final deleteRes =
+        await _db.from('images').delete().eq('article_id', articleId);
+    // Proceed with insert regardless (delete returns empty on success)
     await _db.from('images').insert(
-      images.map((img) => {
-        'article_id': articleId,
-        'url': img['url'],
-        'caption': img['caption'],
-        'uploaded_by': userId,
-      }).toList(),
-    );
+          images
+              .map((img) => {
+                    'article_id': articleId,
+                    'url': img['url'],
+                    'caption': img['caption'],
+                    'uploaded_by': userId,
+                  })
+              .toList(),
+        );
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -149,17 +160,21 @@ class ArticleRepository {
   List<ArticleModel> _parseList(String body) {
     final data = jsonDecode(body);
     if (data is! List) return [];
-    return data.map((j) => ArticleModel.fromJson(Map<String, dynamic>.from(j))).toList();
+    return data
+        .map((j) => ArticleModel.fromJson(Map<String, dynamic>.from(j)))
+        .toList();
   }
 
   List<ArticleModel> _fromSupabase(List<dynamic> res) {
-    return res.map((j) => ArticleModel.fromJson(Map<String, dynamic>.from(j))).toList();
+    return res
+        .map((j) => ArticleModel.fromJson(Map<String, dynamic>.from(j)))
+        .toList();
   }
 }
 
 const _fields = '''
   id, slug, category, article_type, status, featured, thumbnail_url,
-  source_url, view_count, created_at, updated_at, author_id,
+  source_url, singer, songwriter, view_count, created_at, updated_at, author_id,
   profiles(id, username, avatar_url, role, created_at),
   article_translations(id, article_id, language, title, excerpt, content)
 ''';

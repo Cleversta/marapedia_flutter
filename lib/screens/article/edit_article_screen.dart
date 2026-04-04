@@ -43,9 +43,13 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
   final Map<String, TextEditingController> _titleCtrls = {};
   final Map<String, String> _contentMap = {};
   final TextEditingController _sourceUrlCtrl = TextEditingController();
+  final TextEditingController _singerCtrl = TextEditingController();     // ← NEW
+  final TextEditingController _songwriterCtrl = TextEditingController(); // ← NEW
 
   List<Map<String, dynamic>> _existingImages = [];
   final List<File> _newImages = [];
+
+  bool get _isSong => _article?.category == 'songs';
 
   @override
   void initState() {
@@ -61,6 +65,8 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
   void dispose() {
     for (final c in _titleCtrls.values) c.dispose();
     _sourceUrlCtrl.dispose();
+    _singerCtrl.dispose();
+    _songwriterCtrl.dispose();
     super.dispose();
   }
 
@@ -77,6 +83,8 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
       _articleType = article.articleType ?? '';
       _featured = article.featured;
       _sourceUrlCtrl.text = article.sourceUrl ?? '';
+      _singerCtrl.text = article.singer ?? '';         // ← NEW
+      _songwriterCtrl.text = article.songwriter ?? ''; // ← NEW
       _existingImages = article.images
           .map((i) => {'url': i.url, 'caption': i.caption ?? ''})
           .toList();
@@ -113,9 +121,19 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
 
       await repo.updateArticle(_article!.id, {
         'article_type': _articleType.isEmpty ? null : _articleType,
-        'thumbnail_url': allImages.isNotEmpty ? allImages.first['url'] : null,
+        'thumbnail_url':
+            allImages.isNotEmpty ? allImages.first['url'] : null,
         'featured': _featured,
-        'source_url': _sourceUrlCtrl.text.trim().isEmpty ? null : _sourceUrlCtrl.text.trim(),
+        'source_url': _sourceUrlCtrl.text.trim().isEmpty
+            ? null
+            : _sourceUrlCtrl.text.trim(),
+        // ← NEW: save singer/songwriter (only meaningful for songs)
+        'singer': _isSong && _singerCtrl.text.trim().isNotEmpty
+            ? _singerCtrl.text.trim()
+            : null,
+        'songwriter': _isSong && _songwriterCtrl.text.trim().isNotEmpty
+            ? _songwriterCtrl.text.trim()
+            : null,
         'updated_at': DateTime.now().toIso8601String(),
       });
 
@@ -154,16 +172,19 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+          body: Center(child: CircularProgressIndicator()));
     }
     if (_article == null) {
       return Scaffold(
-        appBar: AppBar(leading: BackButton(onPressed: () => context.pop())),
+        appBar:
+            AppBar(leading: BackButton(onPressed: () => context.pop())),
         body: const Center(child: Text('Article not found')),
       );
     }
 
-    final typeOptions = AppConstants.articleTypes[_article!.category] ?? [];
+    final typeOptions =
+        AppConstants.articleTypes[_article!.category] ?? [];
     final edType = _editorType(_article!.category);
 
     return Scaffold(
@@ -173,7 +194,8 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, size: 16, color: Color(0xFF1A1A2E)),
+          icon: const Icon(Icons.arrow_back_ios,
+              size: 16, color: Color(0xFF1A1A2E)),
           onPressed: () => context.pop(),
         ),
         title: Text(
@@ -187,7 +209,8 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(height: 1, color: const Color(0xFFE8E8EC)),
+          child: Container(
+              height: 1, color: const Color(0xFFE8E8EC)),
         ),
         actions: [
           if (_success.isNotEmpty)
@@ -219,9 +242,8 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
               child: const Text(
                 'Save',
                 style: TextStyle(
-                  color: AppTheme.greenPrimary,
-                  fontWeight: FontWeight.w700,
-                ),
+                    color: AppTheme.greenPrimary,
+                    fontWeight: FontWeight.w700),
               ),
             ),
         ],
@@ -239,27 +261,36 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: Colors.red[200]!),
                 ),
-                child: Text(_error, style: TextStyle(fontSize: 13, color: Colors.red[700])),
+                child: Text(_error,
+                    style: TextStyle(
+                        fontSize: 13, color: Colors.red[700])),
               ),
 
             // ── Article type ──────────────────────────────────────────────
             if (typeOptions.isNotEmpty) ...[
               _sectionLabel('Type'),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16),
                 child: Wrap(
                   spacing: 6,
                   runSpacing: 6,
                   children: typeOptions.map((t) {
                     final isActive = _articleType == t['value'];
                     return GestureDetector(
-                      onTap: () => setState(() => _articleType = isActive ? '' : t['value']!),
+                      onTap: () => setState(() =>
+                          _articleType = isActive ? '' : t['value']!),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
-                          color: isActive ? AppTheme.greenPrimary : Colors.white,
+                          color: isActive
+                              ? AppTheme.greenPrimary
+                              : Colors.white,
                           border: Border.all(
-                            color: isActive ? AppTheme.greenPrimary : const Color(0xFFE5E7EB),
+                            color: isActive
+                                ? AppTheme.greenPrimary
+                                : const Color(0xFFE5E7EB),
                           ),
                           borderRadius: BorderRadius.circular(20),
                         ),
@@ -268,7 +299,9 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w500,
-                            color: isActive ? Colors.white : Colors.grey[600],
+                            color: isActive
+                                ? Colors.white
+                                : Colors.grey[600],
                           ),
                         ),
                       ),
@@ -278,81 +311,162 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
               ),
             ],
 
+            // ── Singer / Songwriter (songs only) ─────────────────────────
+            if (_isSong) ...[
+              _sectionLabel('Song Info'),
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  children: [
+                    _textField(
+                      controller: _singerCtrl,
+                      hint: 'Singer / Artist name',
+                      icon: Icons.mic_outlined,
+                    ),
+                    const SizedBox(height: 8),
+                    _textField(
+                      controller: _songwriterCtrl,
+                      hint: 'Songwriter / Composer (optional)',
+                      icon: Icons.edit_note_outlined,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             // ── Images ────────────────────────────────────────────────────
             _sectionLabel('Images'),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (_existingImages.isNotEmpty || _newImages.isNotEmpty)
+                  if (_existingImages.isNotEmpty ||
+                      _newImages.isNotEmpty)
                     SizedBox(
                       height: 80,
                       child: ListView(
                         scrollDirection: Axis.horizontal,
                         children: [
-                          ..._existingImages.asMap().entries.map((e) => Padding(
-                            padding: const EdgeInsets.only(right: 6),
-                            child: Stack(
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Image.network(
-                                    e.value['url'],
-                                    width: 72,
-                                    height: 72,
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                                Positioned(
-                                  top: 2,
-                                  right: 2,
-                                  child: GestureDetector(
-                                    onTap: () => setState(() => _existingImages.removeAt(e.key)),
-                                    child: Container(
-                                      width: 18,
-                                      height: 18,
-                                      decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                                      child: const Icon(Icons.close, size: 10, color: Colors.white),
+                          ..._existingImages.asMap().entries.map(
+                                (e) => Padding(
+                              padding:
+                                  const EdgeInsets.only(right: 6),
+                              child: Stack(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius:
+                                        BorderRadius.circular(8),
+                                    child: Image.network(
+                                      e.value['url'],
+                                      width: 72,
+                                      height: 72,
+                                      fit: BoxFit.cover,
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          )),
-                          ..._newImages.asMap().entries.map((e) => Padding(
-                            padding: const EdgeInsets.only(right: 6),
-                            child: Stack(
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Image.file(e.value, width: 72, height: 72, fit: BoxFit.cover),
-                                ),
-                                Positioned(
-                                  top: 2,
-                                  right: 2,
-                                  child: GestureDetector(
-                                    onTap: () => setState(() => _newImages.removeAt(e.key)),
-                                    child: Container(
-                                      width: 18,
-                                      height: 18,
-                                      decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                                      child: const Icon(Icons.close, size: 10, color: Colors.white),
+                                  if (e.key == 0)
+                                    Positioned(
+                                      top: 2,
+                                      left: 2,
+                                      child: Container(
+                                        padding: const EdgeInsets
+                                            .symmetric(
+                                            horizontal: 4,
+                                            vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.greenPrimary,
+                                          borderRadius:
+                                              BorderRadius.circular(
+                                                  4),
+                                        ),
+                                        child: const Text('C',
+                                            style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 8,
+                                                fontWeight:
+                                                    FontWeight.bold)),
+                                      ),
+                                    ),
+                                  Positioned(
+                                    top: 2,
+                                    right: 2,
+                                    child: GestureDetector(
+                                      onTap: () => setState(() =>
+                                          _existingImages
+                                              .removeAt(e.key)),
+                                      child: Container(
+                                        width: 18,
+                                        height: 18,
+                                        decoration:
+                                            const BoxDecoration(
+                                                color: Colors.red,
+                                                shape:
+                                                    BoxShape.circle),
+                                        child: const Icon(Icons.close,
+                                            size: 10,
+                                            color: Colors.white),
+                                      ),
                                     ),
                                   ),
-                                ),
-                                Positioned(
-                                  top: 2,
-                                  left: 2,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                    color: Colors.orange,
-                                    child: const Text('New', style: TextStyle(color: Colors.white, fontSize: 8)),
-                                  ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          )),
+                              ),
+                          ..._newImages.asMap().entries.map(
+                                (e) => Padding(
+                              padding:
+                                  const EdgeInsets.only(right: 6),
+                              child: Stack(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius:
+                                        BorderRadius.circular(8),
+                                    child: Image.file(e.value,
+                                        width: 72,
+                                        height: 72,
+                                        fit: BoxFit.cover),
+                                  ),
+                                  Positioned(
+                                    top: 2,
+                                    right: 2,
+                                    child: GestureDetector(
+                                      onTap: () => setState(() =>
+                                          _newImages.removeAt(e.key)),
+                                      child: Container(
+                                        width: 18,
+                                        height: 18,
+                                        decoration:
+                                            const BoxDecoration(
+                                                color: Colors.red,
+                                                shape:
+                                                    BoxShape.circle),
+                                        child: const Icon(Icons.close,
+                                            size: 10,
+                                            color: Colors.white),
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    top: 2,
+                                    left: 2,
+                                    child: Container(
+                                      padding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 4,
+                                              vertical: 2),
+                                      color: Colors.orange,
+                                      child: const Text('New',
+                                          style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 8)),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                              ),
                         ],
                       ),
                     ),
@@ -361,13 +475,17 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
                     onPressed: () async {
                       final picker = ImagePicker();
                       final picked = await picker.pickMultiImage();
-                      setState(() => _newImages.addAll(picked.map((x) => File(x.path))));
+                      setState(() => _newImages.addAll(
+                          picked.map((x) => File(x.path))));
                     },
-                    icon: const Icon(Icons.add_photo_alternate_outlined, size: 16),
+                    icon: const Icon(
+                        Icons.add_photo_alternate_outlined,
+                        size: 16),
                     label: const Text('Add Images'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppTheme.greenPrimary,
-                      side: const BorderSide(color: AppTheme.greenPrimary),
+                      side: const BorderSide(
+                          color: AppTheme.greenPrimary),
                     ),
                   ),
                 ],
@@ -377,56 +495,32 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
             // ── Source URL ────────────────────────────────────────────────
             _sectionLabel('Source'),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Container(
-                decoration: BoxDecoration(
-                  border: Border.all(color: const Color(0xFFE5E7EB)),
-                  borderRadius: BorderRadius.circular(10),
-                  color: Colors.white,
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                child: Row(
-                  children: [
-                    const Icon(Icons.link, size: 15, color: Color(0xFFD1D5DB)),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        controller: _sourceUrlCtrl,
-                        keyboardType: TextInputType.url,
-                        style: const TextStyle(fontSize: 13, color: Color(0xFF4B5563)),
-                        decoration: const InputDecoration(
-                          hintText: 'Source / related link (optional)  e.g. https://...',
-                          hintStyle: TextStyle(fontSize: 13, color: Color(0xFFD1D5DB)),
-                          border: InputBorder.none,
-                          isDense: true,
-                          contentPadding: EdgeInsets.symmetric(vertical: 10),
-                        ),
-                      ),
-                    ),
-                    ValueListenableBuilder(
-                      valueListenable: _sourceUrlCtrl,
-                      builder: (_, __, ___) => _sourceUrlCtrl.text.isNotEmpty
-                          ? GestureDetector(
-                              onTap: () => setState(() => _sourceUrlCtrl.clear()),
-                              child: const Icon(Icons.close, size: 14, color: Color(0xFFD1D5DB)),
-                            )
-                          : const SizedBox.shrink(),
-                    ),
-                  ],
-                ),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16),
+              child: _textField(
+                controller: _sourceUrlCtrl,
+                hint: 'Source / related link (optional)  e.g. https://...',
+                icon: Icons.link,
+                keyboardType: TextInputType.url,
+                showClear: true,
               ),
             ),
 
             // ── Featured ──────────────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 8),
               child: Row(
                 children: [
-                  const Text('Featured article', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                  const Text('Featured article',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500)),
                   const Spacer(),
                   Switch(
                     value: _featured,
-                    onChanged: (v) => setState(() => _featured = v),
+                    onChanged: (v) =>
+                        setState(() => _featured = v),
                     activeThumbColor: AppTheme.greenPrimary,
                   ),
                 ],
@@ -442,9 +536,12 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
               child: TextField(
                 controller: _titleCtrls[_currentLang],
-                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+                style: const TextStyle(
+                    fontSize: 22, fontWeight: FontWeight.w700),
                 decoration: InputDecoration(
-                  hintText: edType == _EditorType.song ? 'Song title...' : 'Article title...',
+                  hintText: edType == _EditorType.song
+                      ? 'Song title...'
+                      : 'Article title...',
                   border: InputBorder.none,
                   filled: false,
                   contentPadding: EdgeInsets.zero,
@@ -480,14 +577,16 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
           key: ValueKey('song_$_currentLang'),
           content: _contentMap[_currentLang] ?? '',
           language: _currentLang,
-          onChange: (html) => setState(() => _contentMap[_currentLang] = html),
+          onChange: (html) =>
+              setState(() => _contentMap[_currentLang] = html),
         );
       case _EditorType.poem:
       case _EditorType.rich:
         return RichEditorWidget(
           key: ValueKey('rich_${type.name}_$_currentLang'),
           content: _contentMap[_currentLang] ?? '',
-          onChange: (html) => setState(() => _contentMap[_currentLang] = html),
+          onChange: (html) =>
+              setState(() => _contentMap[_currentLang] = html),
           placeholder: type == _EditorType.poem
               ? 'Write poem here...'
               : 'Write your content here...',
@@ -495,109 +594,113 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
     }
   }
 
-  Widget _langTabs() => Container(
-    decoration: const BoxDecoration(
-      border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB))),
-    ),
-    child: Row(
-      children: ['mara', 'english', 'myanmar', 'mizo'].map((lang) {
-        final isActive = _currentLang == lang;
-        return Expanded(
-          child: GestureDetector(
-            onTap: () => setState(() => _currentLang = lang),
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(
-                    color: isActive ? AppTheme.greenPrimary : Colors.transparent,
-                    width: 2,
-                  ),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _hasContent(lang) ? AppTheme.greenPrimary : Colors.grey[300],
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    AppConstants.languageLabels[lang] ?? lang,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                      color: isActive ? AppTheme.greenPrimary : Colors.grey[500],
-                    ),
-                  ),
-                ],
+  // ── Shared text field widget ─────────────────────────────────────────────────
+  Widget _textField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    TextInputType keyboardType = TextInputType.text,
+    bool showClear = false,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        borderRadius: BorderRadius.circular(10),
+        color: Colors.white,
+      ),
+      padding:
+          const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 15, color: const Color(0xFFD1D5DB)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              keyboardType: keyboardType,
+              style: const TextStyle(
+                  fontSize: 13, color: Color(0xFF4B5563)),
+              decoration: InputDecoration(
+                hintText: hint,
+                hintStyle: const TextStyle(
+                    fontSize: 13, color: Color(0xFFD1D5DB)),
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding:
+                    const EdgeInsets.symmetric(vertical: 10),
               ),
             ),
           ),
-        );
-      }).toList(),
-    ),
-  );
+          if (showClear)
+            ValueListenableBuilder(
+              valueListenable: controller,
+              builder: (_, __, ___) => controller.text.isNotEmpty
+                  ? GestureDetector(
+                      onTap: () =>
+                          setState(() => controller.clear()),
+                      child: const Icon(Icons.close,
+                          size: 14,
+                          color: Color(0xFFD1D5DB)),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+        ],
+      ),
+    );
+  }
 
-  Widget _langCompletion() => Container(
-    margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: const Color(0xFFF9FAFB),
-      border: Border.all(color: const Color(0xFFE5E7EB)),
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'LANGUAGE COMPLETION',
-          style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFF9CA3AF), letterSpacing: 1.5),
+  Widget _langTabs() => Container(
+        decoration: const BoxDecoration(
+          border: Border(
+              bottom: BorderSide(color: Color(0xFFE5E7EB))),
         ),
-        const SizedBox(height: 8),
-        Row(
-          children: ['mara', 'english', 'myanmar', 'mizo'].map((lang) {
-            final done = _hasContent(lang);
+        child: Row(
+          children: ['mara', 'english', 'myanmar', 'mizo']
+              .map((lang) {
             final isActive = _currentLang == lang;
             return Expanded(
               child: GestureDetector(
-                onTap: () => setState(() => _currentLang = lang),
+                onTap: () =>
+                    setState(() => _currentLang = lang),
                 child: Container(
-                  margin: EdgeInsets.only(right: lang == 'mizo' ? 0 : 8),
-                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 10),
                   decoration: BoxDecoration(
-                    color: done ? const Color(0xFFF0FDF4) : Colors.white,
-                    border: Border.all(
-                      color: isActive
-                          ? AppTheme.greenPrimary
-                          : done
-                          ? const Color(0xFFBBF7D0)
-                          : const Color(0xFFE5E7EB),
-                      width: isActive ? 1.5 : 1,
+                    border: Border(
+                      bottom: BorderSide(
+                        color: isActive
+                            ? AppTheme.greenPrimary
+                            : Colors.transparent,
+                        width: 2,
+                      ),
                     ),
-                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Column(
+                  child: Row(
+                    mainAxisAlignment:
+                        MainAxisAlignment.center,
                     children: [
-                      Text(
-                        AppConstants.languageLabels[lang] ?? lang,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: done ? AppTheme.greenDark : Colors.grey[500],
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _hasContent(lang)
+                              ? AppTheme.greenPrimary
+                              : Colors.grey[300],
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(width: 4),
                       Text(
-                        done ? '✓ Done' : 'Empty',
+                        AppConstants.languageLabels[lang] ??
+                            lang,
                         style: TextStyle(
-                          fontSize: 9,
-                          color: done ? AppTheme.greenPrimary : Colors.grey[400],
+                          fontSize: 11,
+                          fontWeight: isActive
+                              ? FontWeight.w600
+                              : FontWeight.w400,
+                          color: isActive
+                              ? AppTheme.greenPrimary
+                              : Colors.grey[500],
                         ),
                       ),
                     ],
@@ -607,15 +710,100 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
             );
           }).toList(),
         ),
-      ],
-    ),
-  );
+      );
+
+  Widget _langCompletion() => Container(
+        margin:
+            const EdgeInsets.fromLTRB(16, 16, 16, 0),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF9FAFB),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'LANGUAGE COMPLETION',
+              style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF9CA3AF),
+                  letterSpacing: 1.5),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: ['mara', 'english', 'myanmar', 'mizo']
+                  .map((lang) {
+                final done = _hasContent(lang);
+                final isActive = _currentLang == lang;
+                return Expanded(
+                  child: GestureDetector(
+                    onTap: () =>
+                        setState(() => _currentLang = lang),
+                    child: Container(
+                      margin: EdgeInsets.only(
+                          right: lang == 'mizo' ? 0 : 8),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 8),
+                      decoration: BoxDecoration(
+                        color: done
+                            ? const Color(0xFFF0FDF4)
+                            : Colors.white,
+                        border: Border.all(
+                          color: isActive
+                              ? AppTheme.greenPrimary
+                              : done
+                                  ? const Color(0xFFBBF7D0)
+                                  : const Color(0xFFE5E7EB),
+                          width: isActive ? 1.5 : 1,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            AppConstants.languageLabels[lang] ??
+                                lang,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: done
+                                  ? AppTheme.greenDark
+                                  : Colors.grey[500],
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            done ? '✓ Done' : 'Empty',
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: done
+                                  ? AppTheme.greenPrimary
+                                  : Colors.grey[400],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      );
 
   Widget _sectionLabel(String title) => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-    child: Text(
-      title,
-      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.grey, letterSpacing: 0.5),
-    ),
-  );
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+        child: Text(
+          title,
+          style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: Colors.grey,
+              letterSpacing: 0.5),
+        ),
+      );
 }
