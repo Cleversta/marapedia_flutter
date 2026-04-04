@@ -31,7 +31,6 @@ class ArticleCard extends StatelessWidget {
         translation['excerpt'] as String? ??
         Helpers.makeExcerpt(translation['content'] as String? ?? '');
 
-    // Safe URL — treat empty string same as null
     final thumbUrl = article.thumbnailUrl?.isNotEmpty == true
         ? article.thumbnailUrl
         : null;
@@ -44,20 +43,22 @@ class ArticleCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: Colors.black, width: 0.3),
         ),
+        // FIX: clipBehavior prevents visual overflow but not the assertion.
+        // The real fix is making children flexible so they never overflow.
         clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Thumbnail
+            // ── Thumbnail — fixed height ───────────────────────────────────
             if (thumbUrl != null)
               SizedBox(
-                height: 160,
+                height: 130, // reduced from 160 to give content more room
                 width: double.infinity,
                 child: CachedNetworkImage(
                   imageUrl: thumbUrl,
                   fit: BoxFit.cover,
-                  placeholder: (_, _) => Container(color: Colors.grey[100]),
-                  errorWidget: (_, _, _) => Container(
+                  placeholder: (_, __) => Container(color: Colors.grey[100]),
+                  errorWidget: (_, __, ___) => Container(
                     color: Colors.grey[100],
                     child: Center(
                       child: Text(
@@ -70,110 +71,123 @@ class ArticleCard extends StatelessWidget {
               )
             else
               Container(
-                height: 64,
+                height: 48,
                 width: double.infinity,
                 color: Colors.grey[50],
                 child: Center(
                   child: Text(
                     cat?['icon'] ?? '📁',
-                    style: TextStyle(fontSize: 28, color: Colors.grey[400]),
+                    style: TextStyle(fontSize: 24, color: Colors.grey[400]),
                   ),
                 ),
               ),
 
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Category badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppTheme.greenBg,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppTheme.greenLight),
-                    ),
-                    child: Text(
-                      '${cat?['icon'] ?? ''} ${cat?['label'] ?? ''}',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppTheme.greenDark,
-                        fontWeight: FontWeight.w500,
+            // ── Content — Expanded fills remaining height, never overflows ─
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Category badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTheme.greenBg,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppTheme.greenLight),
+                      ),
+                      child: Text(
+                        '${cat?['icon'] ?? ''} ${cat?['label'] ?? ''}',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: AppTheme.greenDark,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  // Title
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF111827),
-                      height: 1.3,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (excerpt.isNotEmpty) ...[
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 5),
+
+                    // Title — Flexible so it shrinks if space is tight
                     Text(
-                      excerpt,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                        height: 1.5,
+                      title,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF111827),
+                        height: 1.3,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                  ],
-                  const SizedBox(height: 8),
-                  // Footer
-                  Row(
-                    children: [
-                      _Avatar(
-                        avatarUrl: article.profile?.avatarUrl,
-                        username: article.profile?.username,
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
+
+                    // Excerpt — only shown if space allows
+                    if (excerpt.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Flexible(
                         child: Text(
-                          article.profile?.username ?? 'Anonymous',
+                          excerpt,
                           style: TextStyle(
                             fontSize: 11,
-                            color: Colors.grey[500],
+                            color: Colors.grey[600],
+                            height: 1.4,
                           ),
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      if (article.viewCount > 0) ...[
-                        const Icon(
-                          Icons.remove_red_eye_outlined,
-                          size: 11,
-                          color: Colors.grey,
+                    ],
+
+                    // Spacer pushes footer to bottom
+                    const Spacer(),
+
+                    // Footer
+                    Row(
+                      children: [
+                        _Avatar(
+                          avatarUrl: article.profile?.avatarUrl,
+                          username: article.profile?.username,
                         ),
-                        const SizedBox(width: 2),
-                        Text(
-                          '${article.viewCount}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey[500],
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            article.profile?.username ?? 'Anonymous',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey[500],
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const SizedBox(width: 6),
+                        if (article.viewCount > 0) ...[
+                          const Icon(
+                            Icons.remove_red_eye_outlined,
+                            size: 10,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(width: 2),
+                          Text(
+                            '${article.viewCount}',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey[500],
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                        ],
+                        Text(
+                          Helpers.timeAgo(
+                              article.updatedAt ?? article.createdAt),
+                          style:
+                              TextStyle(fontSize: 10, color: Colors.grey[400]),
+                        ),
                       ],
-                      Text(
-                        Helpers.timeAgo(article.updatedAt ?? article.createdAt),
-                        style: TextStyle(fontSize: 11, color: Colors.grey[400]),
-                      ),
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -191,9 +205,8 @@ class _Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final safeUrl = avatarUrl != null && avatarUrl!.isNotEmpty
-        ? avatarUrl
-        : null;
+    final safeUrl =
+        avatarUrl != null && avatarUrl!.isNotEmpty ? avatarUrl : null;
 
     if (safeUrl != null) {
       return CircleAvatar(
@@ -205,7 +218,7 @@ class _Avatar extends StatelessWidget {
             width: 16,
             height: 16,
             fit: BoxFit.cover,
-            errorWidget: (_, _, _) => _initial(username),
+            errorWidget: (_, __, ___) => _initial(username),
           ),
         ),
       );
@@ -218,11 +231,11 @@ class _Avatar extends StatelessWidget {
   }
 
   Widget _initial(String? name) => Text(
-    (name ?? 'A')[0].toUpperCase(),
-    style: const TextStyle(
-      fontSize: 8,
-      color: AppTheme.greenDark,
-      fontWeight: FontWeight.bold,
-    ),
-  );
+        (name ?? 'A')[0].toUpperCase(),
+        style: const TextStyle(
+          fontSize: 8,
+          color: AppTheme.greenDark,
+          fontWeight: FontWeight.bold,
+        ),
+      );
 }
