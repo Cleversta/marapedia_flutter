@@ -108,12 +108,12 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
             .replaceAll(RegExp(r'/$'), '')
         : null;
 
-    final allImages = [
-      if (article.thumbnailUrl != null && article.thumbnailUrl!.isNotEmpty)
-        ArticleImage(url: article.thumbnailUrl!),
-      ...article.images.skip(article.thumbnailUrl != null ? 0 : 0),
-    ];
-
+// ✅ Fixed — skip images[0] since it's already shown as thumbnailUrl
+final hasThumb = article.thumbnailUrl != null && article.thumbnailUrl!.isNotEmpty;
+final allImages = [
+  if (hasThumb) ArticleImage(url: article.thumbnailUrl!),
+  ...article.images.skip(hasThumb ? 1 : 0), // ← skip first image, it's the cover
+];
     final isSong =
         article.category == 'songs' || article.articleType == 'song';
 
