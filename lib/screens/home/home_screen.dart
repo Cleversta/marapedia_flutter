@@ -86,10 +86,10 @@ class _HomeScreenState extends State<HomeScreen>
               },
               builder: (context, state) {
                 if (state is ArticleLoading) {
-                  return const SingleChildScrollView(
-                    padding: EdgeInsets.all(16),
-                    child: ShimmerList(count: 4),
-                  );
+return ListView(
+  padding: const EdgeInsets.all(16),
+  children: const [ShimmerList(count: 4)],
+);
                 }
                 if (state is ArticleHomeLoaded) {
                   return _buildHome(context, state);
@@ -97,10 +97,10 @@ class _HomeScreenState extends State<HomeScreen>
                 if (state is ArticleError) {
                   return _buildError(context, state.message);
                 }
-                return const SingleChildScrollView(
-                  padding: EdgeInsets.all(16),
-                  child: ShimmerList(count: 4),
-                );
+return ListView(
+  padding: const EdgeInsets.all(16),
+  children: const [ShimmerList(count: 4)],
+);
               },
             ),
           ),
@@ -622,7 +622,7 @@ class _HomeScreenState extends State<HomeScreen>
           crossAxisCount: 2,
           crossAxisSpacing: 10,
           mainAxisSpacing: 10,
-          childAspectRatio: 0.78,
+          childAspectRatio: 0.65,
         ),
         itemCount: articles.length,
         itemBuilder: (_, i) => ArticleCard(article: articles[i]),

@@ -149,9 +149,9 @@ class _SearchScreenState extends State<SearchScreen> {
               listener: (context, state) => setState(() {}),
               builder: (context, state) {
 if (state is ArticleLoading) {
-  return SingleChildScrollView(
+  return ListView(
     padding: const EdgeInsets.all(16),
-    child: ShimmerList(count: 4),
+    children: const [ShimmerList(count: 4)],
   );
 }
 

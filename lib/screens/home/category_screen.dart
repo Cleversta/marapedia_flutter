@@ -28,14 +28,12 @@ class _CategoryScreenState extends State<CategoryScreen> {
       body: BlocBuilder<ArticleBloc, ArticleState>(
         builder: (context, state) {
           if (state is ArticleLoading) {
-            return Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: 4,
-                itemBuilder: (_, _) => const Padding(
-                  padding: EdgeInsets.only(bottom: 12),
-                  child: ShimmerCard(),
-                ),
+            return ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: 4,
+              itemBuilder: (_, _) => const Padding(
+                padding: EdgeInsets.only(bottom: 12),
+                child: ShimmerCard(),
               ),
             );
           }
@@ -175,10 +173,14 @@ class _CategoryScreenState extends State<CategoryScreen> {
                       : ListView.builder(
                           padding: const EdgeInsets.all(16),
                           itemCount: filtered.length,
-                          itemBuilder: (_, i) => Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: ArticleCard(article: filtered[i]),
-                          ),
+// AFTER
+itemBuilder: (_, i) => Padding(
+  padding: const EdgeInsets.only(bottom: 10),
+  child: SizedBox(
+    height: 220,
+    child: ArticleCard(article: filtered[i]),
+  ),
+),
                         ),
                 ),
               ],

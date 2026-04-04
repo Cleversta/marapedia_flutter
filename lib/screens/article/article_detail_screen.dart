@@ -102,11 +102,8 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
       article.articleType,
     );
 
-    final sourceUrlDisplay = article.sourceUrl != null
-        ? article.sourceUrl!
-            .replaceAll(RegExp(r'^https?://'), '')
-            .replaceAll(RegExp(r'/$'), '')
-        : null;
+    final sourceUrlDisplay = article.sourceUrl?.replaceAll(RegExp(r'^https?://'), '')
+            .replaceAll(RegExp(r'/$'), '');
 
 // ✅ Fixed — skip images[0] since it's already shown as thumbnailUrl
 final hasThumb = article.thumbnailUrl != null && article.thumbnailUrl!.isNotEmpty;
