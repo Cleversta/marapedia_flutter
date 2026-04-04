@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:marapedia_flutter/screens/home/marapedia_footer.dart';
 import '../../blocs/article/article_bloc.dart';
 import '../../blocs/article/article_event.dart';
 import '../../blocs/article/article_state.dart';
@@ -15,7 +16,6 @@ import '../../widgets/category_tabs.dart';
 import '../../widgets/shimmer_card.dart';
 import '../../widgets/marapedia_app_bar.dart';
 
-// Palette — warm parchment, soft sage, ink
 const _parchment = Color(0xFFF7F3EC);
 const _parchmentDk = Color(0xFFEDE5D4);
 const _border = Color(0xFFDDD4C0);
@@ -58,13 +58,6 @@ class _HomeScreenState extends State<HomeScreen>
     _heroCtrl.dispose();
     super.dispose();
   }
-
-  // ✅ REMOVED didChangeDependencies entirely.
-  //    The router's BlocProvider already fires ArticleHomeLoadRequested()
-  //    before this widget is built, so manually triggering it here would
-  //    cause a redundant reload and — more importantly — was previously
-  //    checking for ArticleHomeLoaded which would fail if another screen
-  //    had put a different state (e.g. ArticleMyListLoaded) on the bloc.
 
   @override
   Widget build(BuildContext context) {
@@ -120,7 +113,8 @@ class _HomeScreenState extends State<HomeScreen>
               onPressed: () => context.push('/articles/create'),
               backgroundColor: _sage,
               elevation: 2,
-              icon: const Icon(Icons.edit_outlined, color: Colors.white, size: 18),
+              icon: const Icon(Icons.edit_outlined,
+                  color: Colors.white, size: 18),
               label: Text(
                 'Contribute',
                 style: GoogleFonts.lora(
@@ -138,6 +132,10 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildHome(BuildContext context, ArticleHomeLoaded state) {
+    final nonFeaturedMostViewed = state.mostViewed
+        .where((a) => a.id != state.featured?.id)
+        .toList();
+
     return RefreshIndicator(
       color: _sage,
       onRefresh: () async =>
@@ -163,14 +161,15 @@ class _HomeScreenState extends State<HomeScreen>
             ],
             _sectionHeader('Recent Articles', icon: '◈'),
             const SizedBox(height: 12),
-            _buildArticleList(context, state.recent),
-            if (state.mostViewed.isNotEmpty) ...[
+            _buildArticleGrid(context, state.recent),
+            if (nonFeaturedMostViewed.isNotEmpty) ...[
               const SizedBox(height: 28),
               _sectionHeader('Most Viewed', icon: '◉'),
               const SizedBox(height: 12),
-              _buildArticleList(context, state.mostViewed),
+              _buildArticleGrid(context, nonFeaturedMostViewed),
             ],
-            const SizedBox(height: 100),
+            const SizedBox(height: 32),
+            const MarapediaFooter(),
           ],
         ),
       ),
@@ -201,7 +200,8 @@ class _HomeScreenState extends State<HomeScreen>
             child: Column(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 5),
                   decoration: BoxDecoration(
                     border: Border.all(color: _border),
                     borderRadius: BorderRadius.circular(20),
@@ -229,10 +229,11 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ),
                 const SizedBox(height: 8),
-                Text(
+                const Text(
                   'A community-built encyclopedia for the Mara people.',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 13, color: _inkLight, height: 1.5),
+                  style: TextStyle(
+                      fontSize: 13, color: _inkLight, height: 1.5),
                 ),
                 const SizedBox(height: 16),
                 Wrap(
@@ -240,50 +241,41 @@ class _HomeScreenState extends State<HomeScreen>
                   runSpacing: 6,
                   alignment: WrapAlignment.center,
                   children: ['Mara', 'English', 'Myanmar', 'Mizo']
-                      .map(
-                        (lang) => Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.7),
-                            border: Border.all(color: _border),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            lang,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: _inkMid,
-                              fontWeight: FontWeight.w500,
+                      .map((lang) => Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.7),
+                              border: Border.all(color: _border),
+                              borderRadius: BorderRadius.circular(20),
                             ),
-                          ),
-                        ),
-                      )
+                            child: Text(
+                              lang,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: _inkMid,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ))
                       .toList(),
                 ),
                 const SizedBox(height: 18),
                 Row(
                   children: [
                     Expanded(
-                      child: _statCard(
-                        '${state.articleCount}',
-                        'Articles',
-                        Icons.article_outlined,
-                      ),
+                      child: _statCard('${state.articleCount}',
+                          'Articles', Icons.article_outlined),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _statCard('${state.userCount}',
+                          'Contributors', Icons.people_outline),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: _statCard(
-                        '${state.userCount}',
-                        'Contributors',
-                        Icons.people_outline,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _statCard('4', 'Languages', Icons.translate),
+                          '4', 'Languages', Icons.translate),
                     ),
                   ],
                 ),
@@ -333,7 +325,8 @@ class _HomeScreenState extends State<HomeScreen>
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          Text(icon, style: const TextStyle(fontSize: 11, color: _sage)),
+          Text(icon,
+              style: const TextStyle(fontSize: 11, color: _sage)),
           const SizedBox(width: 8),
           Text(
             title,
@@ -363,17 +356,22 @@ class _HomeScreenState extends State<HomeScreen>
     final article = state.featured!;
     final t = Helpers.getPreferredTranslation(
       article.translations
-          .map(
-            (t) => {
-              'language': t.language,
-              'title': t.title,
-              'content': t.content,
-              'excerpt': t.excerpt,
-            },
-          )
+          .map((t) => {
+                'language': t.language,
+                'title': t.title,
+                'content': t.content,
+                'excerpt': t.excerpt,
+              })
           .toList(),
     );
     if (t == null) return const SizedBox.shrink();
+
+    final title = t['title'] as String? ?? '';
+    final excerpt = t['excerpt'] as String? ??
+        Helpers.makeExcerpt(t['content'] as String? ?? '', length: 180);
+    final hasThumb = article.thumbnailUrl != null &&
+        article.thumbnailUrl!.isNotEmpty;
+    final cat = Helpers.getCategoryInfo(article.category);
 
     return GestureDetector(
       onTap: () => context.push('/articles/${article.slug}'),
@@ -382,13 +380,13 @@ class _HomeScreenState extends State<HomeScreen>
         child: Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: _border),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.black, width: 0.3),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 12,
-                offset: const Offset(0, 3),
+                color: Colors.black.withOpacity(0.07),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
@@ -396,12 +394,11 @@ class _HomeScreenState extends State<HomeScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (article.thumbnailUrl != null &&
-                  article.thumbnailUrl!.isNotEmpty)
+              if (hasThumb)
                 Stack(
                   children: [
                     SizedBox(
-                      height: 190,
+                      height: 200,
                       width: double.infinity,
                       child: CachedNetworkImage(
                         imageUrl: article.thumbnailUrl!,
@@ -413,10 +410,7 @@ class _HomeScreenState extends State<HomeScreen>
                       ),
                     ),
                     Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      height: 70,
+                      bottom: 0, left: 0, right: 0, height: 80,
                       child: DecoratedBox(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
@@ -424,58 +418,73 @@ class _HomeScreenState extends State<HomeScreen>
                             end: Alignment.bottomCenter,
                             colors: [
                               Colors.transparent,
-                              Colors.black.withOpacity(0.28),
+                              Colors.black.withOpacity(0.22),
                             ],
                           ),
                         ),
                       ),
                     ),
                     Positioned(
-                      top: 12,
-                      left: 12,
+                      top: 12, left: 12,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
-                        ),
+                            horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
-                          color: _sageBg,
-                          border: Border.all(color: _sageLight),
-                          borderRadius: BorderRadius.circular(20),
+                          color: _sage,
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Text(
-                          '✦ Featured',
-                          style: GoogleFonts.lora(
-                            fontSize: 10,
-                            color: _sage,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.star_rounded,
+                                color: Colors.white, size: 11),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Featured',
+                              style: GoogleFonts.lora(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
                   ],
                 )
               else
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _sageBg,
-                      border: Border.all(color: _sageLight),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      '✦ Featured',
-                      style: GoogleFonts.lora(
-                        fontSize: 10,
-                        color: _sage,
-                        fontWeight: FontWeight.w600,
+                Container(
+                  height: 56,
+                  color: _parchmentDk,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: _sage,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.star_rounded,
+                                color: Colors.white, size: 11),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Featured',
+                              style: GoogleFonts.lora(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
               Padding(
@@ -483,22 +492,38 @@ class _HomeScreenState extends State<HomeScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: _sageBg,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: _sageLight),
+                      ),
+                      child: Text(
+                        '${cat?['icon'] ?? ''} ${cat?['label'] ?? ''}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: _sage,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
                     Text(
-                      t['title'] as String? ?? '',
+                      title,
                       style: GoogleFonts.lora(
-                        fontSize: 19,
+                        fontSize: 20,
                         fontWeight: FontWeight.w700,
                         color: _ink,
                         height: 1.3,
                       ),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 7),
+                    const SizedBox(height: 8),
                     Text(
-                      t['excerpt'] as String? ??
-                          Helpers.makeExcerpt(
-                            t['content'] as String? ?? '',
-                            length: 160,
-                          ),
+                      excerpt,
                       style: const TextStyle(
                         fontSize: 13,
                         color: _inkLight,
@@ -507,14 +532,17 @@ class _HomeScreenState extends State<HomeScreen>
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    const SizedBox(height: 14),
+                    Container(height: 1, color: _border),
                     const SizedBox(height: 12),
                     Row(
                       children: [
                         CircleAvatar(
-                          radius: 12,
+                          radius: 13,
                           backgroundColor: _sageBg,
                           child: Text(
-                            (article.profile?.username ?? 'A')[0].toUpperCase(),
+                            (article.profile?.username ?? 'A')[0]
+                                .toUpperCase(),
                             style: const TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
@@ -522,43 +550,52 @@ class _HomeScreenState extends State<HomeScreen>
                             ),
                           ),
                         ),
-                        const SizedBox(width: 6),
-                        Text(
-                          article.profile?.username ?? 'Anonymous',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: _inkMid,
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                article.profile?.username ?? 'Anonymous',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: _inkMid,
+                                ),
+                              ),
+                              Text(
+                                Helpers.timeAgo(article.updatedAt ??
+                                    article.createdAt),
+                                style: const TextStyle(
+                                    fontSize: 11, color: _inkLight),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(width: 4),
-                        const Text('·', style: TextStyle(color: _inkLight)),
-                        const SizedBox(width: 4),
-                        Text(
-                          Helpers.timeAgo(
-                            article.updatedAt ?? article.createdAt,
+                        if (article.viewCount > 0) ...[
+                          const Icon(Icons.remove_red_eye_outlined,
+                              size: 12, color: _inkLight),
+                          const SizedBox(width: 3),
+                          Text(
+                            '${article.viewCount}',
+                            style: const TextStyle(
+                                fontSize: 11, color: _inkLight),
                           ),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: _inkLight,
-                          ),
-                        ),
-                        const Spacer(),
+                          const SizedBox(width: 10),
+                        ],
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
+                              horizontal: 14, vertical: 8),
                           decoration: BoxDecoration(
                             color: _ink,
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                          child: Text(
+                          child: const Text(
                             'Read →',
                             style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.white.withOpacity(0.9),
-                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
                             ),
                           ),
                         ),
@@ -574,23 +611,24 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-Widget _buildArticleList(BuildContext context, List<ArticleModel> articles) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16),
-    child: GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-        childAspectRatio: 0.78,
+  Widget _buildArticleGrid(
+      BuildContext context, List<ArticleModel> articles) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+          childAspectRatio: 0.78,
+        ),
+        itemCount: articles.length,
+        itemBuilder: (_, i) => ArticleCard(article: articles[i]),
       ),
-      itemCount: articles.length,
-      itemBuilder: (_, i) => ArticleCard(article: articles[i]),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildError(BuildContext context, String message) {
     return Center(
@@ -607,11 +645,8 @@ Widget _buildArticleList(BuildContext context, List<ArticleModel> articles) {
                 shape: BoxShape.circle,
                 border: Border.all(color: const Color(0xFFFFD9A0)),
               ),
-              child: const Icon(
-                Icons.wifi_off_outlined,
-                size: 26,
-                color: Color(0xFFD4860A),
-              ),
+              child: const Icon(Icons.wifi_off_outlined,
+                  size: 26, color: Color(0xFFD4860A)),
             ),
             const SizedBox(height: 16),
             Text(
@@ -630,14 +665,13 @@ Widget _buildArticleList(BuildContext context, List<ArticleModel> articles) {
             ),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: () =>
-                  context.read<ArticleBloc>().add(ArticleHomeLoadRequested()),
+              onPressed: () => context.read<ArticleBloc>()
+                  .add(ArticleHomeLoadRequested()),
               style: ElevatedButton.styleFrom(
                 backgroundColor: _sage,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
+                    borderRadius: BorderRadius.circular(10)),
               ),
               child: const Text('Try again'),
             ),
@@ -657,8 +691,11 @@ class _PatternPainter extends CustomPainter {
       ..strokeWidth = 1;
 
     const spacing = 26.0;
-    for (double i = -size.height; i < size.width + size.height; i += spacing) {
-      canvas.drawLine(Offset(i, 0), Offset(i + size.height, size.height), paint);
+    for (double i = -size.height;
+        i < size.width + size.height;
+        i += spacing) {
+      canvas.drawLine(
+          Offset(i, 0), Offset(i + size.height, size.height), paint);
     }
 
     final accentPaint = Paint()
@@ -667,7 +704,8 @@ class _PatternPainter extends CustomPainter {
       ..strokeWidth = 1;
 
     for (int r = 1; r <= 4; r++) {
-      canvas.drawCircle(Offset(size.width, 0), r * 30.0, accentPaint);
+      canvas.drawCircle(
+          Offset(size.width, 0), r * 30.0, accentPaint);
     }
   }
 

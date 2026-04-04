@@ -42,7 +42,7 @@ class ArticleCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE5E7EB)),
+          border: Border.all(color: Colors.black, width: 0.3),
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
