@@ -36,6 +36,8 @@ class AboutScreen extends StatelessWidget {
                   const SizedBox(height: 32),
                   _buildMission(),
                   const SizedBox(height: 32),
+                  _buildHowItWorks(context),
+                  const SizedBox(height: 32),
                   _buildHowToContribute(context),
                   const SizedBox(height: 32),
                   _buildContentGuidelines(),
@@ -43,6 +45,8 @@ class AboutScreen extends StatelessWidget {
                   _buildContact(),
                   const SizedBox(height: 32),
                   _buildCTA(context),
+                  const SizedBox(height: 32),
+                  _buildFounder(context),
                   const SizedBox(height: 32),
                 ],
               ),
@@ -53,6 +57,8 @@ class AboutScreen extends StatelessWidget {
       ),
     );
   }
+
+  // ── Hero ────────────────────────────────────────────────────────────────────
 
   Widget _buildHero() {
     return Container(
@@ -107,6 +113,8 @@ class AboutScreen extends StatelessWidget {
     );
   }
 
+  // ── What Is ─────────────────────────────────────────────────────────────────
+
   Widget _buildWhatIs() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -127,13 +135,16 @@ class AboutScreen extends StatelessWidget {
           text: const TextSpan(
             style: TextStyle(fontSize: 13, color: _inkMid, height: 1.7),
             children: [
-              TextSpan(text: 'All content on Marapedia is available in four languages: '),
+              TextSpan(
+                  text:
+                      'All content on Marapedia is available in four languages: '),
               TextSpan(
                 text: 'Mara, English, Myanmar, and Mizo',
                 style: TextStyle(fontWeight: FontWeight.w700, color: _ink),
               ),
               TextSpan(
-                  text: ' — so our community can read and contribute in the language they are most comfortable with.'),
+                  text:
+                      ' — so our community can read and contribute in the language they are most comfortable with.'),
             ],
           ),
         ),
@@ -141,11 +152,28 @@ class AboutScreen extends StatelessWidget {
     );
   }
 
+  // ── Mission ─────────────────────────────────────────────────────────────────
+
   Widget _buildMission() {
     final items = [
-      {'icon': '🏛️', 'title': 'Preserve', 'desc': 'Document Mara history, culture, and traditions before they are lost to time.'},
-      {'icon': '🌍', 'title': 'Share', 'desc': 'Make Mara knowledge accessible to the whole community, wherever they are in the world.'},
-      {'icon': '🤝', 'title': 'Connect', 'desc': 'Build a living archive that connects Mara people across generations and geographies.'},
+      {
+        'icon': '🏛️',
+        'title': 'Preserve',
+        'desc':
+            'Document Mara history, culture, and traditions before they are lost to time.'
+      },
+      {
+        'icon': '🌍',
+        'title': 'Share',
+        'desc':
+            'Make Mara knowledge accessible to the whole community, wherever they are in the world.'
+      },
+      {
+        'icon': '🤝',
+        'title': 'Connect',
+        'desc':
+            'Build a living archive that connects Mara people across generations and geographies.'
+      },
     ];
 
     return Container(
@@ -198,12 +226,198 @@ class AboutScreen extends StatelessWidget {
     );
   }
 
+  // ── How It Works ─────────────────────────────────────────────────────────────
+
+  Widget _buildHowItWorks(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle('⚙️', 'How It Works'),
+        const SizedBox(height: 8),
+        const Text(
+          'Marapedia works just like Wikipedia — anyone can read, and registered members can write and edit. Here is a simple overview of how everything works.',
+          style: TextStyle(fontSize: 13, color: _inkMid, height: 1.7),
+        ),
+        const SizedBox(height: 20),
+
+        // Reading
+        _howItWorksCard(
+          icon: '👁️',
+          color: const Color(0xFFEFF6FF),
+          borderColor: const Color(0xFFBFDBFE),
+          iconColor: const Color(0xFF3B82F6),
+          title: 'Reading Articles',
+          points: [
+            'No account is needed to read any article on Marapedia.',
+            'All articles are freely accessible to anyone in the world.',
+            'You can browse by category — History, Songs, Poems, People, Places, Culture, and more.',
+            'Use the search bar to find any topic quickly.',
+            'Switch between Mara, English, Myanmar, and Mizo languages on any article.',
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        // Contributing
+        _howItWorksCard(
+          icon: '✍️',
+          color: _sageBg,
+          borderColor: _sageLight,
+          iconColor: _sage,
+          title: 'Writing & Contributing',
+          points: [
+            'Create a free account to start contributing.',
+            'Write new articles using our simple editor — no technical skills needed.',
+            'Choose the category and language for your article.',
+            'Add a title, content, images, and a source link if available.',
+            'Submit your article for review. Once approved by an editor, it goes live for everyone to read.',
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        // Languages
+        _howItWorksCard(
+          icon: '🌐',
+          color: const Color(0xFFFFFBEB),
+          borderColor: const Color(0xFFFDE68A),
+          iconColor: const Color(0xFFD97706),
+          title: 'Multilingual Support',
+          points: [
+            'Every article can have translations in Mara, English, Myanmar, and Mizo.',
+            'If an article exists in one language, you can add a translation in another.',
+            'Readers can switch languages on any article with a single tap.',
+            'This ensures the Mara community anywhere in the world can read in their preferred language.',
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        // Review
+        _howItWorksCard(
+          icon: '✅',
+          color: const Color(0xFFF0FDF4),
+          borderColor: const Color(0xFFBBF7D0),
+          iconColor: const Color(0xFF16A34A),
+          title: 'Review & Quality',
+          points: [
+            'All new articles go through a review process before being published.',
+            'Editors check that content is accurate, respectful, and relevant to the Mara community.',
+            'Once approved, articles are published and visible to all readers.',
+            'Existing articles can be improved and updated by the community at any time.',
+            'Admins and editors can remove content that does not meet our guidelines.',
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        // Songs & Poems
+        _howItWorksCard(
+          icon: '🎵',
+          color: const Color(0xFFFDF4FF),
+          borderColor: const Color(0xFFE9D5FF),
+          iconColor: const Color(0xFF9333EA),
+          title: 'Songs, Poems & Special Content',
+          points: [
+            'Marapedia has dedicated formats for songs and poems.',
+            'Song lyrics are displayed in a special viewer with verse-by-verse formatting.',
+            'You can record the singer, songwriter, and song type (Worship, Hymn, Love Song, etc.).',
+            'Poems are displayed with elegant typography suited for reading.',
+            'This makes Marapedia a living archive of Mara oral tradition.',
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _howItWorksCard({
+    required String icon,
+    required Color color,
+    required Color borderColor,
+    required Color iconColor,
+    required String title,
+    required List<String> points,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color,
+        border: Border.all(color: borderColor),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(icon, style: const TextStyle(fontSize: 18)),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: GoogleFonts.lora(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: _ink,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...points.map(
+            (point) => Padding(
+              padding: const EdgeInsets.only(bottom: 7),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.check_circle_outline,
+                      size: 14, color: iconColor),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      point,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: _inkMid,
+                        height: 1.6,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── How To Contribute ────────────────────────────────────────────────────────
+
   Widget _buildHowToContribute(BuildContext context) {
     final steps = [
-      {'step': '1', 'title': 'Create an account', 'desc': 'Register for a free account to start contributing.', 'href': '/register', 'cta': 'Register now'},
-      {'step': '2', 'title': 'Write an article', 'desc': 'Use our editor to write about any topic related to the Mara people. You can write in any of our four supported languages.', 'href': '/articles/create', 'cta': 'Start writing'},
-      {'step': '3', 'title': 'Get reviewed', 'desc': 'New articles are reviewed by our editors before publishing to ensure quality and accuracy.'},
-      {'step': '4', 'title': 'Keep it growing', 'desc': 'Edit and improve existing articles, add translations, and help build the encyclopedia together.'},
+      {
+        'step': '1',
+        'title': 'Create an account',
+        'desc': 'Register for a free account to start contributing.',
+        'href': '/register',
+        'cta': 'Register now'
+      },
+      {
+        'step': '2',
+        'title': 'Write an article',
+        'desc':
+            'Use our editor to write about any topic related to the Mara people. You can write in any of our four supported languages.',
+        'href': '/articles/create',
+        'cta': 'Start writing'
+      },
+      {
+        'step': '3',
+        'title': 'Get reviewed',
+        'desc':
+            'New articles are reviewed by our editors before publishing to ensure quality and accuracy.'
+      },
+      {
+        'step': '4',
+        'title': 'Keep it growing',
+        'desc':
+            'Edit and improve existing articles, add translations, and help build the encyclopedia together.'
+      },
     ];
 
     return Column(
@@ -281,6 +495,8 @@ class AboutScreen extends StatelessWidget {
     );
   }
 
+  // ── Content Guidelines ───────────────────────────────────────────────────────
+
   Widget _buildContentGuidelines() {
     final guidelines = [
       'Articles should be factual and respectful of the Mara community.',
@@ -331,6 +547,8 @@ class AboutScreen extends StatelessWidget {
     );
   }
 
+  // ── Contact ──────────────────────────────────────────────────────────────────
+
   Widget _buildContact() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -353,8 +571,7 @@ class AboutScreen extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         GestureDetector(
-          onTap: () =>
-              launchUrl(Uri.parse('https://facebook.com/marapedia')),
+          onTap: () => launchUrl(Uri.parse('https://facebook.com/marapedia')),
           child: _contactCard(
             icon: '📘',
             iconBg: const Color(0xFFEFF6FF),
@@ -385,8 +602,7 @@ class AboutScreen extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-                color: iconBg,
-                borderRadius: BorderRadius.circular(10)),
+                color: iconBg, borderRadius: BorderRadius.circular(10)),
             alignment: Alignment.center,
             child: Text(icon, style: const TextStyle(fontSize: 20)),
           ),
@@ -401,14 +617,15 @@ class AboutScreen extends StatelessWidget {
                       color: _ink)),
               const SizedBox(height: 2),
               Text(subtitle,
-                  style:
-                      const TextStyle(fontSize: 11, color: _inkLight)),
+                  style: const TextStyle(fontSize: 11, color: _inkLight)),
             ],
           ),
         ],
       ),
     );
   }
+
+  // ── CTA ──────────────────────────────────────────────────────────────────────
 
   Widget _buildCTA(BuildContext context) {
     return Container(
@@ -472,8 +689,193 @@ class AboutScreen extends StatelessWidget {
     );
   }
 
-  Widget _sectionTitle(String emoji, String title,
-      {Color color = _ink}) {
+  // ── Founder ──────────────────────────────────────────────────────────────────
+
+  Widget _buildFounder(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: _border),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionTitle('👤', 'About the Founder'),
+          const SizedBox(height: 16),
+
+          Text(
+            'Marason Tleitu',
+            style: GoogleFonts.lora(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: _ink,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Founder & Developer of Marapedia',
+            style: TextStyle(
+              fontSize: 12,
+              color: _sage,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+
+          const SizedBox(height: 16),
+          const Divider(color: _border),
+          const SizedBox(height: 16),
+
+          _founderPara(
+            '💡',
+            'The Idea',
+            'Marapedia began with a simple but powerful idea — to gather everything about the Mara people in one place and make it freely accessible to the world. Looking around, Marason noticed something missing: while the world was moving fast with technology and information, the Mara people did not yet have a dedicated digital space to call their own.',
+          ),
+          const SizedBox(height: 14),
+          _founderPara(
+            '🤝',
+            'Why Community?',
+            'Preserving an entire people\'s heritage is far too great a task for one person to carry alone. No single individual could document all the songs, histories, poems, stories, and traditions of the Mara people. So Marapedia was built in the spirit of Wikipedia — a community-driven encyclopedia where every Mara person, wherever they are in the world, can contribute, edit, and grow the knowledge together.',
+          ),
+          const SizedBox(height: 14),
+          _founderPara(
+            '🎵',
+            'What We Are Preserving',
+            'The Mara people have a rich and unique culture — beautiful songs and hymns, poetry, histories of villages and clans, stories of leaders and community figures, and traditions that define who we are. Much of this exists only in the memories of our elders. Marapedia exists to capture all of it before it fades and give it a permanent home.',
+          ),
+          const SizedBox(height: 14),
+          _founderPara(
+            '🌍',
+            'Open to the World',
+            'Marapedia is written in four languages — Mara, English, Myanmar, and Mizo — so that not only our own community but the wider world can discover and appreciate who the Mara people are. This openness is intentional. The Mara people have a story worth telling, and the world deserves to hear it.',
+          ),
+          const SizedBox(height: 14),
+          _founderPara(
+            '🌱',
+            'Building for the Future',
+            'The deepest motivation behind Marapedia is the future. If we do not preserve our heritage in the digital world today, the next generation may never find it. Marapedia is being built so that tomorrow, a young Mara child anywhere in the world can open this encyclopedia and discover exactly who they are and where they come from.',
+          ),
+
+          const SizedBox(height: 20),
+
+          // Quote
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: _sageBg,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _sageLight),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('❝',
+                    style: TextStyle(fontSize: 28, color: _sage, height: 1)),
+                const SizedBox(height: 6),
+                const Text(
+                  'Technology is moving fast. The Mara people deserve to be part of that world too — with our own history, our own songs, and our own voice preserved for every generation to come.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: _sage,
+                    fontStyle: FontStyle.italic,
+                    height: 1.7,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  '— Marason Tleitu, Founder of Marapedia',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: _inkLight,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 20),
+          const Divider(color: _border),
+          const SizedBox(height: 16),
+
+          Text(
+            'Get in Touch',
+            style: GoogleFonts.lora(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: _ink,
+            ),
+          ),
+          const SizedBox(height: 12),
+          GestureDetector(
+            onTap: () =>
+                launchUrl(Uri.parse('mailto:cleverstar02@gmail.com')),
+            child: _contactRow(
+                Icons.email_outlined, 'cleverstar02@gmail.com'),
+          ),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: () => launchUrl(Uri.parse('tel:0182159223')),
+            child: _contactRow(Icons.phone_outlined, '0182159223'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+
+  Widget _founderPara(String emoji, String heading, String body) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 15)),
+            const SizedBox(width: 6),
+            Text(
+              heading,
+              style: GoogleFonts.lora(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: _ink,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          body,
+          style: const TextStyle(
+            fontSize: 13,
+            color: _inkMid,
+            height: 1.75,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _contactRow(IconData icon, String value) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: _sage),
+        const SizedBox(width: 10),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 13,
+            color: _inkMid,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _sectionTitle(String emoji, String title, {Color color = _ink}) {
     return Row(
       children: [
         Text(emoji, style: const TextStyle(fontSize: 20)),

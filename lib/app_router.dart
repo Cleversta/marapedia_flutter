@@ -1,5 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:marapedia_flutter/screens/home/about_screen.dart';
+import 'package:marapedia_flutter/screens/home/privacy_screen.dart';
 import 'package:marapedia_flutter/screens/profile/my_articles_screen.dart';
 import 'blocs/article/article_bloc.dart';
 import 'blocs/article/article_event.dart';
@@ -117,5 +119,7 @@ final appRouter = GoRouter(
         child: const AdminScreen(),
       ),
     ),
+    GoRoute(path: '/about', builder: (_, __) => const AboutScreen()),
+    GoRoute(path: '/privacy', builder: (_, __) => const PrivacyScreen()),
   ],
 );

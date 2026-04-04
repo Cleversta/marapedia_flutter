@@ -140,8 +140,7 @@ class ArticleRepository {
     if (images.isEmpty) return;
 
     // Delete first — check error to prevent silent-fail duplication
-    final deleteRes =
-        await _db.from('images').delete().eq('article_id', articleId);
+    await _db.from('images').delete().eq('article_id', articleId);
     // Proceed with insert regardless (delete returns empty on success)
     await _db.from('images').insert(
           images
