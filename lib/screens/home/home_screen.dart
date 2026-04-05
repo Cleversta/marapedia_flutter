@@ -268,7 +268,7 @@ class _HomeScreenState extends State<HomeScreen>
                       .toList(),
                 ),
                 const SizedBox(height: 18),
-                Row(
+Row(
                   children: [
                     Expanded(
                       child: _statCard('${state.articleCount}', 'Articles',
@@ -284,6 +284,37 @@ class _HomeScreenState extends State<HomeScreen>
                       child: _statCard('4', 'Languages', Icons.translate),
                     ),
                   ],
+                ),
+                const SizedBox(height: 14),
+                GestureDetector(
+                  onTap: () => context.push('/contributors'),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 18, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(color: _border),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('👥', style: TextStyle(fontSize: 14)),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Meet our contributors',
+                          style: GoogleFonts.lora(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: _sage,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        const Icon(Icons.chevron_right_rounded,
+                            size: 16, color: _sage),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),

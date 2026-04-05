@@ -11,7 +11,6 @@ import '../../blocs/photo/photo_bloc.dart';
 import '../../blocs/photo/photo_event.dart';
 import '../../blocs/photo/photo_state.dart';
 import '../../models/photo_model.dart';
-import '../../utils/app_theme.dart';
 import '../../utils/helpers.dart';
 import '../../widgets/offline_banner.dart';
 

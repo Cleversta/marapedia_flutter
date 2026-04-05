@@ -19,12 +19,12 @@ import 'screens/profile/profile_screen.dart';
 import 'screens/search/search_screen.dart';
 import 'screens/editor/editor_screen.dart';
 import 'screens/admin/admin_screen.dart';
+import 'screens/contributors/contributors_screen.dart';           // ← NEW
+import 'screens/contributors/contributor_detail_screen.dart';    // ← NEW
 
 final appRouter = GoRouter(
   initialLocation: '/',
   routes: [
-    // ✅ Home gets its own isolated bloc — prevents state pollution from
-    //    profile/my-articles screens bleeding back on navigation
     GoRoute(
       path: '/',
       builder: (_, __) => BlocProvider(
@@ -119,7 +119,20 @@ final appRouter = GoRouter(
         child: const AdminScreen(),
       ),
     ),
+
     GoRoute(path: '/about', builder: (_, __) => const AboutScreen()),
     GoRoute(path: '/privacy', builder: (_, __) => const PrivacyScreen()),
+
+    // ── Contributors ──────────────────────────────────────────────────── NEW
+    GoRoute(
+      path: '/contributors',
+      builder: (_, __) => const ContributorsScreen(),
+    ),
+    GoRoute(
+      path: '/contributors/:username',
+      builder: (_, state) => ContributorDetailScreen(
+        username: state.pathParameters['username']!,
+      ),
+    ),
   ],
 );
