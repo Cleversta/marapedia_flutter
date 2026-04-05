@@ -13,18 +13,19 @@ import '../../models/article_model.dart';
 import '../../utils/helpers.dart';
 import '../../widgets/article_card.dart';
 import '../../widgets/category_tabs.dart';
+import '../../widgets/offline_banner.dart';
 import '../../widgets/shimmer_card.dart';
 import '../../widgets/marapedia_app_bar.dart';
 
-const _parchment = Color(0xFFF7F3EC);
+const _parchment  = Color(0xFFF7F3EC);
 const _parchmentDk = Color(0xFFEDE5D4);
-const _border = Color(0xFFDDD4C0);
-const _ink = Color(0xFF1C1812);
-const _inkMid = Color(0xFF4A4035);
-const _inkLight = Color(0xFF8C7E6A);
-const _sage = Color(0xFF5A7A5C);
-const _sageBg = Color(0xFFEBF1EB);
-const _sageLight = Color(0xFFD4E4D4);
+const _border     = Color(0xFFDDD4C0);
+const _ink        = Color(0xFF1C1812);
+const _inkMid     = Color(0xFF4A4035);
+const _inkLight   = Color(0xFF8C7E6A);
+const _sage       = Color(0xFF5A7A5C);
+const _sageBg     = Color(0xFFEBF1EB);
+const _sageLight  = Color(0xFFD4E4D4);
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -86,10 +87,10 @@ class _HomeScreenState extends State<HomeScreen>
               },
               builder: (context, state) {
                 if (state is ArticleLoading) {
-return ListView(
-  padding: const EdgeInsets.all(16),
-  children: const [ShimmerList(count: 4)],
-);
+                  return ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: const [ShimmerList(count: 4)],
+                  );
                 }
                 if (state is ArticleHomeLoaded) {
                   return _buildHome(context, state);
@@ -97,10 +98,10 @@ return ListView(
                 if (state is ArticleError) {
                   return _buildError(context, state.message);
                 }
-return ListView(
-  padding: const EdgeInsets.all(16),
-  children: const [ShimmerList(count: 4)],
-);
+                return ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: const [ShimmerList(count: 4)],
+                );
               },
             ),
           ),
@@ -113,8 +114,7 @@ return ListView(
               onPressed: () => context.push('/articles/create'),
               backgroundColor: _sage,
               elevation: 2,
-              icon: const Icon(Icons.edit_outlined,
-                  color: Colors.white, size: 18),
+              icon: const Icon(Icons.edit_outlined, color: Colors.white, size: 18),
               label: Text(
                 'Contribute',
                 style: GoogleFonts.lora(
@@ -132,47 +132,55 @@ return ListView(
   }
 
   Widget _buildHome(BuildContext context, ArticleHomeLoaded state) {
-    final nonFeaturedMostViewed = state.mostViewed
-        .where((a) => a.id != state.featured?.id)
-        .toList();
+    final nonFeaturedMostViewed =
+        state.mostViewed.where((a) => a.id != state.featured?.id).toList();
 
-    return RefreshIndicator(
-      color: _sage,
-      onRefresh: () async =>
-          context.read<ArticleBloc>().add(ArticleHomeLoadRequested()),
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            FadeTransition(
-              opacity: _heroFade,
-              child: SlideTransition(
-                position: _heroSlide,
-                child: _buildHero(context, state),
+    return Column(
+      children: [
+        // ── Offline banner ───────────────────────────────────────────────
+        if (state.isOffline) const OfflineBanner(),
+
+        Expanded(
+          child: RefreshIndicator(
+            color: _sage,
+            onRefresh: () async =>
+                context.read<ArticleBloc>().add(ArticleHomeLoadRequested()),
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  FadeTransition(
+                    opacity: _heroFade,
+                    child: SlideTransition(
+                      position: _heroSlide,
+                      child: _buildHero(context, state),
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  if (state.featured != null) ...[
+                    _sectionHeader('Featured Article', icon: '✦'),
+                    const SizedBox(height: 12),
+                    _buildFeatured(context, state),
+                    const SizedBox(height: 28),
+                  ],
+                  _sectionHeader('Recent Articles', icon: '◈'),
+                  const SizedBox(height: 12),
+                  _buildArticleGrid(context, state.recent),
+                  if (nonFeaturedMostViewed.isNotEmpty) ...[
+                    const SizedBox(height: 28),
+                    _sectionHeader('Most Viewed', icon: '◉'),
+                    const SizedBox(height: 12),
+                    _buildArticleGrid(context, nonFeaturedMostViewed),
+                  ],
+                  const SizedBox(height: 32),
+                  const MarapediaFooter(),
+                ],
               ),
             ),
-            const SizedBox(height: 28),
-            if (state.featured != null) ...[
-              _sectionHeader('Featured Article', icon: '✦'),
-              const SizedBox(height: 12),
-              _buildFeatured(context, state),
-              const SizedBox(height: 28),
-            ],
-            _sectionHeader('Recent Articles', icon: '◈'),
-            const SizedBox(height: 12),
-            _buildArticleGrid(context, state.recent),
-            if (nonFeaturedMostViewed.isNotEmpty) ...[
-              const SizedBox(height: 28),
-              _sectionHeader('Most Viewed', icon: '◉'),
-              const SizedBox(height: 12),
-              _buildArticleGrid(context, nonFeaturedMostViewed),
-            ],
-            const SizedBox(height: 32),
-            const MarapediaFooter(),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 
@@ -200,8 +208,8 @@ return ListView(
             child: Column(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 5),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                   decoration: BoxDecoration(
                     border: Border.all(color: _border),
                     borderRadius: BorderRadius.circular(20),
@@ -232,8 +240,7 @@ return ListView(
                 const Text(
                   'A community-built encyclopedia for the Mara people.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                      fontSize: 13, color: _inkLight, height: 1.5),
+                  style: TextStyle(fontSize: 13, color: _inkLight, height: 1.5),
                 ),
                 const SizedBox(height: 16),
                 Wrap(
@@ -251,7 +258,7 @@ return ListView(
                             ),
                             child: Text(
                               lang,
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 11,
                                 color: _inkMid,
                                 fontWeight: FontWeight.w500,
@@ -264,18 +271,17 @@ return ListView(
                 Row(
                   children: [
                     Expanded(
-                      child: _statCard('${state.articleCount}',
-                          'Articles', Icons.article_outlined),
+                      child: _statCard('${state.articleCount}', 'Articles',
+                          Icons.article_outlined),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: _statCard('${state.userCount}',
-                          'Contributors', Icons.people_outline),
+                      child: _statCard('${state.userCount}', 'Contributors',
+                          Icons.people_outline),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: _statCard(
-                          '4', 'Languages', Icons.translate),
+                      child: _statCard('4', 'Languages', Icons.translate),
                     ),
                   ],
                 ),
@@ -325,8 +331,7 @@ return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          Text(icon,
-              style: const TextStyle(fontSize: 11, color: _sage)),
+          Text(icon, style: const TextStyle(fontSize: 11, color: _sage)),
           const SizedBox(width: 8),
           Text(
             title,
@@ -340,7 +345,7 @@ return ListView(
           Expanded(
             child: Container(
               height: 1,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   colors: [_border, Colors.transparent],
                 ),
@@ -369,8 +374,8 @@ return ListView(
     final title = t['title'] as String? ?? '';
     final excerpt = t['excerpt'] as String? ??
         Helpers.makeExcerpt(t['content'] as String? ?? '', length: 180);
-    final hasThumb = article.thumbnailUrl != null &&
-        article.thumbnailUrl!.isNotEmpty;
+    final hasThumb =
+        article.thumbnailUrl != null && article.thumbnailUrl!.isNotEmpty;
     final cat = Helpers.getCategoryInfo(article.category);
 
     return GestureDetector(
@@ -403,14 +408,16 @@ return ListView(
                       child: CachedNetworkImage(
                         imageUrl: article.thumbnailUrl!,
                         fit: BoxFit.cover,
-                        placeholder: (_, __) =>
-                            Container(color: _parchmentDk),
+                        placeholder: (_, __) => Container(color: _parchmentDk),
                         errorWidget: (_, __, ___) =>
                             Container(color: _parchmentDk),
                       ),
                     ),
                     Positioned(
-                      bottom: 0, left: 0, right: 0, height: 80,
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      height: 80,
                       child: DecoratedBox(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
@@ -425,7 +432,8 @@ return ListView(
                       ),
                     ),
                     Positioned(
-                      top: 12, left: 12,
+                      top: 12,
+                      left: 12,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 5),
@@ -541,8 +549,7 @@ return ListView(
                           radius: 13,
                           backgroundColor: _sageBg,
                           child: Text(
-                            (article.profile?.username ?? 'A')[0]
-                                .toUpperCase(),
+                            (article.profile?.username ?? 'A')[0].toUpperCase(),
                             style: const TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
@@ -564,8 +571,8 @@ return ListView(
                                 ),
                               ),
                               Text(
-                                Helpers.timeAgo(article.updatedAt ??
-                                    article.createdAt),
+                                Helpers.timeAgo(
+                                    article.updatedAt ?? article.createdAt),
                                 style: const TextStyle(
                                     fontSize: 11, color: _inkLight),
                               ),
@@ -578,8 +585,8 @@ return ListView(
                           const SizedBox(width: 3),
                           Text(
                             '${article.viewCount}',
-                            style: const TextStyle(
-                                fontSize: 11, color: _inkLight),
+                            style:
+                                const TextStyle(fontSize: 11, color: _inkLight),
                           ),
                           const SizedBox(width: 10),
                         ],
@@ -611,8 +618,7 @@ return ListView(
     );
   }
 
-  Widget _buildArticleGrid(
-      BuildContext context, List<ArticleModel> articles) {
+  Widget _buildArticleGrid(BuildContext context, List<ArticleModel> articles) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: GridView.builder(
@@ -665,8 +671,8 @@ return ListView(
             ),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: () => context.read<ArticleBloc>()
-                  .add(ArticleHomeLoadRequested()),
+              onPressed: () =>
+                  context.read<ArticleBloc>().add(ArticleHomeLoadRequested()),
               style: ElevatedButton.styleFrom(
                 backgroundColor: _sage,
                 foregroundColor: Colors.white,
@@ -691,9 +697,7 @@ class _PatternPainter extends CustomPainter {
       ..strokeWidth = 1;
 
     const spacing = 26.0;
-    for (double i = -size.height;
-        i < size.width + size.height;
-        i += spacing) {
+    for (double i = -size.height; i < size.width + size.height; i += spacing) {
       canvas.drawLine(
           Offset(i, 0), Offset(i + size.height, size.height), paint);
     }
@@ -704,8 +708,7 @@ class _PatternPainter extends CustomPainter {
       ..strokeWidth = 1;
 
     for (int r = 1; r <= 4; r++) {
-      canvas.drawCircle(
-          Offset(size.width, 0), r * 30.0, accentPaint);
+      canvas.drawCircle(Offset(size.width, 0), r * 30.0, accentPaint);
     }
   }
 

@@ -2,40 +2,77 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/article_model.dart';
+import '../services/cache_service.dart';
 
 const _base = 'https://marapedia.vercel.app/api';
 
 class ArticleRepository {
   final _db = Supabase.instance.client;
 
-  // ── READS ────────────────────────────────────────────────────────────────────
+  // ── Home (combined fetch + cache) ─────────────────────────────────────────
 
-  Future<List<ArticleModel>> getRecentArticles({int limit = 10}) async {
-    final res = await http.get(Uri.parse('$_base/articles?type=recent&limit=$limit'));
-    return _parseList(res.body);
+  Future<Map<String, dynamic>> fetchHomeData() async {
+    final results = await Future.wait([
+      http.get(Uri.parse('$_base/articles?type=recent&limit=10')),
+      http.get(Uri.parse('$_base/articles?type=viewed&limit=10')),
+      http.get(Uri.parse('$_base/articles?type=featured')),
+      http.get(Uri.parse('$_base/stats')),
+    ]);
+
+    final recent       = _parseList(results[0].body);
+    final mostViewed   = _parseList(results[1].body);
+    final featuredList = _parseList(results[2].body);
+    final featured     = featuredList.isEmpty ? null : featuredList.first;
+    final stats        = jsonDecode(results[3].body);
+
+    final data = <String, dynamic>{
+      'featured'    : featured?.toSimpleMap(),
+      'recent'      : recent.map((a) => a.toSimpleMap()).toList(),
+      'mostViewed'  : mostViewed.map((a) => a.toSimpleMap()).toList(),
+      'articleCount': stats['articles'] ?? 0,
+      'userCount'   : stats['users'] ?? 0,
+    };
+    await CacheService.saveHome(data);
+    return data;
   }
 
-  Future<List<ArticleModel>> getMostViewed({int limit = 10}) async {
-    final res = await http.get(Uri.parse('$_base/articles?type=viewed&limit=$limit'));
-    return _parseList(res.body);
-  }
+  Map<String, dynamic>? getCachedHomeData() => CacheService.loadHome();
 
-  Future<ArticleModel?> getFeatured() async {
-    final res = await http.get(Uri.parse('$_base/articles?type=featured'));
-    final list = _parseList(res.body);
-    return list.isEmpty ? null : list.first;
-  }
+  // ── Detail ────────────────────────────────────────────────────────────────
 
   Future<ArticleModel?> getBySlug(String slug) async {
     final res = await http.get(Uri.parse('$_base/articles/$slug'));
     if (res.statusCode == 404) return null;
-    return ArticleModel.fromJson(jsonDecode(res.body));
+    final article = ArticleModel.fromJson(jsonDecode(res.body));
+    await CacheService.saveDetail(slug, article.toSimpleMap());
+    return article;
   }
 
-  Future<List<ArticleModel>> getByCategory(String category, {int limit = 30}) async {
-    final res = await http.get(Uri.parse('$_base/articles?category=$category&limit=$limit'));
-    return _parseList(res.body);
+  ArticleModel? getCachedBySlug(String slug) {
+    final data = CacheService.loadDetail(slug);
+    if (data == null) return null;
+    return ArticleModel.fromJson(data);
   }
+
+  // ── Category ──────────────────────────────────────────────────────────────
+
+  Future<List<ArticleModel>> getByCategory(String category,
+      {int limit = 30}) async {
+    final res = await http.get(
+        Uri.parse('$_base/articles?category=$category&limit=$limit'));
+    final articles = _parseList(res.body);
+    await CacheService.saveCategory(
+        category, articles.map((a) => a.toSimpleMap()).toList());
+    return articles;
+  }
+
+  List<ArticleModel>? getCachedByCategory(String category) {
+    final data = CacheService.loadCategory(category);
+    if (data == null) return null;
+    return data.map((j) => ArticleModel.fromJson(j)).toList();
+  }
+
+  // ── Search ────────────────────────────────────────────────────────────────
 
   Future<List<ArticleModel>> search(String query) async {
     final res = await http.get(
@@ -43,13 +80,15 @@ class ArticleRepository {
     return _parseList(res.body);
   }
 
+  // ── Stats ─────────────────────────────────────────────────────────────────
+
   Future<Map<String, int>> getStats() async {
     final res = await http.get(Uri.parse('$_base/stats'));
     final json = jsonDecode(res.body);
     return {'articles': json['articles'], 'users': json['users']};
   }
 
-  // ── WRITES ───────────────────────────────────────────────────────────────────
+  // ── Authenticated / writes ────────────────────────────────────────────────
 
   Future<List<ArticleModel>> getMyArticles(String userId) async {
     final res = await _db
@@ -84,8 +123,8 @@ class ArticleRepository {
     String? thumbnailUrl,
     String? articleType,
     String? sourceUrl,
-    String? singer,      // ← NEW
-    String? songwriter,  // ← NEW
+    String? singer,
+    String? songwriter,
   }) async {
     final res = await _db
         .from('articles')
@@ -138,10 +177,7 @@ class ArticleRepository {
     String userId,
   ) async {
     if (images.isEmpty) return;
-
-    // Delete first — check error to prevent silent-fail duplication
     await _db.from('images').delete().eq('article_id', articleId);
-    // Proceed with insert regardless (delete returns empty on success)
     await _db.from('images').insert(
           images
               .map((img) => {
@@ -154,7 +190,7 @@ class ArticleRepository {
         );
   }
 
-  // ── Helpers ──────────────────────────────────────────────────────────────────
+  // ── Helpers ───────────────────────────────────────────────────────────────
 
   List<ArticleModel> _parseList(String body) {
     final data = jsonDecode(body);

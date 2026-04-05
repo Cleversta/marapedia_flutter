@@ -1,5 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:marapedia_flutter/models/article_model.dart';
+import '../../models/article_model.dart';
 import '../../repositories/article_repository.dart';
 import 'article_event.dart';
 import 'article_state.dart';
@@ -9,168 +9,229 @@ class ArticleBloc extends Bloc<ArticleEvent, ArticleState> {
 
   ArticleBloc(this._repo) : super(ArticleInitial()) {
     on<ArticleHomeLoadRequested>(_onHomeLoad);
-    on<ArticleCategoryLoadRequested>(_onCategoryLoad);
     on<ArticleDetailLoadRequested>(_onDetailLoad);
-    on<ArticleSearchRequested>(_onSearch);
-    on<ArticleMyListLoadRequested>(_onMyList);
-    on<ArticleAllLoadRequested>(_onAllLoad);
+    on<ArticleCategoryLoadRequested>(_onCategoryLoad);
+    on<ArticleMyListLoadRequested>(_onMyListLoad);
     on<ArticleDeleteRequested>(_onDelete);
-    on<ArticlePublishRequested>(_onPublish);
-    on<ArticleFeatureToggleRequested>(_onFeatureToggle);
+    on<ArticleSearchRequested>(_onSearch);
+    on<ArticleAllLoadRequested>(_onAllLoad);         // new
+    on<ArticlePublishRequested>(_onPublish);          // new
+    on<ArticleFeatureToggleRequested>(_onFeatureToggle); // new
   }
 
+  // ── Home ──────────────────────────────────────────────────────────────────
+
   Future<void> _onHomeLoad(
-    ArticleHomeLoadRequested e,
+    ArticleHomeLoadRequested event,
     Emitter<ArticleState> emit,
   ) async {
     emit(ArticleLoading());
     try {
-      final results = await Future.wait([
-        _repo.getFeatured(),
-        _repo.getRecentArticles(limit: 6),
-        _repo.getMostViewed(limit: 6),
-        _repo.getStats(),
-      ]);
-      emit(
-        ArticleHomeLoaded(
-          featured: results[0] as dynamic,
-          recent: results[1] as dynamic,
-          mostViewed: results[2] as dynamic,
-          articleCount: (results[3] as Map)['articles'] as int,
-          userCount: (results[3] as Map)['users'] as int,
-        ),
-      );
+      final data = await _repo.fetchHomeData();
+      emit(_homeFromMap(data, isOffline: false));
+    } catch (_) {
+      final cached = _repo.getCachedHomeData();
+      if (cached != null) {
+        emit(_homeFromMap(cached, isOffline: true));
+      } else {
+        emit(ArticleError('No internet connection and no cached data.'));
+      }
+    }
+  }
+
+  ArticleHomeLoaded _homeFromMap(
+    Map<String, dynamic> data, {
+    required bool isOffline,
+  }) {
+    ArticleModel? featured;
+    if (data['featured'] != null) {
+      featured = ArticleModel.fromJson(
+          Map<String, dynamic>.from(data['featured'] as Map));
+    }
+    final recent = (data['recent'] as List)
+        .map((j) => ArticleModel.fromJson(Map<String, dynamic>.from(j)))
+        .toList();
+    final mostViewed = (data['mostViewed'] as List)
+        .map((j) => ArticleModel.fromJson(Map<String, dynamic>.from(j)))
+        .toList();
+    return ArticleHomeLoaded(
+      featured: featured,
+      recent: recent,
+      mostViewed: mostViewed,
+      articleCount: data['articleCount'] as int? ?? 0,
+      userCount: data['userCount'] as int? ?? 0,
+      isOffline: isOffline,
+    );
+  }
+
+  // ── Detail ────────────────────────────────────────────────────────────────
+
+  Future<void> _onDetailLoad(
+    ArticleDetailLoadRequested event,
+    Emitter<ArticleState> emit,
+  ) async {
+    emit(ArticleLoading());
+    try {
+      final article = await _repo.getBySlug(event.slug);
+      if (article == null) {
+        emit(ArticleError('Article not found.'));
+        return;
+      }
+      _repo.incrementViewCount(article.id).ignore();
+      emit(ArticleDetailLoaded(article));
+    } catch (_) {
+      final cached = _repo.getCachedBySlug(event.slug);
+      if (cached != null) {
+        emit(ArticleDetailLoaded(cached, isOffline: true));
+      } else {
+        emit(ArticleError(
+            "You're offline and this article isn't cached yet. Open it online first."));
+      }
+    }
+  }
+
+  // ── Category ──────────────────────────────────────────────────────────────
+
+  Future<void> _onCategoryLoad(
+    ArticleCategoryLoadRequested event,
+    Emitter<ArticleState> emit,
+  ) async {
+    emit(ArticleLoading());
+    try {
+      final articles = await _repo.getByCategory(event.category);
+      emit(ArticleCategoryLoaded(articles));
+    } catch (_) {
+      final cached = _repo.getCachedByCategory(event.category);
+      if (cached != null) {
+        emit(ArticleCategoryLoaded(cached, isOffline: true));
+      } else {
+        emit(ArticleError('No internet connection and no cached data.'));
+      }
+    }
+  }
+
+  // ── My articles ───────────────────────────────────────────────────────────
+
+  Future<void> _onMyListLoad(
+    ArticleMyListLoadRequested event,
+    Emitter<ArticleState> emit,
+  ) async {
+    emit(ArticleLoading());
+    try {
+      final articles = await _repo.getMyArticles(event.userId);
+      emit(ArticleMyListLoaded(articles));
     } catch (e) {
       emit(ArticleError(e.toString()));
     }
   }
 
-  Future<void> _onCategoryLoad(
-    ArticleCategoryLoadRequested e,
+  // ── Delete ────────────────────────────────────────────────────────────────
+
+  Future<void> _onDelete(
+    ArticleDeleteRequested event,
     Emitter<ArticleState> emit,
   ) async {
-    emit(ArticleLoading());
     try {
-      final articles = await _repo.getByCategory(e.category);
-      emit(ArticleCategoryLoaded(articles, e.category));
-    } catch (err) {
-      emit(ArticleError(err.toString()));
+      await _repo.deleteArticle(event.id);
+      final current = state;
+      if (current is ArticleMyListLoaded) {
+        emit(ArticleMyListLoaded(
+            current.articles.where((a) => a.id != event.id).toList()));
+      } else if (current is ArticleAllLoaded) {
+        emit(ArticleAllLoaded(
+            current.articles.where((a) => a.id != event.id).toList()));
+      }
+    } catch (e) {
+      emit(ArticleError(e.toString()));
     }
   }
 
-  Future<void> _onDetailLoad(
-    ArticleDetailLoadRequested e,
-    Emitter<ArticleState> emit,
-  ) async {
-    emit(ArticleLoading());
-    try {
-      final article = await _repo.getBySlug(e.slug);
-      if (article == null) {
-        emit(const ArticleError('Article not found'));
-        return;
-      }
-      await _repo.incrementViewCount(article.id);
-      emit(ArticleDetailLoaded(article));
-    } catch (err) {
-      emit(ArticleError(err.toString()));
-    }
-  }
+  // ── Search ────────────────────────────────────────────────────────────────
 
   Future<void> _onSearch(
-    ArticleSearchRequested e,
+    ArticleSearchRequested event,
     Emitter<ArticleState> emit,
   ) async {
     emit(ArticleLoading());
     try {
-      final results = await _repo.search(e.query);
-      emit(ArticleSearchLoaded(results, e.query));
-    } catch (err) {
-      emit(ArticleError(err.toString()));
+      final articles = await _repo.search(event.query);
+      emit(ArticleSearchLoaded(articles, event.query));
+    } catch (_) {
+      emit(ArticleError('Search requires an internet connection.'));
     }
   }
 
-  Future<void> _onMyList(
-    ArticleMyListLoadRequested e,
-    Emitter<ArticleState> emit,
-  ) async {
-    emit(ArticleLoading());
-    try {
-      final articles = await _repo.getMyArticles(e.userId);
-      emit(ArticleMyListLoaded(articles));
-    } catch (err) {
-      emit(ArticleError(err.toString()));
-    }
-  }
+  // ── All articles (admin) ──────────────────────────────────────────────────
 
   Future<void> _onAllLoad(
-    ArticleAllLoadRequested e,
+    ArticleAllLoadRequested event,
     Emitter<ArticleState> emit,
   ) async {
     emit(ArticleLoading());
     try {
       final articles = await _repo.getAllArticles();
       emit(ArticleAllLoaded(articles));
-    } catch (err) {
-      emit(ArticleError(err.toString()));
+    } catch (e) {
+      emit(ArticleError(e.toString()));
     }
   }
 
-  Future<void> _onDelete(
-    ArticleDeleteRequested e,
-    Emitter<ArticleState> emit,
-  ) async {
-    try {
-      await _repo.deleteArticle(e.id);
-      if (state is ArticleMyListLoaded) {
-        final current = (state as ArticleMyListLoaded).articles
-            .where((a) => a.id != e.id)
-            .toList();
-        emit(ArticleMyListLoaded(current));
-      } else if (state is ArticleAllLoaded) {
-        final current = (state as ArticleAllLoaded).articles
-            .where((a) => a.id != e.id)
-            .toList();
-        emit(ArticleAllLoaded(current));
-      }
-    } catch (err) {
-      emit(ArticleError(err.toString()));
-    }
-  }
+  // ── Publish / Draft ───────────────────────────────────────────────────────
 
   Future<void> _onPublish(
-    ArticlePublishRequested e,
+    ArticlePublishRequested event,
     Emitter<ArticleState> emit,
   ) async {
     try {
-      await _repo.updateArticle(e.id, {
-        'status': e.publish ? 'published' : 'draft',
+      await _repo.updateArticle(event.id, {
+        'status': event.publish ? 'published' : 'draft',
       });
-      if (state is ArticleAllLoaded) {
-        final updated = (state as ArticleAllLoaded).articles
-            .map(
-              (a) => a.id == e.id
-                  ? ArticleModel.fromJson({
-                      ...a.toSimpleMap(),
-                      'status': e.publish ? 'published' : 'draft',
-                    })
-                  : a,
-            )
-            .toList();
+      final current = state;
+      if (current is ArticleAllLoaded) {
+        final updated = current.articles.map((a) {
+          if (a.id != event.id) return a;
+          return ArticleModel.fromJson({
+            ...a.toSimpleMap(),
+            'status': event.publish ? 'published' : 'draft',
+          });
+        }).toList();
         emit(ArticleAllLoaded(updated));
+      } else if (current is ArticleMyListLoaded) {
+        final updated = current.articles.map((a) {
+          if (a.id != event.id) return a;
+          return ArticleModel.fromJson({
+            ...a.toSimpleMap(),
+            'status': event.publish ? 'published' : 'draft',
+          });
+        }).toList();
+        emit(ArticleMyListLoaded(updated));
       }
-    } catch (err) {
-      emit(ArticleError(err.toString()));
+    } catch (e) {
+      emit(ArticleError(e.toString()));
     }
   }
 
+  // ── Feature toggle ────────────────────────────────────────────────────────
+
   Future<void> _onFeatureToggle(
-    ArticleFeatureToggleRequested e,
+    ArticleFeatureToggleRequested event,
     Emitter<ArticleState> emit,
   ) async {
     try {
-      await _repo.updateArticle(e.id, {'featured': !e.current});
-    } catch (err) {
-      emit(ArticleError(err.toString()));
+      await _repo.updateArticle(event.id, {'featured': !event.current});
+      final current = state;
+      if (current is ArticleAllLoaded) {
+        final updated = current.articles.map((a) {
+          if (a.id != event.id) return a;
+          return ArticleModel.fromJson({
+            ...a.toSimpleMap(),
+            'featured': !event.current,
+          });
+        }).toList();
+        emit(ArticleAllLoaded(updated));
+      }
+    } catch (e) {
+      emit(ArticleError(e.toString()));
     }
   }
 }

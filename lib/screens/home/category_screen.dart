@@ -8,6 +8,7 @@ import '../../utils/constants.dart';
 import '../../utils/helpers.dart';
 import '../../widgets/article_card.dart';
 import '../../widgets/marapedia_app_bar.dart';
+import '../../widgets/offline_banner.dart';
 import '../../widgets/shimmer_card.dart';
 
 class CategoryScreen extends StatefulWidget {
@@ -31,7 +32,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
             return ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: 4,
-              itemBuilder: (_, _) => const Padding(
+              itemBuilder: (_, __) => const Padding(
                 padding: EdgeInsets.only(bottom: 12),
                 child: ShimmerCard(),
               ),
@@ -53,12 +54,17 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
             final filtered = _activeType == 'all'
                 ? articles
-                : articles.where((a) => a.articleType == _activeType).toList();
+                : articles
+                    .where((a) => a.articleType == _activeType)
+                    .toList();
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header
+                // ── Offline banner ────────────────────────────────────────
+                if (state.isOffline) const OfflineBanner(),
+
+                // ── Header ────────────────────────────────────────────────
                 Container(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                   color: Colors.white,
@@ -66,11 +72,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
                     children: [
                       GestureDetector(
                         onTap: () => context.pop(),
-                        child: const Icon(
-                          Icons.arrow_back_ios,
-                          size: 16,
-                          color: Colors.grey,
-                        ),
+                        child: const Icon(Icons.arrow_back_ios,
+                            size: 16, color: Colors.grey),
                       ),
                       const SizedBox(width: 6),
                       Text(
@@ -92,9 +95,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                             Text(
                               '${articles.length} article${articles.length != 1 ? 's' : ''}',
                               style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[500],
-                              ),
+                                  fontSize: 12, color: Colors.grey[500]),
                             ),
                           ],
                         ),
@@ -104,22 +105,18 @@ class _CategoryScreenState extends State<CategoryScreen> {
                           '/articles/create?category=${widget.category}',
                         ),
                         icon: const Icon(Icons.add, size: 14),
-                        label: const Text(
-                          'Add',
-                          style: TextStyle(fontSize: 13),
-                        ),
+                        label: const Text('Add',
+                            style: TextStyle(fontSize: 13)),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
+                              horizontal: 12, vertical: 8),
                         ),
                       ),
                     ],
                   ),
                 ),
 
-                // Type tabs
+                // ── Type tabs ─────────────────────────────────────────────
                 if (typeTabs.isNotEmpty)
                   Container(
                     height: 42,
@@ -127,9 +124,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                     child: ListView(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
+                          horizontal: 12, vertical: 6),
                       children: [
                         _typeTab('all', 'All', articles.length),
                         ...typeTabs.map(
@@ -144,7 +139,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                   ),
                 const Divider(height: 1),
 
-                // Articles
+                // ── Articles ──────────────────────────────────────────────
                 Expanded(
                   child: filtered.isEmpty
                       ? Center(
@@ -158,14 +153,16 @@ class _CategoryScreenState extends State<CategoryScreen> {
                               const SizedBox(height: 12),
                               Text(
                                 'No articles yet',
-                                style: TextStyle(color: Colors.grey[400]),
+                                style:
+                                    TextStyle(color: Colors.grey[400]),
                               ),
                               const SizedBox(height: 12),
                               ElevatedButton(
                                 onPressed: () => context.push(
                                   '/articles/create?category=${widget.category}',
                                 ),
-                                child: const Text('Be the first to contribute'),
+                                child: const Text(
+                                    'Be the first to contribute'),
                               ),
                             ],
                           ),
@@ -173,14 +170,13 @@ class _CategoryScreenState extends State<CategoryScreen> {
                       : ListView.builder(
                           padding: const EdgeInsets.all(16),
                           itemCount: filtered.length,
-// AFTER
-itemBuilder: (_, i) => Padding(
-  padding: const EdgeInsets.only(bottom: 10),
-  child: SizedBox(
-    height: 220,
-    child: ArticleCard(article: filtered[i]),
-  ),
-),
+                          itemBuilder: (_, i) => Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: SizedBox(
+                              height: 220,
+                              child: ArticleCard(article: filtered[i]),
+                            ),
+                          ),
                         ),
                 ),
               ],
@@ -199,11 +195,14 @@ itemBuilder: (_, i) => Padding(
       onTap: () => setState(() => _activeType = value),
       child: Container(
         margin: const EdgeInsets.only(right: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
           color: isActive ? AppTheme.greenPrimary : Colors.white,
           border: Border.all(
-            color: isActive ? AppTheme.greenPrimary : const Color(0xFFE5E7EB),
+            color: isActive
+                ? AppTheme.greenPrimary
+                : const Color(0xFFE5E7EB),
           ),
           borderRadius: BorderRadius.circular(20),
         ),
@@ -220,7 +219,8 @@ itemBuilder: (_, i) => Padding(
             ),
             const SizedBox(width: 4),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
               decoration: BoxDecoration(
                 color: isActive
                     ? Colors.white.withOpacity(0.2)
@@ -231,7 +231,8 @@ itemBuilder: (_, i) => Padding(
                 '$count',
                 style: TextStyle(
                   fontSize: 10,
-                  color: isActive ? Colors.white : Colors.grey[500],
+                  color:
+                      isActive ? Colors.white : Colors.grey[500],
                 ),
               ),
             ),

@@ -14,6 +14,7 @@ import '../../models/article_model.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/constants.dart';
 import '../../utils/helpers.dart';
+import '../../widgets/offline_banner.dart';
 import '../../widgets/shimmer_card.dart';
 import 'song_viewer.dart';
 import 'poem_viewer.dart';
@@ -58,7 +59,8 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
           );
         }
         if (state is ArticleDetailLoaded) {
-          return _buildDetail(context, state.article);
+          return _buildDetail(context, state.article,
+              isOffline: state.isOffline);
         }
         if (state is ArticleError) {
           return Scaffold(
@@ -66,12 +68,14 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
             body: Center(child: Text(state.message)),
           );
         }
-        return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        return const Scaffold(
+            body: Center(child: CircularProgressIndicator()));
       },
     );
   }
 
-  Widget _buildDetail(BuildContext context, ArticleModel article) {
+  Widget _buildDetail(BuildContext context, ArticleModel article,
+      {bool isOffline = false}) {
     final cat = Helpers.getCategoryInfo(article.category);
     final availLangs = article.translations.map((t) => t.language).toList();
 
@@ -102,15 +106,17 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
       article.articleType,
     );
 
-    final sourceUrlDisplay = article.sourceUrl?.replaceAll(RegExp(r'^https?://'), '')
-            .replaceAll(RegExp(r'/$'), '');
+    final sourceUrlDisplay = article.sourceUrl
+        ?.replaceAll(RegExp(r'^https?://'), '')
+        .replaceAll(RegExp(r'/$'), '');
 
-// ✅ Fixed — skip images[0] since it's already shown as thumbnailUrl
-final hasThumb = article.thumbnailUrl != null && article.thumbnailUrl!.isNotEmpty;
-final allImages = [
-  if (hasThumb) ArticleImage(url: article.thumbnailUrl!),
-  ...article.images.skip(hasThumb ? 1 : 0), // ← skip first image, it's the cover
-];
+    final hasThumb =
+        article.thumbnailUrl != null && article.thumbnailUrl!.isNotEmpty;
+    final allImages = [
+      if (hasThumb) ArticleImage(url: article.thumbnailUrl!),
+      ...article.images.skip(hasThumb ? 1 : 0),
+    ];
+
     final isSong =
         article.category == 'songs' || article.articleType == 'song';
 
@@ -120,10 +126,11 @@ final allImages = [
         children: [
           CustomScrollView(
             slivers: [
-              // ── App bar ──────────────────────────────────────────────────
+              // ── App bar ────────────────────────────────────────────────
               SliverAppBar(
                 pinned: true,
-                backgroundColor: const Color(0xFFFAFAF8).withOpacity(0.92),
+                backgroundColor:
+                    const Color(0xFFFAFAF8).withOpacity(0.92),
                 leading: IconButton(
                   icon: const Icon(Icons.arrow_back_ios, size: 16),
                   onPressed: () => context.pop(),
@@ -137,9 +144,7 @@ final allImages = [
                   Container(
                     margin: const EdgeInsets.only(right: 4),
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
+                        horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       border: Border.all(color: const Color(0xFFE5E7EB)),
@@ -148,22 +153,21 @@ final allImages = [
                     child: Text(
                       '${cat?['icon'] ?? ''} ${cat?['label'] ?? ''}',
                       style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                      ),
+                          fontSize: 11, fontWeight: FontWeight.w500),
                     ),
                   ),
                   BlocBuilder<AuthBloc, AuthState>(
                     builder: (ctx, authState) {
                       if (authState is AuthAuthenticated) {
-                        final isOwner = authState.userId == article.authorId;
+                        final isOwner =
+                            authState.userId == article.authorId;
                         final isAdmin = authState.profile.isAdmin;
                         final isEditor = authState.profile.isEditor;
                         if (isOwner || isAdmin || isEditor) {
                           return IconButton(
                             icon: const Icon(Icons.edit_outlined, size: 18),
-                            onPressed: () =>
-                                context.push('/articles/edit/${article.slug}'),
+                            onPressed: () => context
+                                .push('/articles/edit/${article.slug}'),
                           );
                         }
                       }
@@ -173,25 +177,31 @@ final allImages = [
                 ],
               ),
 
+              // ── Offline banner ─────────────────────────────────────────
+              if (isOffline)
+                const SliverToBoxAdapter(child: OfflineBanner()),
+
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ── Author row ────────────────────────────────────────
+                      // ── Author row ──────────────────────────────────────
                       Row(
                         children: [
                           CircleAvatar(
                             radius: 14,
                             backgroundColor: AppTheme.greenLight,
-                            backgroundImage: (article.profile?.avatarUrl != null &&
+                            backgroundImage: (article.profile?.avatarUrl !=
+                                        null &&
                                     article.profile!.avatarUrl!.isNotEmpty)
                                 ? NetworkImage(article.profile!.avatarUrl!)
                                 : null,
                             child: article.profile?.avatarUrl == null
                                 ? Text(
-                                    (article.profile?.username ?? 'A')[0].toUpperCase(),
+                                    (article.profile?.username ?? 'A')[0]
+                                        .toUpperCase(),
                                     style: const TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold,
@@ -213,20 +223,34 @@ final allImages = [
                                     color: Color(0xFF44403C),
                                   ),
                                 ),
-                                Text('·', style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+                                Text('·',
+                                    style: TextStyle(
+                                        color: Colors.grey[400],
+                                        fontSize: 12)),
                                 Text(
-                                  Helpers.formatDate(article.updatedAt ?? article.createdAt),
-                                  style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+                                  Helpers.formatDate(article.updatedAt ??
+                                      article.createdAt),
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[400]),
                                 ),
-                                Text('·', style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+                                Text('·',
+                                    style: TextStyle(
+                                        color: Colors.grey[400],
+                                        fontSize: 12)),
                                 Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Icon(Icons.remove_red_eye_outlined, size: 11, color: Colors.grey),
+                                    const Icon(
+                                        Icons.remove_red_eye_outlined,
+                                        size: 11,
+                                        color: Colors.grey),
                                     const SizedBox(width: 2),
                                     Text(
                                       '${article.viewCount}',
-                                      style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[400]),
                                     ),
                                   ],
                                 ),
@@ -237,7 +261,7 @@ final allImages = [
                       ),
                       const SizedBox(height: 12),
 
-                      // ── Title ─────────────────────────────────────────────
+                      // ── Title ───────────────────────────────────────────
                       Text(
                         translation.title,
                         style: GoogleFonts.lora(
@@ -249,7 +273,7 @@ final allImages = [
                       ),
                       const SizedBox(height: 10),
 
-                      // ── Type label + Source URL row ───────────────────────
+                      // ── Type label + Source URL ─────────────────────────
                       if (typeLabel != null || article.sourceUrl != null)
                         Wrap(
                           spacing: 6,
@@ -257,10 +281,12 @@ final allImages = [
                           children: [
                             if (typeLabel != null)
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 4),
                                 decoration: BoxDecoration(
                                   color: Colors.grey[100],
-                                  border: Border.all(color: Colors.grey[200]!),
+                                  border:
+                                      Border.all(color: Colors.grey[200]!),
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                                 child: Text(
@@ -272,23 +298,29 @@ final allImages = [
                                   ),
                                 ),
                               ),
-                            if (article.sourceUrl != null && article.sourceUrl!.isNotEmpty)
+                            if (article.sourceUrl != null &&
+                                article.sourceUrl!.isNotEmpty)
                               GestureDetector(
                                 onTap: () => _launchUrl(article.sourceUrl!),
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 4),
                                   decoration: BoxDecoration(
                                     color: const Color(0xFFEFF6FF),
-                                    border: Border.all(color: const Color(0xFFBFDBFE)),
+                                    border: Border.all(
+                                        color: const Color(0xFFBFDBFE)),
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(Icons.link, size: 13, color: Color(0xFF3B82F6)),
+                                      const Icon(Icons.link,
+                                          size: 13,
+                                          color: Color(0xFF3B82F6)),
                                       const SizedBox(width: 4),
                                       ConstrainedBox(
-                                        constraints: const BoxConstraints(maxWidth: 180),
+                                        constraints: const BoxConstraints(
+                                            maxWidth: 180),
                                         child: Text(
                                           sourceUrlDisplay ?? '',
                                           style: const TextStyle(
@@ -300,7 +332,9 @@ final allImages = [
                                         ),
                                       ),
                                       const SizedBox(width: 4),
-                                      const Icon(Icons.open_in_new, size: 11, color: Color(0xFF93C5FD)),
+                                      const Icon(Icons.open_in_new,
+                                          size: 11,
+                                          color: Color(0xFF93C5FD)),
                                     ],
                                   ),
                                 ),
@@ -308,7 +342,7 @@ final allImages = [
                           ],
                         ),
 
-                      // ── Image strip ───────────────────────────────────────
+                      // ── Image strip ─────────────────────────────────────
                       if (allImages.isNotEmpty) ...[
                         const SizedBox(height: 12),
                         SizedBox(
@@ -316,9 +350,11 @@ final allImages = [
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
                             itemCount: allImages.length,
-                            separatorBuilder: (_, __) => const SizedBox(width: 6),
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(width: 6),
                             itemBuilder: (_, i) => GestureDetector(
-                              onTap: () => setState(() => _lightboxIndex = i),
+                              onTap: () =>
+                                  setState(() => _lightboxIndex = i),
                               child: Stack(
                                 children: [
                                   ClipRRect(
@@ -340,14 +376,18 @@ final allImages = [
                                       top: 4,
                                       left: 4,
                                       child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 4, vertical: 2),
                                         decoration: BoxDecoration(
                                           color: Colors.black45,
-                                          borderRadius: BorderRadius.circular(4),
+                                          borderRadius:
+                                              BorderRadius.circular(4),
                                         ),
                                         child: const Text(
                                           'Cover',
-                                          style: TextStyle(color: Colors.white, fontSize: 8),
+                                          style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 8),
                                         ),
                                       ),
                                     ),
@@ -362,7 +402,7 @@ final allImages = [
                       const Divider(color: Color(0xFFE7E5E4)),
                       const SizedBox(height: 16),
 
-                      // ── Language switcher ─────────────────────────────────
+                      // ── Language switcher ───────────────────────────────
                       if (availLangs.length > 1)
                         SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
@@ -370,24 +410,31 @@ final allImages = [
                             children: availLangs.map((lang) {
                               final isActive = _currentLang == lang;
                               return GestureDetector(
-                                onTap: () => setState(() => _currentLang = lang),
+                                onTap: () =>
+                                    setState(() => _currentLang = lang),
                                 child: Container(
                                   margin: const EdgeInsets.only(right: 4),
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 8),
                                   decoration: BoxDecoration(
                                     border: Border(
                                       bottom: BorderSide(
-                                        color: isActive ? AppTheme.greenPrimary : Colors.transparent,
+                                        color: isActive
+                                            ? AppTheme.greenPrimary
+                                            : Colors.transparent,
                                         width: 2,
                                       ),
                                     ),
                                   ),
                                   child: Text(
-                                    AppConstants.languageLabels[lang] ?? lang,
+                                    AppConstants.languageLabels[lang] ??
+                                        lang,
                                     style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w500,
-                                      color: isActive ? AppTheme.greenPrimary : Colors.grey[400],
+                                      color: isActive
+                                          ? AppTheme.greenPrimary
+                                          : Colors.grey[400],
                                     ),
                                   ),
                                 ),
@@ -398,20 +445,22 @@ final allImages = [
 
                       const SizedBox(height: 20),
 
-                      // ── Content ───────────────────────────────────────────
-                      _buildContent(article, translation.content, translation.title),
+                      // ── Content ─────────────────────────────────────────
+                      _buildContent(article, translation.content,
+                          translation.title),
 
                       const SizedBox(height: 40),
                       const Divider(color: Color(0xFFE7E5E4)),
                       const SizedBox(height: 12),
 
-                      // ── Footer ────────────────────────────────────────────
+                      // ── Footer ──────────────────────────────────────────
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
                             'Updated ${Helpers.timeAgo(article.updatedAt ?? article.createdAt)}',
-                            style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+                            style: TextStyle(
+                                fontSize: 11, color: Colors.grey[400]),
                           ),
                           GestureDetector(
                             onTap: () => context.go('/'),
@@ -429,16 +478,19 @@ final allImages = [
 
                       const SizedBox(height: 12),
 
-                      // ── Share button ──────────────────────────────────────
+                      // ── Share button ────────────────────────────────────
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton.icon(
-                          onPressed: () => _shareArticle(article.slug, translation.title),
-                          icon: const Icon(Icons.share_outlined, size: 16),
+                          onPressed: () =>
+                              _shareArticle(article.slug, translation.title),
+                          icon:
+                              const Icon(Icons.share_outlined, size: 16),
                           label: const Text('Share Article'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppTheme.greenPrimary,
-                            side: const BorderSide(color: AppTheme.greenPrimary),
+                            side: const BorderSide(
+                                color: AppTheme.greenPrimary),
                             padding: const EdgeInsets.symmetric(vertical: 10),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
@@ -453,12 +505,15 @@ final allImages = [
                           width: double.infinity,
                           child: OutlinedButton.icon(
                             onPressed: () {},
-                            icon: const Icon(Icons.download_outlined, size: 16),
+                            icon: const Icon(Icons.download_outlined,
+                                size: 16),
                             label: const Text('Save Lyrics as Image'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: Colors.grey[700],
-                              side: BorderSide(color: Colors.grey[300]!),
-                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              side:
+                                  BorderSide(color: Colors.grey[300]!),
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 10),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
@@ -475,14 +530,15 @@ final allImages = [
             ],
           ),
 
-          // ── Lightbox ────────────────────────────────────────────────────
+          // ── Lightbox ──────────────────────────────────────────────────
           if (_lightboxIndex != null) _buildLightbox(allImages),
         ],
       ),
     );
   }
 
-  Widget _buildContent(ArticleModel article, String content, String title) {
+  Widget _buildContent(
+      ArticleModel article, String content, String title) {
     final type = article.articleType ??
         (article.category == 'songs'
             ? 'song'
@@ -528,7 +584,8 @@ final allImages = [
           padding: HtmlPaddings.only(left: 16),
           color: const Color(0xFF166534),
           fontStyle: FontStyle.italic,
-          margin: Margins.only(left: 0, right: 0, top: 12, bottom: 12),
+          margin: Margins.only(
+              left: 0, right: 0, top: 12, bottom: 12),
         ),
         'a': Style(
           color: AppTheme.greenPrimary,
@@ -593,9 +650,11 @@ final allImages = [
                       color: Colors.white.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.close, color: Colors.white, size: 16),
+                    child: const Icon(Icons.close,
+                        color: Colors.white, size: 16),
                   ),
-                  onPressed: () => setState(() => _lightboxIndex = null),
+                  onPressed: () =>
+                      setState(() => _lightboxIndex = null),
                 ),
               ),
               if (_lightboxIndex! > 0)
@@ -612,9 +671,11 @@ final allImages = [
                           color: Colors.white.withOpacity(0.1),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.chevron_left, color: Colors.white),
+                        child: const Icon(Icons.chevron_left,
+                            color: Colors.white),
                       ),
-                      onPressed: () => setState(() => _lightboxIndex = _lightboxIndex! - 1),
+                      onPressed: () => setState(
+                          () => _lightboxIndex = _lightboxIndex! - 1),
                     ),
                   ),
                 ),
@@ -632,9 +693,11 @@ final allImages = [
                           color: Colors.white.withOpacity(0.1),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.chevron_right, color: Colors.white),
+                        child: const Icon(Icons.chevron_right,
+                            color: Colors.white),
                       ),
-                      onPressed: () => setState(() => _lightboxIndex = _lightboxIndex! + 1),
+                      onPressed: () => setState(
+                          () => _lightboxIndex = _lightboxIndex! + 1),
                     ),
                   ),
                 ),

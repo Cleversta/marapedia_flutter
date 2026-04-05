@@ -11,6 +11,7 @@ import 'blocs/photo/photo_bloc.dart';
 import 'repositories/auth_repository.dart';
 import 'repositories/article_repository.dart';
 import 'repositories/photo_repository.dart';
+import 'services/cache_service.dart';
 import 'utils/app_theme.dart';
 import 'utils/constants.dart';
 
@@ -21,6 +22,8 @@ void main() async {
     url: AppConstants.supabaseUrl,
     anonKey: AppConstants.supabaseAnonKey,
   );
+
+  await CacheService.init();
 
   runApp(const MarapediaApp());
 }
@@ -39,7 +42,8 @@ class MarapediaApp extends StatelessWidget {
       child: MultiBlocProvider(
         providers: [
           BlocProvider<AuthBloc>(
-            create: (ctx) => AuthBloc(ctx.read<AuthRepository>())..add(AuthStarted()),
+            create: (ctx) =>
+                AuthBloc(ctx.read<AuthRepository>())..add(AuthStarted()),
           ),
           BlocProvider<ArticleBloc>(
             create: (ctx) => ArticleBloc(ctx.read<ArticleRepository>()),
