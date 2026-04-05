@@ -28,9 +28,7 @@ class PhotoBloc extends Bloc<PhotoEvent, PhotoState> {
     emit(PhotoLoading());
     try {
       final albums = await _repo.getAllAlbums();
-      await CacheService.saveAllAlbums(
-        albums.map((a) => a.toSimpleMap()).toList(),
-      );
+      await CacheService.saveAllAlbums(albums.map((a) => a.toSimpleMap()).toList());
       emit(PhotoAllLoaded(albums));
     } catch (_) {
       final cached = CacheService.loadAllAlbums();
@@ -52,10 +50,7 @@ class PhotoBloc extends Bloc<PhotoEvent, PhotoState> {
     emit(PhotoLoading());
     try {
       final album = await _repo.getAlbum(e.id);
-      if (album == null) {
-        emit(const PhotoError('Album not found'));
-        return;
-      }
+      if (album == null) { emit(const PhotoError('Album not found')); return; }
       await CacheService.saveAlbum(e.id, album.toSimpleMap());
       emit(PhotoAlbumLoaded(album));
     } catch (_) {
@@ -63,8 +58,7 @@ class PhotoBloc extends Bloc<PhotoEvent, PhotoState> {
       if (cached != null) {
         emit(PhotoAlbumLoaded(PhotoAlbum.fromJson(cached), isOffline: true));
       } else {
-        emit(const PhotoError(
-            "You're offline and this album isn't cached yet."));
+        emit(const PhotoError("You're offline and this album isn't cached yet."));
       }
     }
   }
@@ -78,10 +72,7 @@ class PhotoBloc extends Bloc<PhotoEvent, PhotoState> {
     emit(PhotoLoading());
     try {
       final albums = await _repo.getMyAlbums(e.userId);
-      await CacheService.saveMyAlbums(
-        e.userId,
-        albums.map((a) => a.toSimpleMap()).toList(),
-      );
+      await CacheService.saveMyAlbums(e.userId, albums.map((a) => a.toSimpleMap()).toList());
       emit(PhotoMyAlbumsLoaded(albums));
     } catch (_) {
       final cached = CacheService.loadMyAlbums(e.userId);
@@ -108,13 +99,10 @@ class PhotoBloc extends Bloc<PhotoEvent, PhotoState> {
         urls.add(url);
         emit(PhotoUploading(i + 1, e.files.length));
       }
-      final images = List.generate(
-        urls.length,
-        (i) => {
-          'url': urls[i],
-          'caption': i < e.captions.length ? e.captions[i] : '',
-        },
-      );
+      final images = List.generate(urls.length, (i) => {
+        'url': urls[i],
+        'caption': i < e.captions.length ? e.captions[i] : '',
+      });
       await _repo.createAlbum(
         title: e.title,
         authorId: e.authorId,
@@ -135,15 +123,11 @@ class PhotoBloc extends Bloc<PhotoEvent, PhotoState> {
   ) async {
     try {
       await _repo.deleteAlbum(e.id);
-      // Remove from cache
       await CacheService.deleteAlbum(e.id);
-      // Update local state
       final current = state;
       if (current is PhotoAllLoaded) {
         final updated = current.albums.where((a) => a.id != e.id).toList();
-        await CacheService.saveAllAlbums(
-          updated.map((a) => a.toSimpleMap()).toList(),
-        );
+        await CacheService.saveAllAlbums(updated.map((a) => a.toSimpleMap()).toList());
         emit(PhotoAllLoaded(updated));
       } else if (current is PhotoMyAlbumsLoaded) {
         final updated = current.albums.where((a) => a.id != e.id).toList();
@@ -162,12 +146,8 @@ class PhotoBloc extends Bloc<PhotoEvent, PhotoState> {
   ) async {
     try {
       await _repo.deleteImage(e.imageId);
-      // Reload album to reflect updated image list
       final album = await _repo.getAlbum(e.albumId);
-      if (album == null) {
-        emit(const PhotoError('Album not found after image deletion'));
-        return;
-      }
+      if (album == null) { emit(const PhotoError('Album not found after image deletion')); return; }
       await CacheService.saveAlbum(e.albumId, album.toSimpleMap());
       emit(PhotoAlbumLoaded(album));
     } catch (err) {
@@ -176,6 +156,7 @@ class PhotoBloc extends Bloc<PhotoEvent, PhotoState> {
   }
 
   // ── Toggle public ─────────────────────────────────────────────────────────
+  // FIX: was calling repo but never updating local state, so UI didn't refresh.
 
   Future<void> _onTogglePublic(
     PhotoTogglePublicRequested e,
@@ -183,6 +164,20 @@ class PhotoBloc extends Bloc<PhotoEvent, PhotoState> {
   ) async {
     try {
       await _repo.togglePublic(e.id, e.current);
+      final current = state;
+      if (current is PhotoAllLoaded) {
+        final updated = current.albums.map((a) {
+          if (a.id != e.id) return a;
+          return PhotoAlbum.fromJson({...a.toSimpleMap(), 'is_public': e.current});
+        }).toList();
+        emit(PhotoAllLoaded(updated));
+      } else if (current is PhotoMyAlbumsLoaded) {
+        final updated = current.albums.map((a) {
+          if (a.id != e.id) return a;
+          return PhotoAlbum.fromJson({...a.toSimpleMap(), 'is_public': e.current});
+        }).toList();
+        emit(PhotoMyAlbumsLoaded(updated));
+      }
     } catch (err) {
       emit(PhotoError(err.toString()));
     }

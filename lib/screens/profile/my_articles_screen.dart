@@ -39,28 +39,19 @@ class _MyArticlesView extends StatelessWidget {
       context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Delete Article',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-        ),
+        title: const Text('Delete Article', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
         content: Text(
           'Are you sure you want to delete "$title"? This cannot be undone.',
           style: const TextStyle(fontSize: 13),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
               context.read<ArticleBloc>().add(ArticleDeleteRequested(id));
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red[400],
-              foregroundColor: Colors.white,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red[400], foregroundColor: Colors.white),
             child: const Text('Delete'),
           ),
         ],
@@ -72,35 +63,26 @@ class _MyArticlesView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-  leading: IconButton(
-    icon: const Icon(Icons.arrow_back),
-    onPressed: () => context.pop(),
-  ),
-  title: const Text(
-    'My Articles',
-    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-  ),
-  actions: [
-    Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: ElevatedButton.icon(
-        onPressed: () => context.push('/articles/create'),
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text('New Article'),
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          minimumSize: Size.zero,
-        ),
+        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
+        title: const Text('My Articles', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ElevatedButton.icon(
+              onPressed: () => context.push('/articles/create'),
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('New Article'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                minimumSize: Size.zero,
+              ),
+            ),
+          ),
+        ],
       ),
-    ),
-  ],
-),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
-
-          // Article list
           Expanded(
             child: BlocBuilder<ArticleBloc, ArticleState>(
               builder: (context, state) {
@@ -113,19 +95,15 @@ class _MyArticlesView extends StatelessWidget {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.error_outline,
-                            size: 48, color: Colors.grey),
+                        const Icon(Icons.error_outline, size: 48, color: Colors.grey),
                         const SizedBox(height: 12),
-                        Text(state.message,
-                            style: const TextStyle(color: Colors.grey)),
+                        Text(state.message, style: const TextStyle(color: Colors.grey)),
                         const SizedBox(height: 12),
                         TextButton(
                           onPressed: () {
                             final auth = context.read<AuthBloc>().state;
                             if (auth is AuthAuthenticated) {
-                              context.read<ArticleBloc>().add(
-                                    ArticleMyListLoadRequested(auth.userId),
-                                  );
+                              context.read<ArticleBloc>().add(ArticleMyListLoadRequested(auth.userId));
                             }
                           },
                           child: const Text('Retry'),
@@ -143,22 +121,13 @@ class _MyArticlesView extends StatelessWidget {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.article_outlined,
-                              size: 64, color: Colors.grey[300]),
+                          Icon(Icons.article_outlined, size: 64, color: Colors.grey[300]),
                           const SizedBox(height: 16),
-                          const Text(
-                            'No articles yet',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF6B7280),
-                            ),
-                          ),
+                          const Text('No articles yet',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF6B7280))),
                           const SizedBox(height: 6),
-                          const Text(
-                            'Start contributing to the encyclopedia!',
-                            style: TextStyle(color: Color(0xFF9CA3AF)),
-                          ),
+                          const Text('Start contributing to the encyclopedia!',
+                            style: TextStyle(color: Color(0xFF9CA3AF))),
                           const SizedBox(height: 20),
                           ElevatedButton(
                             onPressed: () => context.push('/articles/create'),
@@ -175,8 +144,11 @@ class _MyArticlesView extends StatelessWidget {
                     separatorBuilder: (_, __) => const SizedBox(height: 10),
                     itemBuilder: (context, i) => _ArticleCard(
                       article: articles[i],
-                      onDelete: (id, title) =>
-                          _confirmDelete(context, id, title),
+                      onDelete: (id, title) => _confirmDelete(context, id, title),
+                      // ArticlePublishRequested(id, bool publish) — true = publish, false = draft
+                      onToggleStatus: (id, publish) => context.read<ArticleBloc>().add(
+                        ArticlePublishRequested(id, publish),
+                      ),
                     ),
                   );
                 }
@@ -194,8 +166,13 @@ class _MyArticlesView extends StatelessWidget {
 class _ArticleCard extends StatelessWidget {
   final ArticleModel article;
   final void Function(String id, String title) onDelete;
+  final void Function(String id, bool publish) onToggleStatus;
 
-  const _ArticleCard({required this.article, required this.onDelete});
+  const _ArticleCard({
+    required this.article,
+    required this.onDelete,
+    required this.onToggleStatus,
+  });
 
   String get _title {
     if (article.translations.isNotEmpty) {
@@ -221,6 +198,8 @@ class _ArticleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isPublished = article.status == 'published';
+
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
@@ -242,51 +221,55 @@ class _ArticleCard extends StatelessWidget {
                       children: [
                         _StatusBadge(status: article.status),
                         const SizedBox(width: 8),
-                        Text(
-                          article.category,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFF9CA3AF),
-                          ),
-                        ),
+                        Text(article.category, style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
                       ],
                     ),
                     const SizedBox(height: 6),
                     Text(
                       _title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
-                        color: Color(0xFF111827),
-                      ),
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: Color(0xFF111827)),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                     if (_excerpt != null && _excerpt!.isNotEmpty) ...[
                       const SizedBox(height: 4),
-                      Text(
-                        _excerpt!,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: Color(0xFF6B7280),
-                        ),
+                      Text(_excerpt!,
+                        style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
                         maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                        overflow: TextOverflow.ellipsis),
                     ],
                   ],
                 ),
               ),
               const SizedBox(width: 8),
-              // Edit button
+              // Publish / Unpublish — calls ArticlePublishRequested(id, !isPublished)
+              GestureDetector(
+                onTap: () => onToggleStatus(article.id, !isPublished),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: isPublished ? const Color(0xFFFDE68A) : const Color(0xFFBBF7D0),
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    isPublished ? 'Unpublish' : 'Publish',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isPublished ? const Color(0xFFD97706) : AppTheme.greenDark,
+                    ),
+                  ),
+                ),
+              ),
+              // Edit
               IconButton(
                 icon: const Icon(Icons.edit_outlined, size: 18),
                 color: AppTheme.greenPrimary,
                 tooltip: 'Edit',
-                onPressed: () =>
-                    context.push('/articles/edit/${article.slug}'),
+                onPressed: () => context.push('/articles/edit/${article.slug}'),
               ),
-              // Delete button
+              // Delete
               IconButton(
                 icon: const Icon(Icons.delete_outline, size: 18),
                 color: Colors.red[400],
@@ -303,7 +286,6 @@ class _ArticleCard extends StatelessWidget {
 
 class _StatusBadge extends StatelessWidget {
   final String status;
-
   const _StatusBadge({required this.status});
 
   @override
@@ -317,17 +299,10 @@ class _StatusBadge extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(99),
-      ),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(99)),
       child: Text(
         status[0].toUpperCase() + status.substring(1),
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: fg,
-        ),
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: fg),
       ),
     );
   }
