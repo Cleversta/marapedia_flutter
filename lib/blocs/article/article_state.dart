@@ -46,15 +46,27 @@ class ArticleCategoryLoaded extends ArticleState {
 class ArticleDetailLoaded extends ArticleState {
   final ArticleModel article;
   final bool isOffline;
+  final bool isFavorited; // ← NEW
 
-  const ArticleDetailLoaded(this.article, {this.isOffline = false});
+  const ArticleDetailLoaded(
+    this.article, {
+    this.isOffline = false,
+    this.isFavorited = false,
+  });
+
+  ArticleDetailLoaded copyWith({bool? isFavorited, bool? isOffline}) =>
+      ArticleDetailLoaded(
+        article,
+        isOffline: isOffline ?? this.isOffline,
+        isFavorited: isFavorited ?? this.isFavorited,
+      );
 
   @override
-  List<Object?> get props => [article, isOffline];
+  List<Object?> get props => [article, isOffline, isFavorited];
 }
 
 class ArticleSearchLoaded extends ArticleState {
-  final List<ArticleModel> results; // ← back to results
+  final List<ArticleModel> results;
   final String query;
 
   const ArticleSearchLoaded(this.results, this.query);
@@ -80,6 +92,19 @@ class ArticleAllLoaded extends ArticleState {
   @override
   List<Object?> get props => [articles];
 }
+
+// ── Favorites ─────────────────────────────────────────────────────────────────
+
+class ArticleFavoritesLoaded extends ArticleState {
+  final List<ArticleModel> articles;
+
+  const ArticleFavoritesLoaded(this.articles);
+
+  @override
+  List<Object?> get props => [articles];
+}
+
+// ── Error ─────────────────────────────────────────────────────────────────────
 
 class ArticleError extends ArticleState {
   final String message;

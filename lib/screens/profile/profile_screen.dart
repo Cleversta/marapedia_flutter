@@ -30,7 +30,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _editing = false;
   bool _avatarUploading = false;
-  String _activeTab = 'articles';
+  String _activeTab = 'articles'; // 'articles' | 'photos' | 'saved'
   final _fullNameCtrl = TextEditingController();
   final _bioCtrl = TextEditingController();
 
@@ -46,8 +46,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.initState();
     final authState = context.read<AuthBloc>().state;
     if (authState is AuthAuthenticated) {
-      context.read<ArticleBloc>().add(ArticleMyListLoadRequested(authState.userId));
-      context.read<PhotoBloc>().add(PhotoMyAlbumsLoadRequested(authState.userId));
+      context.read<ArticleBloc>()
+        ..add(ArticleMyListLoadRequested(authState.userId));
+      context.read<PhotoBloc>()
+        .add(PhotoMyAlbumsLoadRequested(authState.userId));
       _fullNameCtrl.text = authState.profile.fullName ?? '';
       _bioCtrl.text = authState.profile.bio ?? '';
     }
@@ -62,9 +64,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _avatarUploading = true);
     try {
       final url = await UploadService.uploadImage(File(picked.path));
-      if (mounted) context.read<AuthBloc>().add(AuthAvatarUpdateRequested(authState.userId, url));
+      if (mounted) {
+        context.read<AuthBloc>().add(AuthAvatarUpdateRequested(authState.userId, url));
+      }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
     } finally {
       if (mounted) setState(() => _avatarUploading = false);
     }
@@ -77,6 +83,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       bio: _bioCtrl.text.trim(),
     ));
     setState(() => _editing = false);
+  }
+
+  /// Switch to Saved tab and load favorites if not already loaded.
+  void _switchToSaved(String userId) {
+    setState(() => _activeTab = 'saved');
+    final state = context.read<ArticleBloc>().state;
+    if (state is! ArticleFavoritesLoaded) {
+      context.read<ArticleBloc>().add(ArticleFavoritesLoadRequested(userId));
+    }
   }
 
   @override
@@ -96,10 +111,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
 
         final profile = authState.profile;
+
         return Scaffold(
           appBar: AppBar(
-            leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
-            title: const Text('My Profile', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => context.pop(),
+            ),
+            title: const Text('My Profile',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
             actions: [
               IconButton(
                 icon: Icon(_editing ? Icons.close : Icons.edit_outlined),
@@ -111,7 +131,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Profile card
+                // ── Profile card ────────────────────────────────────────
                 Container(
                   margin: const EdgeInsets.all(16),
                   padding: const EdgeInsets.all(20),
@@ -135,48 +155,71 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               child: profile.avatarUrl == null
                                   ? Text(
                                       profile.username[0].toUpperCase(),
-                                      style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppTheme.greenDark),
+                                      style: const TextStyle(
+                                          fontSize: 28,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppTheme.greenDark),
                                     )
                                   : null,
                             ),
                             if (_avatarUploading)
                               Positioned.fill(
                                 child: Container(
-                                  decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
-                                  child: const Center(child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
+                                  decoration: const BoxDecoration(
+                                      color: Colors.black45,
+                                      shape: BoxShape.circle),
+                                  child: const Center(
+                                    child: CircularProgressIndicator(
+                                        color: Colors.white, strokeWidth: 2),
+                                  ),
                                 ),
                               ),
                             Positioned(
-                              bottom: 0, right: 0,
+                              bottom: 0,
+                              right: 0,
                               child: Container(
-                                width: 26, height: 26,
-                                decoration: const BoxDecoration(color: AppTheme.greenPrimary, shape: BoxShape.circle),
-                                child: const Icon(Icons.camera_alt, size: 14, color: Colors.white),
+                                width: 26,
+                                height: 26,
+                                decoration: const BoxDecoration(
+                                    color: AppTheme.greenPrimary,
+                                    shape: BoxShape.circle),
+                                child: const Icon(Icons.camera_alt,
+                                    size: 14, color: Colors.white),
                               ),
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Text(profile.username, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                      Text(profile.username,
+                          style: const TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.w700)),
                       if (profile.fullName != null)
-                        Text(profile.fullName!, style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+                        Text(profile.fullName!,
+                            style: TextStyle(
+                                fontSize: 13, color: Colors.grey[500])),
                       const SizedBox(height: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 3),
                         decoration: BoxDecoration(
                           color: profile.isAdmin
                               ? const Color(0xFFF3E8FF)
-                              : profile.isEditor ? const Color(0xFFEFF6FF) : AppTheme.greenBg,
+                              : profile.isEditor
+                                  ? const Color(0xFFEFF6FF)
+                                  : AppTheme.greenBg,
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
                           profile.role,
                           style: TextStyle(
-                            fontSize: 11, fontWeight: FontWeight.w600,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
                             color: profile.isAdmin
                                 ? const Color(0xFF7C3AED)
-                                : profile.isEditor ? const Color(0xFF1D4ED8) : AppTheme.greenDark,
+                                : profile.isEditor
+                                    ? const Color(0xFF1D4ED8)
+                                    : AppTheme.greenDark,
                           ),
                         ),
                       ),
@@ -184,47 +227,113 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         const SizedBox(height: 16),
                         TextField(
                           controller: _fullNameCtrl,
-                          decoration: const InputDecoration(labelText: 'Full Name', prefixIcon: Icon(Icons.person_outline, size: 18)),
+                          decoration: const InputDecoration(
+                            labelText: 'Full Name',
+                            prefixIcon: Icon(Icons.person_outline, size: 18),
+                          ),
                         ),
                         const SizedBox(height: 10),
                         TextField(
                           controller: _bioCtrl,
                           maxLines: 3,
-                          decoration: const InputDecoration(labelText: 'Bio', alignLabelWithHint: true, prefixIcon: Icon(Icons.info_outline, size: 18)),
+                          decoration: const InputDecoration(
+                            labelText: 'Bio',
+                            alignLabelWithHint: true,
+                            prefixIcon: Icon(Icons.info_outline, size: 18),
+                          ),
                         ),
                         const SizedBox(height: 12),
                         SizedBox(
                           width: double.infinity,
-                          child: ElevatedButton(onPressed: () => _saveProfile(profile), child: const Text('Save Changes')),
+                          child: ElevatedButton(
+                            onPressed: () => _saveProfile(profile),
+                            child: const Text('Save Changes'),
+                          ),
                         ),
-                      ] else if (profile.bio != null && profile.bio!.isNotEmpty) ...[
+                      ] else if (profile.bio != null &&
+                          profile.bio!.isNotEmpty) ...[
                         const SizedBox(height: 10),
-                        Text(profile.bio!, textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: Colors.grey[600], height: 1.5)),
+                        Text(
+                          profile.bio!,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey[600],
+                              height: 1.5),
+                        ),
                       ],
                     ],
                   ),
                 ),
 
-                // Stats
+                // ── Stats ───────────────────────────────────────────────
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: BlocBuilder<ArticleBloc, ArticleState>(
                     builder: (context, artState) {
-                      final articles = artState is ArticleMyListLoaded ? artState.articles : <ArticleModel>[];
-                      final published = articles.where((a) => a.status == 'published').length;
+                      final myArticles = artState is ArticleMyListLoaded
+                          ? artState.articles
+                          : <ArticleModel>[];
+                      final published =
+                          myArticles.where((a) => a.status == 'published').length;
+                      final savedCount = artState is ArticleFavoritesLoaded
+                          ? artState.articles.length
+                          : null; // null = not loaded yet
+
                       return BlocBuilder<PhotoBloc, PhotoState>(
                         builder: (context, photoState) {
-                          final albums = photoState is PhotoMyAlbumsLoaded ? photoState.albums : <dynamic>[];
-                          final totalPhotos = albums.fold(0, (s, a) => s + a.images.length as int);
+                          final albums = photoState is PhotoMyAlbumsLoaded
+                              ? photoState.albums
+                              : <dynamic>[];
                           return Row(
                             children: [
-                              _statCard('Articles', '${articles.length}', Colors.grey[800]!),
+                              _statCard('Articles', '${myArticles.length}',
+                                  Colors.grey[800]!),
                               const SizedBox(width: 8),
-                              _statCard('Published', '$published', AppTheme.greenPrimary),
+                              _statCard('Published', '$published',
+                                  AppTheme.greenPrimary),
                               const SizedBox(width: 8),
-                              _statCard('Albums', '${albums.length}', Colors.pink[600]!),
+                              _statCard('Albums', '${albums.length}',
+                                  Colors.pink[600]!),
                               const SizedBox(width: 8),
-                              _statCard('Photos', '$totalPhotos', Colors.blue[600]!),
+                              // Saved stat — tappable shortcut to the tab
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () => _switchToSaved(authState.userId),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: _activeTab == 'saved'
+                                          ? const Color(0xFFFFF1F2)
+                                          : Colors.grey[50],
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: _activeTab == 'saved'
+                                            ? Colors.red[200]!
+                                            : const Color(0xFFE5E7EB),
+                                      ),
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        Text(
+                                          savedCount != null
+                                              ? '$savedCount'
+                                              : '·',
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w800,
+                                            color: Colors.red[400],
+                                          ),
+                                        ),
+                                        const Text('Saved',
+                                            style: TextStyle(
+                                                fontSize: 10,
+                                                color: Colors.grey)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ],
                           );
                         },
@@ -235,13 +344,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                 const SizedBox(height: 16),
 
-                // Tabs
+                // ── Tabs ────────────────────────────────────────────────
                 Container(
-                  decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB)))),
-                  child: Row(children: [_tab('articles', 'Articles'), _tab('photos', 'Photo Albums')]),
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: Color(0xFFE5E7EB)),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      _tab('articles', 'Articles'),
+                      _tab('photos', 'Photo Albums'),
+                      _tab('saved', 'Saved',
+                          onTap: () => _switchToSaved(authState.userId)),
+                    ],
+                  ),
                 ),
 
-                if (_activeTab == 'articles') _buildArticlesTab() else _buildPhotosTab(),
+                // ── Tab content ─────────────────────────────────────────
+                if (_activeTab == 'articles') _buildArticlesTab(),
+                if (_activeTab == 'photos') _buildPhotosTab(),
+                if (_activeTab == 'saved') _buildSavedTab(),
               ],
             ),
           ),
@@ -250,185 +373,247 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _statCard(String label, String value, Color color) => Expanded(
-    child: Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: Column(
-        children: [
-          Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: color)),
-          Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-        ],
-      ),
-    ),
-  );
+  // ── Helpers ──────────────────────────────────────────────────────────────
 
-  Widget _tab(String key, String label) => Expanded(
-    child: GestureDetector(
-      onTap: () => setState(() => _activeTab = key),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(
-            color: _activeTab == key ? AppTheme.greenPrimary : Colors.transparent,
-            width: 2,
-          )),
-        ),
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 13, fontWeight: FontWeight.w600,
-            color: _activeTab == key ? AppTheme.greenPrimary : Colors.grey[500],
+  Widget _statCard(String label, String value, Color color) => Expanded(
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.grey[50],
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+          ),
+          child: Column(
+            children: [
+              Text(value,
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: color)),
+              Text(label,
+                  style:
+                      const TextStyle(fontSize: 10, color: Colors.grey)),
+            ],
           ),
         ),
-      ),
-    ),
-  );
+      );
+
+  Widget _tab(String key, String label, {VoidCallback? onTap}) => Expanded(
+        child: GestureDetector(
+          onTap: onTap ?? () => setState(() => _activeTab = key),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: _activeTab == key
+                      ? AppTheme.greenPrimary
+                      : Colors.transparent,
+                  width: 2,
+                ),
+              ),
+            ),
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: _activeTab == key
+                    ? AppTheme.greenPrimary
+                    : Colors.grey[500],
+              ),
+            ),
+          ),
+        ),
+      );
+
+  // ── Articles tab ──────────────────────────────────────────────────────────
 
   Widget _buildArticlesTab() => BlocBuilder<ArticleBloc, ArticleState>(
-    builder: (context, state) {
-      if (state is ArticleLoading) {
-        return const Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator()));
-      }
+        builder: (context, state) {
+          if (state is ArticleLoading) {
+            return const Padding(
+                padding: EdgeInsets.all(16),
+                child: Center(child: CircularProgressIndicator()));
+          }
 
-      final articles = state is ArticleMyListLoaded ? state.articles : <ArticleModel>[];
+          final articles = state is ArticleMyListLoaded
+              ? state.articles
+              : <ArticleModel>[];
 
-      if (articles.isEmpty) {
-        return Padding(
-          padding: const EdgeInsets.all(24),
-          child: Center(
-            child: Column(
-              children: [
-                const Text('📑', style: TextStyle(fontSize: 40)),
-                const SizedBox(height: 8),
-                Text("You haven't written any articles yet.", style: TextStyle(color: Colors.grey[400])),
-                const SizedBox(height: 12),
-                ElevatedButton(
-                  onPressed: () => context.push('/articles/create'),
-                  child: const Text('Write your first article'),
+          if (articles.isEmpty) {
+            return Padding(
+              padding: const EdgeInsets.all(24),
+              child: Center(
+                child: Column(
+                  children: [
+                    const Text('📑', style: TextStyle(fontSize: 40)),
+                    const SizedBox(height: 8),
+                    Text("You haven't written any articles yet.",
+                        style: TextStyle(color: Colors.grey[400])),
+                    const SizedBox(height: 12),
+                    ElevatedButton(
+                      onPressed: () => context.push('/articles/create'),
+                      child: const Text('Write your first article'),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-        );
-      }
-
-      return Column(
-        children: articles.map<Widget>((a) {
-          final ArticleTranslationModel? t = a.translations.isNotEmpty
-              ? a.translations.firstWhere((t) => t.language == 'english', orElse: () => a.translations.first)
-              : null;
-          final cat = Helpers.getCategoryInfo(a.category);
-          final isPublished = a.status == 'published';
-
-          return GestureDetector(
-            onTap: () => context.push('/articles/${a.slug}'),
-            child: Container(
-              margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE5E7EB)),
               ),
-              child: Row(
-                children: [
-                  Text(cat?['icon'] ?? '', style: const TextStyle(fontSize: 18)),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(t?.title ?? 'Untitled',
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                          overflow: TextOverflow.ellipsis),
-                        Text('${cat?['label'] ?? ''} · ${Helpers.timeAgo(a.updatedAt ?? a.createdAt)}',
-                          style: TextStyle(fontSize: 11, color: Colors.grey[400])),
-                      ],
-                    ),
+            );
+          }
+
+          return Column(
+            children: articles.map<Widget>((a) {
+              final ArticleTranslationModel? t = a.translations.isNotEmpty
+                  ? a.translations.firstWhere(
+                      (t) => t.language == 'english',
+                      orElse: () => a.translations.first)
+                  : null;
+              final cat = Helpers.getCategoryInfo(a.category);
+              final isPublished = a.status == 'published';
+
+              return GestureDetector(
+                onTap: () => context.push('/articles/${a.slug}'),
+                child: Container(
+                  margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE5E7EB)),
                   ),
-                  // Status badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: isPublished ? AppTheme.greenBg : Colors.grey[100],
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(a.status, style: TextStyle(fontSize: 10, color: isPublished ? AppTheme.greenDark : Colors.grey)),
-                  ),
-                  const SizedBox(width: 6),
-                  // Publish / Unpublish — ArticlePublishRequested(id, bool publish)
-                  GestureDetector(
-                    onTap: () => context.read<ArticleBloc>().add(
-                      ArticlePublishRequested(a.id, !isPublished),
-                    ),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: isPublished ? const Color(0xFFFDE68A) : const Color(0xFFBBF7D0),
+                  child: Row(
+                    children: [
+                      Text(cat?['icon'] ?? '',
+                          style: const TextStyle(fontSize: 18)),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(t?.title ?? 'Untitled',
+                                style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600),
+                                overflow: TextOverflow.ellipsis),
+                            Text(
+                                '${cat?['label'] ?? ''} · ${Helpers.timeAgo(a.updatedAt ?? a.createdAt)}',
+                                style: TextStyle(
+                                    fontSize: 11, color: Colors.grey[400])),
+                          ],
                         ),
-                        borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Text(
-                        isPublished ? 'Unpublish' : 'Publish',
-                        style: TextStyle(fontSize: 11, color: isPublished ? const Color(0xFFD97706) : AppTheme.greenDark),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: isPublished
+                              ? AppTheme.greenBg
+                              : Colors.grey[100],
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(a.status,
+                            style: TextStyle(
+                                fontSize: 10,
+                                color: isPublished
+                                    ? AppTheme.greenDark
+                                    : Colors.grey)),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  // Edit
-                  GestureDetector(
-                    onTap: () => context.push('/articles/edit/${a.slug}'),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: const Color(0xFFE5E7EB)),
-                        borderRadius: BorderRadius.circular(8),
+                      const SizedBox(width: 6),
+                      GestureDetector(
+                        onTap: () => context.read<ArticleBloc>().add(
+                              ArticlePublishRequested(a.id, !isPublished),
+                            ),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: isPublished
+                                  ? const Color(0xFFFDE68A)
+                                  : const Color(0xFFBBF7D0),
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            isPublished ? 'Unpublish' : 'Publish',
+                            style: TextStyle(
+                                fontSize: 11,
+                                color: isPublished
+                                    ? const Color(0xFFD97706)
+                                    : AppTheme.greenDark),
+                          ),
+                        ),
                       ),
-                      child: const Text('Edit', style: TextStyle(fontSize: 11)),
-                    ),
+                      const SizedBox(width: 6),
+                      GestureDetector(
+                        onTap: () =>
+                            context.push('/articles/edit/${a.slug}'),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            border:
+                                Border.all(color: const Color(0xFFE5E7EB)),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text('Edit',
+                              style: TextStyle(fontSize: 11)),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      GestureDetector(
+                        onTap: () =>
+                            _confirmDelete(context, a.id, t?.title ?? a.slug),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            border:
+                                Border.all(color: Colors.red[200]!),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text('Delete',
+                              style: TextStyle(
+                                  fontSize: 11, color: Colors.red[400])),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 6),
-                  // Delete
-                  GestureDetector(
-                    onTap: () => _confirmDelete(context, a.id, t?.title ?? a.slug),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(border: Border.all(color: Colors.red[200]!), borderRadius: BorderRadius.circular(8)),
-                      child: Text('Delete', style: TextStyle(fontSize: 11, color: Colors.red[400])),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+                ),
+              );
+            }).toList()
+              ..add(const SizedBox(height: 40)),
           );
-        }).toList()
-          ..add(const SizedBox(height: 40)),
+        },
       );
-    },
-  );
 
   void _confirmDelete(BuildContext context, String id, String title) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Delete Article', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-        content: Text('Are you sure you want to delete "$title"? This cannot be undone.', style: const TextStyle(fontSize: 13)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Delete Article',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        content: Text(
+            'Are you sure you want to delete "$title"? This cannot be undone.',
+            style: const TextStyle(fontSize: 13)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              context.read<ArticleBloc>().add(ArticleDeleteRequested(id));
+              context
+                  .read<ArticleBloc>()
+                  .add(ArticleDeleteRequested(id));
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red[400], foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[400],
+                foregroundColor: Colors.white),
             child: const Text('Delete'),
           ),
         ],
@@ -436,96 +621,288 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // ── Photos tab ────────────────────────────────────────────────────────────
+
   Widget _buildPhotosTab() => BlocBuilder<PhotoBloc, PhotoState>(
-    builder: (context, state) {
-      final albums = state is PhotoMyAlbumsLoaded ? state.albums : <dynamic>[];
+        builder: (context, state) {
+          final albums = state is PhotoMyAlbumsLoaded
+              ? state.albums
+              : <dynamic>[];
 
-      if (albums.isEmpty) {
-        return Padding(
-          padding: const EdgeInsets.all(24),
-          child: Center(
-            child: Column(
-              children: [
-                const Text('📷', style: TextStyle(fontSize: 40)),
-                const SizedBox(height: 8),
-                Text("No photo albums yet.", style: TextStyle(color: Colors.grey[400])),
-                const SizedBox(height: 12),
-                ElevatedButton(onPressed: () => context.push('/photos'), child: const Text('Upload Photos')),
-              ],
-            ),
-          ),
-        );
-      }
-
-      return Column(
-        children: albums.map<Widget>((a) {
-          final isPublic = a.isPublic as bool;
-          return GestureDetector(
-            onTap: () => context.push('/photos/${a.id}'),
-            child: Container(
-              margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE5E7EB)),
+          if (albums.isEmpty) {
+            return Padding(
+              padding: const EdgeInsets.all(24),
+              child: Center(
+                child: Column(
+                  children: [
+                    const Text('📷', style: TextStyle(fontSize: 40)),
+                    const SizedBox(height: 8),
+                    Text("No photo albums yet.",
+                        style: TextStyle(color: Colors.grey[400])),
+                    const SizedBox(height: 12),
+                    ElevatedButton(
+                        onPressed: () => context.push('/photos'),
+                        child: const Text('Upload Photos')),
+                  ],
+                ),
               ),
-              child: Row(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: a.thumbnailUrl != null
-                        ? Image.network(a.thumbnailUrl!, width: 52, height: 52, fit: BoxFit.cover)
-                        : Container(width: 52, height: 52, color: Colors.grey[200], child: const Icon(Icons.photo, color: Colors.grey)),
+            );
+          }
+
+          return Column(
+            children: albums.map<Widget>((a) {
+              final isPublic = a.isPublic as bool;
+              return GestureDetector(
+                onTap: () => context.push('/photos/${a.id}'),
+                child: Container(
+                  margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE5E7EB)),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(a.title,
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                          overflow: TextOverflow.ellipsis),
-                        Text('${a.images.length} photos · ${Helpers.timeAgo(a.createdAt)}',
-                          style: TextStyle(fontSize: 11, color: Colors.grey[400])),
-                        const SizedBox(height: 2),
-                        // Public / Hidden badge
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  child: Row(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: a.thumbnailUrl != null
+                            ? Image.network(a.thumbnailUrl!,
+                                width: 52, height: 52, fit: BoxFit.cover)
+                            : Container(
+                                width: 52,
+                                height: 52,
+                                color: Colors.grey[200],
+                                child: const Icon(Icons.photo,
+                                    color: Colors.grey)),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(a.title,
+                                style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600),
+                                overflow: TextOverflow.ellipsis),
+                            Text(
+                                '${a.images.length} photos · ${Helpers.timeAgo(a.createdAt)}',
+                                style: TextStyle(
+                                    fontSize: 11, color: Colors.grey[400])),
+                            const SizedBox(height: 2),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: isPublic
+                                    ? AppTheme.greenBg
+                                    : Colors.grey[100],
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                isPublic ? 'Public' : 'Hidden',
+                                style: TextStyle(
+                                    fontSize: 9,
+                                    color: isPublic
+                                        ? AppTheme.greenDark
+                                        : Colors.grey),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => context.read<PhotoBloc>().add(
+                            PhotoTogglePublicRequested(a.id, !isPublic)),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: isPublic ? AppTheme.greenBg : Colors.grey[100],
-                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: isPublic
+                                  ? const Color(0xFFFDE68A)
+                                  : const Color(0xFFBBF7D0),
+                            ),
+                            borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            isPublic ? 'Public' : 'Hidden',
-                            style: TextStyle(fontSize: 9, color: isPublic ? AppTheme.greenDark : Colors.grey),
+                            isPublic ? 'Hide' : 'Make Public',
+                            style: TextStyle(
+                                fontSize: 11,
+                                color: isPublic
+                                    ? const Color(0xFFD97706)
+                                    : AppTheme.greenDark),
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  // Hide / Make Public — PhotoTogglePublicRequested(id, newValue)
-                  GestureDetector(
-                    onTap: () => context.read<PhotoBloc>().add(PhotoTogglePublicRequested(a.id, !isPublic)),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: isPublic ? const Color(0xFFFDE68A) : const Color(0xFFBBF7D0)),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        isPublic ? 'Hide' : 'Make Public',
-                        style: TextStyle(fontSize: 11, color: isPublic ? const Color(0xFFD97706) : AppTheme.greenDark),
-                      ),
-                    ),
+                ),
+              );
+            }).toList()
+              ..add(const SizedBox(height: 40)),
+          );
+        },
+      );
+
+  // ── Saved (favorites) tab ─────────────────────────────────────────────────
+
+  Widget _buildSavedTab() {
+    return BlocBuilder<ArticleBloc, ArticleState>(
+      builder: (context, state) {
+        if (state is ArticleLoading) {
+          return const Padding(
+            padding: EdgeInsets.all(16),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (state is! ArticleFavoritesLoaded) {
+          return const SizedBox.shrink();
+        }
+
+        final favorites = state.articles;
+
+        if (favorites.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.all(24),
+            child: Center(
+              child: Column(
+                children: [
+                  const Text('🤍', style: TextStyle(fontSize: 40)),
+                  const SizedBox(height: 8),
+                  Text('No saved articles yet.',
+                      style: TextStyle(color: Colors.grey[400])),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: () => context.go('/'),
+                    child: const Text('Browse articles'),
                   ),
                 ],
               ),
             ),
           );
-        }).toList()
-          ..add(const SizedBox(height: 40)),
-      );
-    },
-  );
+        }
+
+        final authState = context.read<AuthBloc>().state;
+        final userId = authState is AuthAuthenticated ? authState.userId : '';
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Text(
+                '${favorites.length} saved article${favorites.length == 1 ? '' : 's'}',
+                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+              ),
+            ),
+            ...favorites.map<Widget>((a) {
+              final t = a.translations.isNotEmpty
+                  ? a.translations.firstWhere(
+                      (t) => t.language == 'english',
+                      orElse: () => a.translations.first)
+                  : null;
+              final cat = Helpers.getCategoryInfo(a.category);
+
+              return GestureDetector(
+                onTap: () => context.push('/articles/${a.slug}'),
+                child: Container(
+                  margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE5E7EB)),
+                  ),
+                  child: Row(
+                    children: [
+                      // Thumbnail or category icon
+                      if (a.thumbnailUrl != null &&
+                          a.thumbnailUrl!.isNotEmpty)
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: CachedNetworkImage(
+                            imageUrl: a.thumbnailUrl!,
+                            width: 48,
+                            height: 48,
+                            fit: BoxFit.cover,
+                            placeholder: (_, __) => Container(
+                                width: 48,
+                                height: 48,
+                                color: Colors.grey[200]),
+                          ),
+                        )
+                      else
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Center(
+                            child: Text(cat?['icon'] ?? '📄',
+                                style: const TextStyle(fontSize: 22)),
+                          ),
+                        ),
+                      const SizedBox(width: 12),
+
+                      // Info
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              t?.title ?? 'Untitled',
+                              style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${cat?['label'] ?? ''} · ${a.profile?.username ?? 'Anonymous'} · ${Helpers.timeAgo(a.updatedAt ?? a.createdAt)}',
+                              style: TextStyle(
+                                  fontSize: 11, color: Colors.grey[400]),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Remove button
+                      GestureDetector(
+                        onTap: () {
+                          context.read<ArticleBloc>().add(
+                                ArticleFavoriteToggleRequested(
+                                  articleId: a.id,
+                                  userId: userId,
+                                  isFavorited: true, // we're removing
+                                ),
+                              );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.red[200]!),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.favorite,
+                              size: 14, color: Colors.red),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+            const SizedBox(height: 40),
+          ],
+        );
+      },
+    );
+  }
 }

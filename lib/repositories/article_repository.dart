@@ -190,6 +190,59 @@ class ArticleRepository {
         );
   }
 
+  // ── Favorites ─────────────────────────────────────────────────────────────
+
+  /// Returns true if the given article is favorited by [userId].
+  Future<bool> isFavorited(String articleId, String userId) async {
+    final res = await _db
+        .from('favorites')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('article_id', articleId)
+        .maybeSingle();
+    return res != null;
+  }
+
+  /// Fetch all articles favorited by [userId], newest first.
+  Future<List<ArticleModel>> getFavorites(String userId) async {
+    final res = await _db
+        .from('favorites')
+        .select('''
+          article:articles(
+            $_fields
+          )
+        ''')
+        .eq('user_id', userId)
+        .order('created_at', ascending: false);
+
+    return (res as List)
+        .map((row) {
+          final articleMap = row['article'];
+          if (articleMap == null) return null;
+          return ArticleModel.fromJson(
+              Map<String, dynamic>.from(articleMap));
+        })
+        .whereType<ArticleModel>()
+        .toList();
+  }
+
+  /// Add article to favorites.
+  Future<void> addFavorite(String articleId, String userId) async {
+    await _db.from('favorites').insert({
+      'user_id': userId,
+      'article_id': articleId,
+    });
+  }
+
+  /// Remove article from favorites.
+  Future<void> removeFavorite(String articleId, String userId) async {
+    await _db
+        .from('favorites')
+        .delete()
+        .eq('user_id', userId)
+        .eq('article_id', articleId);
+  }
+
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   List<ArticleModel> _parseList(String body) {

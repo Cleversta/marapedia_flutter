@@ -64,3 +64,25 @@ class ArticleFeatureToggleRequested extends ArticleEvent {
   @override
   List<Object?> get props => [id, current];
 }
+
+// ── Favorites ─────────────────────────────────────────────────────────────────
+
+class ArticleFavoritesLoadRequested extends ArticleEvent {
+  final String userId;
+  const ArticleFavoritesLoadRequested(this.userId);
+  @override
+  List<Object?> get props => [userId];
+}
+
+class ArticleFavoriteToggleRequested extends ArticleEvent {
+  final String articleId;
+  final String userId;
+  final bool isFavorited; // current state — bloc will flip it
+  const ArticleFavoriteToggleRequested({
+    required this.articleId,
+    required this.userId,
+    required this.isFavorited,
+  });
+  @override
+  List<Object?> get props => [articleId, userId, isFavorited];
+}

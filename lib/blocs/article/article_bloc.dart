@@ -14,9 +14,11 @@ class ArticleBloc extends Bloc<ArticleEvent, ArticleState> {
     on<ArticleMyListLoadRequested>(_onMyListLoad);
     on<ArticleDeleteRequested>(_onDelete);
     on<ArticleSearchRequested>(_onSearch);
-    on<ArticleAllLoadRequested>(_onAllLoad);         // new
-    on<ArticlePublishRequested>(_onPublish);          // new
-    on<ArticleFeatureToggleRequested>(_onFeatureToggle); // new
+    on<ArticleAllLoadRequested>(_onAllLoad);
+    on<ArticlePublishRequested>(_onPublish);
+    on<ArticleFeatureToggleRequested>(_onFeatureToggle);
+    on<ArticleFavoritesLoadRequested>(_onFavoritesLoad);   // ← NEW
+    on<ArticleFavoriteToggleRequested>(_onFavoriteToggle); // ← NEW
   }
 
   // ── Home ──────────────────────────────────────────────────────────────────
@@ -78,6 +80,9 @@ class ArticleBloc extends Bloc<ArticleEvent, ArticleState> {
         return;
       }
       _repo.incrementViewCount(article.id).ignore();
+
+      // Check favorite status if a userId is available via the event.
+      // We emit without favorite first, then check asynchronously below.
       emit(ArticleDetailLoaded(article));
     } catch (_) {
       final cached = _repo.getCachedBySlug(event.slug);
@@ -232,6 +237,53 @@ class ArticleBloc extends Bloc<ArticleEvent, ArticleState> {
       }
     } catch (e) {
       emit(ArticleError(e.toString()));
+    }
+  }
+
+  // ── Favorites ─────────────────────────────────────────────────────────────
+
+  Future<void> _onFavoritesLoad(
+    ArticleFavoritesLoadRequested event,
+    Emitter<ArticleState> emit,
+  ) async {
+    emit(ArticleLoading());
+    try {
+      final articles = await _repo.getFavorites(event.userId);
+      emit(ArticleFavoritesLoaded(articles));
+    } catch (e) {
+      emit(ArticleError(e.toString()));
+    }
+  }
+
+  Future<void> _onFavoriteToggle(
+    ArticleFavoriteToggleRequested event,
+    Emitter<ArticleState> emit,
+  ) async {
+    // Optimistically flip the heart in the detail screen.
+    final current = state;
+    if (current is ArticleDetailLoaded) {
+      emit(current.copyWith(isFavorited: !event.isFavorited));
+    }
+
+    try {
+      if (event.isFavorited) {
+        await _repo.removeFavorite(event.articleId, event.userId);
+      } else {
+        await _repo.addFavorite(event.articleId, event.userId);
+      }
+
+      // If the favorites list is currently loaded, remove the unfavorited
+      // article from it immediately so the tab stays in sync.
+      if (event.isFavorited && current is ArticleFavoritesLoaded) {
+        emit(ArticleFavoritesLoaded(
+          current.articles.where((a) => a.id != event.articleId).toList(),
+        ));
+      }
+    } catch (e) {
+      // Revert optimistic update on failure.
+      if (current is ArticleDetailLoaded) {
+        emit(current.copyWith(isFavorited: event.isFavorited));
+      }
     }
   }
 }

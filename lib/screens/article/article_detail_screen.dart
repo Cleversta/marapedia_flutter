@@ -7,10 +7,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../blocs/article/article_bloc.dart';
+import '../../blocs/article/article_event.dart';
 import '../../blocs/article/article_state.dart';
 import '../../blocs/auth/auth_bloc.dart';
 import '../../blocs/auth/auth_state.dart';
 import '../../models/article_model.dart';
+import '../../repositories/article_repository.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/constants.dart';
 import '../../utils/helpers.dart';
@@ -45,9 +47,35 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     }
   }
 
+  /// Called once after the article loads to check the favorite status.
+  Future<void> _checkFavoriteStatus(
+      BuildContext context, String articleId) async {
+    final authState = context.read<AuthBloc>().state;
+    if (authState is! AuthAuthenticated) return;
+
+    final repo = context.read<ArticleRepository>();
+    final favorited = await repo.isFavorited(articleId, authState.userId);
+
+    if (!context.mounted) return;
+    final current = context.read<ArticleBloc>().state;
+    if (current is ArticleDetailLoaded) {
+      // ignore: invalid_use_of_visible_for_testing_member
+      context.read<ArticleBloc>().emit(
+            current.copyWith(isFavorited: favorited),
+          );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ArticleBloc, ArticleState>(
+    return BlocConsumer<ArticleBloc, ArticleState>(
+      listenWhen: (prev, curr) =>
+          prev is ArticleLoading && curr is ArticleDetailLoaded,
+      listener: (context, state) {
+        if (state is ArticleDetailLoaded) {
+          _checkFavoriteStatus(context, state.article.id);
+        }
+      },
       builder: (context, state) {
         if (state is ArticleLoading) {
           return Scaffold(
@@ -59,8 +87,12 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
           );
         }
         if (state is ArticleDetailLoaded) {
-          return _buildDetail(context, state.article,
-              isOffline: state.isOffline);
+          return _buildDetail(
+            context,
+            state.article,
+            isOffline: state.isOffline,
+            isFavorited: state.isFavorited,
+          );
         }
         if (state is ArticleError) {
           return Scaffold(
@@ -74,8 +106,12 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     );
   }
 
-  Widget _buildDetail(BuildContext context, ArticleModel article,
-      {bool isOffline = false}) {
+  Widget _buildDetail(
+    BuildContext context,
+    ArticleModel article, {
+    bool isOffline = false,
+    bool isFavorited = false,
+  }) {
     final cat = Helpers.getCategoryInfo(article.category);
     final availLangs = article.translations.map((t) => t.language).toList();
 
@@ -126,7 +162,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
         children: [
           CustomScrollView(
             slivers: [
-              // ── App bar ────────────────────────────────────────────────
+              // ── App bar ───────────────────────────────────────────────
               SliverAppBar(
                 pinned: true,
                 backgroundColor:
@@ -136,11 +172,54 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                   onPressed: () => context.pop(),
                 ),
                 actions: [
+                  // ── Favorite heart button ──────────────────────────────
+                  BlocBuilder<AuthBloc, AuthState>(
+                    builder: (ctx, authState) {
+                      if (authState is! AuthAuthenticated) {
+                        return const SizedBox.shrink();
+                      }
+                      return IconButton(
+                        icon: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 250),
+                          transitionBuilder: (child, anim) => ScaleTransition(
+                            scale: anim,
+                            child: child,
+                          ),
+                          child: Icon(
+                            isFavorited
+                                ? Icons.favorite
+                                : Icons.favorite_border,
+                            key: ValueKey(isFavorited),
+                            color: isFavorited
+                                ? Colors.red[400]
+                                : null,
+                            size: 20,
+                          ),
+                        ),
+                        tooltip: isFavorited
+                            ? 'Remove from saved'
+                            : 'Save article',
+                        onPressed: () {
+                          ctx.read<ArticleBloc>().add(
+                                ArticleFavoriteToggleRequested(
+                                  articleId: article.id,
+                                  userId: authState.userId,
+                                  isFavorited: isFavorited,
+                                ),
+                              );
+                        },
+                      );
+                    },
+                  ),
+
+                  // ── Share ──────────────────────────────────────────────
                   IconButton(
                     icon: const Icon(Icons.share_outlined, size: 18),
                     onPressed: () =>
                         _shareArticle(article.slug, translation.title),
                   ),
+
+                  // ── Category pill ──────────────────────────────────────
                   Container(
                     margin: const EdgeInsets.only(right: 4),
                     padding: const EdgeInsets.symmetric(
@@ -156,6 +235,8 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                           fontSize: 11, fontWeight: FontWeight.w500),
                     ),
                   ),
+
+                  // ── Edit (owner / admin / editor) ──────────────────────
                   BlocBuilder<AuthBloc, AuthState>(
                     builder: (ctx, authState) {
                       if (authState is AuthAuthenticated) {
@@ -193,13 +274,16 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                           CircleAvatar(
                             radius: 14,
                             backgroundColor: AppTheme.greenLight,
-                            backgroundImage: (article.profile?.avatarUrl != null &&
+                            backgroundImage: (article.profile?.avatarUrl !=
+                                        null &&
                                     article.profile!.avatarUrl!.isNotEmpty)
-                                ? CachedNetworkImageProvider(article.profile!.avatarUrl!)
+                                ? CachedNetworkImageProvider(
+                                    article.profile!.avatarUrl!)
                                 : null,
                             child: article.profile?.avatarUrl == null
                                 ? Text(
-                                    (article.profile?.username ?? 'A')[0].toUpperCase(),
+                                    (article.profile?.username ?? 'A')[0]
+                                        .toUpperCase(),
                                     style: const TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold,
@@ -283,8 +367,8 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                                     horizontal: 10, vertical: 4),
                                 decoration: BoxDecoration(
                                   color: Colors.grey[100],
-                                  border:
-                                      Border.all(color: Colors.grey[200]!),
+                                  border: Border.all(
+                                      color: Colors.grey[200]!),
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                                 child: Text(
@@ -299,7 +383,8 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                             if (article.sourceUrl != null &&
                                 article.sourceUrl!.isNotEmpty)
                               GestureDetector(
-                                onTap: () => _launchUrl(article.sourceUrl!),
+                                onTap: () =>
+                                    _launchUrl(article.sourceUrl!),
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 10, vertical: 4),
@@ -482,14 +567,14 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                         child: OutlinedButton.icon(
                           onPressed: () =>
                               _shareArticle(article.slug, translation.title),
-                          icon:
-                              const Icon(Icons.share_outlined, size: 16),
+                          icon: const Icon(Icons.share_outlined, size: 16),
                           label: const Text('Share Article'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppTheme.greenPrimary,
                             side: const BorderSide(
                                 color: AppTheme.greenPrimary),
-                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 10),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
                             ),
@@ -508,8 +593,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                             label: const Text('Save Lyrics as Image'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: Colors.grey[700],
-                              side:
-                                  BorderSide(color: Colors.grey[300]!),
+                              side: BorderSide(color: Colors.grey[300]!),
                               padding: const EdgeInsets.symmetric(
                                   vertical: 10),
                               shape: RoundedRectangleBorder(
@@ -528,7 +612,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
             ],
           ),
 
-          // ── Lightbox ──────────────────────────────────────────────────
+          // ── Lightbox ─────────────────────────────────────────────────
           if (_lightboxIndex != null) _buildLightbox(allImages),
         ],
       ),
@@ -582,8 +666,8 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
           padding: HtmlPaddings.only(left: 16),
           color: const Color(0xFF166534),
           fontStyle: FontStyle.italic,
-          margin: Margins.only(
-              left: 0, right: 0, top: 12, bottom: 12),
+          margin:
+              Margins.only(left: 0, right: 0, top: 12, bottom: 12),
         ),
         'a': Style(
           color: AppTheme.greenPrimary,
