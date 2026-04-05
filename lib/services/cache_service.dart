@@ -80,6 +80,9 @@ class CacheService {
     return Map<String, dynamic>.from(jsonDecode(raw));
   }
 
+  static Future<void> deleteAlbum(String id) =>
+      Hive.box<String>(_kAlbumOne).delete(id);
+
   // ── My albums (keyed by userId) ───────────────────────────────────────────
 
   static Future<void> saveMyAlbums(

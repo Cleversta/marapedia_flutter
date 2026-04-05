@@ -12,11 +12,18 @@ class PhotoImage {
   });
 
   factory PhotoImage.fromJson(Map<String, dynamic> json) => PhotoImage(
-    id: json['id'] ?? '',
-    url: json['url'] ?? '',
-    caption: json['caption'],
-    sortOrder: json['sort_order'] ?? 0,
-  );
+        id: json['id'] ?? '',
+        url: json['url'] ?? '',
+        caption: json['caption'],
+        sortOrder: json['sort_order'] ?? 0,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'url': url,
+        'caption': caption,
+        'sort_order': sortOrder,
+      };
 }
 
 class PhotoAlbum {
@@ -43,14 +50,18 @@ class PhotoAlbum {
   factory PhotoAlbum.fromJson(Map<String, dynamic> json) {
     final rawImages = json['photo_images'];
     final images = rawImages is List
-      ? (rawImages.map((i) => PhotoImage.fromJson(Map<String, dynamic>.from(i))).toList()
-          ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder)))
-      : <PhotoImage>[];
+        ? (rawImages
+                .map((i) =>
+                    PhotoImage.fromJson(Map<String, dynamic>.from(i)))
+                .toList()
+              ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder)))
+        : <PhotoImage>[];
 
     Map<String, String>? profile;
     if (json['profiles'] is Map) {
       profile = Map<String, String>.from(
-        (json['profiles'] as Map).map((k, v) => MapEntry(k.toString(), v?.toString() ?? ''))
+        (json['profiles'] as Map)
+            .map((k, v) => MapEntry(k.toString(), v?.toString() ?? '')),
       );
     }
 
@@ -65,4 +76,16 @@ class PhotoAlbum {
       profile: profile,
     );
   }
+
+  /// Serialise to a plain map for Hive caching
+  Map<String, dynamic> toSimpleMap() => {
+        'id': id,
+        'title': title,
+        'author_id': authorId,
+        'is_public': isPublic,
+        'created_at': createdAt,
+        'thumbnail_url': thumbnailUrl,
+        'profiles': profile,
+        'photo_images': images.map((i) => i.toJson()).toList(),
+      };
 }
