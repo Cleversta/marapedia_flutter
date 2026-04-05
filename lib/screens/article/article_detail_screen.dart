@@ -193,15 +193,13 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                           CircleAvatar(
                             radius: 14,
                             backgroundColor: AppTheme.greenLight,
-                            backgroundImage: (article.profile?.avatarUrl !=
-                                        null &&
+                            backgroundImage: (article.profile?.avatarUrl != null &&
                                     article.profile!.avatarUrl!.isNotEmpty)
-                                ? NetworkImage(article.profile!.avatarUrl!)
+                                ? CachedNetworkImageProvider(article.profile!.avatarUrl!)
                                 : null,
                             child: article.profile?.avatarUrl == null
                                 ? Text(
-                                    (article.profile?.username ?? 'A')[0]
-                                        .toUpperCase(),
+                                    (article.profile?.username ?? 'A')[0].toUpperCase(),
                                     style: const TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold,

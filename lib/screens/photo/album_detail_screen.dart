@@ -23,14 +23,6 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
     super.initState();
     context.read<PhotoBloc>().add(PhotoAlbumLoadRequested(widget.id));
   }
-
-  /*************  ✨ Windsurf Command ⭐  *************/
-  /// Builds the widget tree for the album detail screen.
-  ///
-  /// If [state] is [PhotoLoading], shows a loading indicator.
-  /// If [state] is [PhotoAlbumLoaded], shows the album detail.
-  /// If [state] is neither of the above, shows a "not found" message.
-  /// *****  6cdb3016-19f3-43ab-b528-2330bdb40f36  ******
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<PhotoBloc, PhotoState>(

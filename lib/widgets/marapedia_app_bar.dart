@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -210,27 +211,27 @@ class _MarapediaAppBarState extends State<MarapediaAppBar> {
     );
   }
 
-  Widget _buildAvatar(AuthAuthenticated state) {
-    final url = state.profile.avatarUrl;
-    if (url != null && url.isNotEmpty) {
-      return CircleAvatar(
-        radius: 16,
-        backgroundColor: AppTheme.greenLight,
-        backgroundImage: NetworkImage(url),
-        onBackgroundImageError: (_, __) {},
-      );
-    }
+Widget _buildAvatar(AuthAuthenticated state) {
+  final url = state.profile.avatarUrl;
+  if (url != null && url.isNotEmpty) {
     return CircleAvatar(
       radius: 16,
       backgroundColor: AppTheme.greenLight,
-      child: Text(
-        state.profile.username[0].toUpperCase(),
-        style: const TextStyle(
-          color: AppTheme.greenDark,
-          fontWeight: FontWeight.bold,
-          fontSize: 13,
-        ),
-      ),
+      backgroundImage: CachedNetworkImageProvider(url), // ✅ uses disk cache offline
+      onBackgroundImageError: (_, __) {},
     );
   }
+  return CircleAvatar(
+    radius: 16,
+    backgroundColor: AppTheme.greenLight,
+    child: Text(
+      state.profile.username[0].toUpperCase(),
+      style: const TextStyle(
+        color: AppTheme.greenDark,
+        fontWeight: FontWeight.bold,
+        fontSize: 13,
+      ),
+    ),
+  );
+}
 }

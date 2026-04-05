@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -149,9 +150,9 @@ appBar: AppBar(
                             CircleAvatar(
                               radius: 40,
                               backgroundColor: AppTheme.greenLight,
-                              backgroundImage: profile.avatarUrl != null
-                                  ? NetworkImage(profile.avatarUrl!)
-                                  : null,
+backgroundImage: profile.avatarUrl != null
+    ? CachedNetworkImageProvider(profile.avatarUrl!)
+    : null,
                               child: profile.avatarUrl == null
                                   ? Text(
                                       profile.username[0].toUpperCase(),
