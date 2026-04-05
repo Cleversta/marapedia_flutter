@@ -173,7 +173,7 @@ class _SongEditorState extends State<SongEditor> {
   late List<SongSection> _sections;
   late SongMeta _meta;
   bool _showMeta = false;
-  bool _showChords = false; // ← default off
+  bool _showChords = false;
   bool _showAddMenu = false;
   final Set<String> _expanded = {};
   final Map<String, TextEditingController> _ctrls = {};
@@ -182,6 +182,9 @@ class _SongEditorState extends State<SongEditor> {
   late TextEditingController _singerCtrl;
   late TextEditingController _referenceCtrl;
   final Set<String> _editingLabel = {};
+
+  // ← FIX: track the last HTML we emitted so we can ignore the echo
+  String? _lastEmitted;
 
   @override
   void initState() {
@@ -221,15 +224,14 @@ class _SongEditorState extends State<SongEditor> {
     _singerCtrl.dispose();
     _referenceCtrl.dispose();
   }
-
-  @override
-  void didUpdateWidget(SongEditor old) {
-    super.didUpdateWidget(old);
-    if (widget.content != old.content) {
-      _teardown();
-      setState(() => _boot(widget.content));
-    }
+@override
+void didUpdateWidget(SongEditor old) {
+  super.didUpdateWidget(old);
+  if (widget.content != old.content && widget.content != _lastEmitted) {
+    _teardown();
+    setState(() => _boot(widget.content));
   }
+}
 
   @override
   void dispose() {
@@ -237,21 +239,23 @@ class _SongEditorState extends State<SongEditor> {
     super.dispose();
   }
 
-  void _emit() {
-    for (final s in _sections) {
-      s.content = _ctrls['${s.id}_c']?.text ?? s.content;
-      s.chords = _ctrls['${s.id}_h']?.text ?? s.chords;
-      if (s.type == 'custom') {
-        final labelText = _ctrls['${s.id}_l']?.text.trim() ?? '';
-        if (labelText.isNotEmpty) s.label = labelText;
-      }
+ void _emit() {
+  for (final s in _sections) {
+    s.content = _ctrls['${s.id}_c']?.text ?? s.content;
+    s.chords = _ctrls['${s.id}_h']?.text ?? s.chords;
+    if (s.type == 'custom') {
+      final labelText = _ctrls['${s.id}_l']?.text.trim() ?? '';
+      if (labelText.isNotEmpty) s.label = labelText;
     }
-    _meta.songNumber = _songNumberCtrl.text;
-    _meta.writer = _writerCtrl.text;
-    _meta.singer = _singerCtrl.text;
-    _meta.reference = _referenceCtrl.text;
-    widget.onChange(serializeSong(_sections, _meta));
   }
+  _meta.songNumber = _songNumberCtrl.text;
+  _meta.writer = _writerCtrl.text;
+  _meta.singer = _singerCtrl.text;
+  _meta.reference = _referenceCtrl.text;
+  final html = serializeSong(_sections, _meta);
+  _lastEmitted = html;
+  widget.onChange(html);
+}
 
   void _toggle(String id) => setState(
         () => _expanded.contains(id) ? _expanded.remove(id) : _expanded.add(id),
@@ -314,17 +318,20 @@ class _SongEditorState extends State<SongEditor> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _toolbar(),
-        if (_showMeta) ...[const SizedBox(height: 8), _metaPanel()],
-        const SizedBox(height: 8),
-        ..._sections.asMap().entries.map((e) => _sectionCard(e.value, e.key)),
-        _addButton(),
-        const SizedBox(height: 8),
-        _footer(),
-      ],
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _toolbar(),
+          if (_showMeta) ...[const SizedBox(height: 8), _metaPanel()],
+          const SizedBox(height: 8),
+          ..._sections.asMap().entries.map((e) => _sectionCard(e.value, e.key)),
+          _addButton(),
+          const SizedBox(height: 8),
+          _footer(),
+        ],
+      ),
     );
   }
 
@@ -801,7 +808,7 @@ class _SongEditorState extends State<SongEditor> {
             padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
             child: TextField(
               controller: _ctrls['${s.id}_h'],
-              onChanged: (_) => _emit(), // ← no setState
+              onChanged: (_) => _emit(),
               maxLines: 2,
               style: const TextStyle(
                   fontSize: 13,
@@ -846,7 +853,7 @@ class _SongEditorState extends State<SongEditor> {
             padding: const EdgeInsets.fromLTRB(12, 6, 12, 4),
             child: TextField(
               controller: _ctrls['${s.id}_c'],
-              onChanged: (_) => _emit(), // ← no setState, fixes delete repeat
+              onChanged: (_) => _emit(),
               maxLines: null,
               minLines: 5,
               style: const TextStyle(

@@ -102,66 +102,73 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
       _error = '';
     });
 
-    try {
-      final baseTitle = _titleCtrls['english']?.text.trim().isNotEmpty == true
-          ? _titleCtrls['english']!.text.trim()
-          : _titleCtrls[filledLangs.first]!.text.trim();
-
-      final slug = slugify(baseTitle);
-      final repo = ArticleRepository();
-
-      // Upload images
-      String? thumbnailUrl;
-      final uploadedImages = <Map<String, dynamic>>[];
-      for (int i = 0; i < _images.length; i++) {
-        final url = await UploadService.uploadImage(_images[i]);
-        if (i == 0) thumbnailUrl = url;
-        uploadedImages.add({
-          'url': url,
-          'caption': i < _captions.length ? _captions[i] : '',
-        });
+try {
+  // Build slug — prefer languages that produce valid ASCII slugs
+  String _buildSlug() {
+    for (final lang in ['english', 'mara', 'mizo', 'myanmar']) {
+      final title = _titleCtrls[lang]?.text.trim() ?? '';
+      if (title.isNotEmpty) {
+        final s = slugify(title);
+        if (s.isNotEmpty) return s;
       }
+    }
+    return 'article-${DateTime.now().millisecondsSinceEpoch}';
+  }
 
-      // Create article
-      final article = await repo.createArticle(
-        slug: slug,
-        category: _category,
-        status: status,
-        authorId: authState.userId,
-        thumbnailUrl: thumbnailUrl,
-        articleType: _articleType.isEmpty ? null : _articleType,
-        sourceUrl: _sourceUrlCtrl.text.trim().isEmpty
-            ? null
-            : _sourceUrlCtrl.text.trim(),
-        // ← NEW: only pass singer/songwriter for songs
-        singer: _isSong && _singerCtrl.text.trim().isNotEmpty
-            ? _singerCtrl.text.trim()
-            : null,
-        songwriter: _isSong && _songwriterCtrl.text.trim().isNotEmpty
-            ? _songwriterCtrl.text.trim()
-            : null,
-      );
+  final slug = _buildSlug();
+  final repo = ArticleRepository();
 
-      // Insert images
-      if (uploadedImages.isNotEmpty) {
-        await repo.insertImages(article.id, uploadedImages, authState.userId);
-      }
+  // Upload images
+  String? thumbnailUrl;
+  final uploadedImages = <Map<String, dynamic>>[];
+  for (int i = 0; i < _images.length; i++) {
+    final url = await UploadService.uploadImage(_images[i]);
+    if (i == 0) thumbnailUrl = url;
+    uploadedImages.add({
+      'url': url,
+      'caption': i < _captions.length ? _captions[i] : '',
+    });
+  }
 
-      // Insert translations
-      for (final lang in filledLangs) {
-        final content = _contentMap[lang]!;
-        await repo.upsertTranslation(
-          articleId: article.id,
-          language: lang,
-          title: _titleCtrls[lang]!.text.trim(),
-          content: content,
-          excerpt: Helpers.makeExcerpt(content),
-          updatedBy: authState.userId,
-        );
-      }
+  // Create article
+  final article = await repo.createArticle(
+    slug: slug,
+    category: _category,
+    status: status,
+    authorId: authState.userId,
+    thumbnailUrl: thumbnailUrl,
+    articleType: _articleType.isEmpty ? null : _articleType,
+    sourceUrl: _sourceUrlCtrl.text.trim().isEmpty
+        ? null
+        : _sourceUrlCtrl.text.trim(),
+    singer: _isSong && _singerCtrl.text.trim().isNotEmpty
+        ? _singerCtrl.text.trim()
+        : null,
+    songwriter: _isSong && _songwriterCtrl.text.trim().isNotEmpty
+        ? _songwriterCtrl.text.trim()
+        : null,
+  );
 
-      if (mounted) context.pushReplacement('/articles/$slug');
-    } catch (e) {
+  // Insert images
+  if (uploadedImages.isNotEmpty) {
+    await repo.insertImages(article.id, uploadedImages, authState.userId);
+  }
+
+  // Insert translations
+  for (final lang in filledLangs) {
+    final content = _contentMap[lang]!;
+    await repo.upsertTranslation(
+      articleId: article.id,
+      language: lang,
+      title: _titleCtrls[lang]!.text.trim(),
+      content: content,
+      excerpt: Helpers.makeExcerpt(content),
+      updatedBy: authState.userId,
+    );
+  }
+
+  if (mounted) context.pushReplacement('/articles/$slug');
+} catch (e) {
       setState(() {
         _error = e.toString();
         _saving = false;
