@@ -54,6 +54,8 @@ dependencies:
   permission_handler: ^12.0.1
   device_info_plus: ^12.4.0
   hive_flutter: ^1.1.0
+  icons_launcher: ^3.1.0
+  flutter_native_splash: ^2.4.7
 
 dev_dependencies:
   flutter_test:
@@ -107,3 +109,17 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+icons_launcher:
+  image_path: 'assets/logo.png'
+  platforms:
+    android:
+      enable: true
+      image_path: 'assets/logo.png'
+      adaptive_background_color: '#ffffff'
+      adaptive_foreground_image: 'assets/logo.png'  # ← add this (use logo.png if you don't have a separate foreground)
+
+flutter_native_splash:
+  color: "#fefefe"
+  image: assets/logo.png
+  # removed image_full_screen — not a valid parameter

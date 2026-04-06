@@ -1,8 +1,10 @@
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:marapedia_flutter/screens/home/about_screen.dart';
 import 'package:marapedia_flutter/screens/home/privacy_screen.dart';
 import 'package:marapedia_flutter/screens/profile/my_articles_screen.dart';
+import 'package:marapedia_flutter/screens/splash_screen.dart';
 import 'blocs/article/article_bloc.dart';
 import 'blocs/article/article_event.dart';
 import 'repositories/article_repository.dart';
@@ -19,14 +21,22 @@ import 'screens/profile/profile_screen.dart';
 import 'screens/search/search_screen.dart';
 import 'screens/editor/editor_screen.dart';
 import 'screens/admin/admin_screen.dart';
-import 'screens/contributors/contributors_screen.dart';           // ← NEW
-import 'screens/contributors/contributor_detail_screen.dart';    // ← NEW
+import 'screens/contributors/contributors_screen.dart';
+import 'screens/contributors/contributor_detail_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/',
   routes: [
+
+    // ── Splash (entry point) ───────────────────────────────────────────
     GoRoute(
       path: '/',
+      builder: (_, __) => const SplashScreen(),
+    ),
+
+    // ── Home ──────────────────────────────────────────────────────────
+    GoRoute(
+      path: '/home',                                   // ← was '/'
       builder: (_, __) => BlocProvider(
         create: (_) => ArticleBloc(ArticleRepository())
           ..add(ArticleHomeLoadRequested()),
@@ -34,7 +44,7 @@ final appRouter = GoRouter(
       ),
     ),
 
-    GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
+    GoRoute(path: '/login',    builder: (_, __) => const LoginScreen()),
     GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
 
     GoRoute(
@@ -96,11 +106,8 @@ final appRouter = GoRouter(
           AlbumDetailScreen(id: state.pathParameters['id']!),
     ),
 
-    GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
-    GoRoute(
-      path: '/my-articles',
-      builder: (_, __) => const MyArticlesScreen(),
-    ),
+    GoRoute(path: '/profile',     builder: (_, __) => const ProfileScreen()),
+    GoRoute(path: '/my-articles', builder: (_, __) => const MyArticlesScreen()),
 
     GoRoute(
       path: '/editor',
@@ -120,14 +127,11 @@ final appRouter = GoRouter(
       ),
     ),
 
-    GoRoute(path: '/about', builder: (_, __) => const AboutScreen()),
+    GoRoute(path: '/about',   builder: (_, __) => const AboutScreen()),
     GoRoute(path: '/privacy', builder: (_, __) => const PrivacyScreen()),
 
-    // ── Contributors ──────────────────────────────────────────────────── NEW
-    GoRoute(
-      path: '/contributors',
-      builder: (_, __) => const ContributorsScreen(),
-    ),
+    GoRoute(path: '/contributors',
+        builder: (_, __) => const ContributorsScreen()),
     GoRoute(
       path: '/contributors/:username',
       builder: (_, state) => ContributorDetailScreen(

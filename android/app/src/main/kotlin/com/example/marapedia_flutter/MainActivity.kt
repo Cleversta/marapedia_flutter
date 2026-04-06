@@ -1,4 +1,4 @@
-package com.example.marapedia_flutter
+package app.marason.marapedia
 
 import io.flutter.embedding.android.FlutterActivity
 
