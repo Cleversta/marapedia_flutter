@@ -213,34 +213,60 @@ class _ArticleCard extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        _StatusBadge(status: article.status),
-                        const SizedBox(width: 8),
-                        Text(article.category, style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      _title,
-                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: Color(0xFF111827)),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (_excerpt != null && _excerpt!.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(_excerpt!,
-                        style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis),
-                    ],
-                  ],
-                ),
-              ),
+// In _ArticleCard.build(), replace the Row(...) content section:
+
+Expanded(
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        children: [
+          _StatusBadge(status: article.status),
+          const SizedBox(width: 8),
+          Text(article.category,
+              style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+        ],
+      ),
+      const SizedBox(height: 6),
+      Text(
+        _title,
+        style: const TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 15,
+            color: Color(0xFF111827)),
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
+      if (_excerpt != null && _excerpt!.isNotEmpty) ...[
+        const SizedBox(height: 4),
+        Text(_excerpt!,
+            style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis),
+      ],
+      const SizedBox(height: 6),
+      // ── Public / Hidden pill (matches photo albums style) ──
+      Container(
+        padding:
+            const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: isPublished
+              ? AppTheme.greenBg
+              : Colors.grey[100],
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          isPublished ? 'Public' : 'Hidden',
+          style: TextStyle(
+            fontSize: 9,
+            fontWeight: FontWeight.w600,
+            color: isPublished ? AppTheme.greenDark : Colors.grey,
+          ),
+        ),
+      ),
+    ],
+  ),
+),
               const SizedBox(width: 8),
               // Publish / Unpublish — calls ArticlePublishRequested(id, !isPublished)
               GestureDetector(
@@ -254,7 +280,7 @@ class _ArticleCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    isPublished ? 'Unpublish' : 'Publish',
+                    isPublished ? 'Hide' : 'Make Publish',
                     style: TextStyle(
                       fontSize: 11,
                       color: isPublished ? const Color(0xFFD97706) : AppTheme.greenDark,

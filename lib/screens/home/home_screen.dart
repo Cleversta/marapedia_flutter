@@ -17,15 +17,15 @@ import '../../widgets/offline_banner.dart';
 import '../../widgets/shimmer_card.dart';
 import '../../widgets/marapedia_app_bar.dart';
 
-const _parchment  = Color(0xFFF7F3EC);
+const _parchment = Color(0xFFF7F3EC);
 const _parchmentDk = Color(0xFFEDE5D4);
-const _border     = Color(0xFFDDD4C0);
-const _ink        = Color(0xFF1C1812);
-const _inkMid     = Color(0xFF4A4035);
-const _inkLight   = Color(0xFF8C7E6A);
-const _sage       = Color(0xFF5A7A5C);
-const _sageBg     = Color(0xFFEBF1EB);
-const _sageLight  = Color(0xFFD4E4D4);
+const _border = Color(0xFFDDD4C0);
+const _ink = Color(0xFF1C1812);
+const _inkMid = Color(0xFF4A4035);
+const _inkLight = Color(0xFF8C7E6A);
+const _sage = Color(0xFF5A7A5C);
+const _sageBg = Color(0xFFEBF1EB);
+const _sageLight = Color(0xFFD4E4D4);
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -114,7 +114,11 @@ class _HomeScreenState extends State<HomeScreen>
               onPressed: () => context.push('/articles/create'),
               backgroundColor: _sage,
               elevation: 2,
-              icon: const Icon(Icons.edit_outlined, color: Colors.white, size: 18),
+              icon: const Icon(
+                Icons.edit_outlined,
+                color: Colors.white,
+                size: 18,
+              ),
               label: Text(
                 'Contribute',
                 style: GoogleFonts.lora(
@@ -132,8 +136,9 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildHome(BuildContext context, ArticleHomeLoaded state) {
-    final nonFeaturedMostViewed =
-        state.mostViewed.where((a) => a.id != state.featured?.id).toList();
+    final nonFeaturedMostViewed = state.mostViewed
+        .where((a) => a.id != state.featured?.id)
+        .toList();
 
     return Column(
       children: [
@@ -208,8 +213,10 @@ class _HomeScreenState extends State<HomeScreen>
             child: Column(
               children: [
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     border: Border.all(color: _border),
                     borderRadius: BorderRadius.circular(20),
@@ -248,36 +255,46 @@ class _HomeScreenState extends State<HomeScreen>
                   runSpacing: 6,
                   alignment: WrapAlignment.center,
                   children: ['Mara', 'English', 'Myanmar', 'Mizo']
-                      .map((lang) => Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.7),
-                              border: Border.all(color: _border),
-                              borderRadius: BorderRadius.circular(20),
+                      .map(
+                        (lang) => Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.7),
+                            border: Border.all(color: _border),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            lang,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: _inkMid,
+                              fontWeight: FontWeight.w500,
                             ),
-                            child: Text(
-                              lang,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: _inkMid,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ))
+                          ),
+                        ),
+                      )
                       .toList(),
                 ),
                 const SizedBox(height: 18),
-Row(
+                Row(
                   children: [
                     Expanded(
-                      child: _statCard('${state.articleCount}', 'Articles',
-                          Icons.article_outlined),
+                      child: _statCard(
+                        '${state.articleCount}',
+                        'Articles',
+                        Icons.article_outlined,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: _statCard('${state.userCount}', 'Contributors',
-                          Icons.people_outline),
+                      child: _statCard(
+                        '${state.userCount}',
+                        'Contributors',
+                        Icons.people_outline,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -290,11 +307,13 @@ Row(
                   onTap: () => context.push('/contributors'),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 18, vertical: 10),
+                      horizontal: 18,
+                      vertical: 10,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.7),
                       borderRadius: BorderRadius.circular(30),
-                      border: Border.all(color: _border),
+                      border: Border.all(color: _sage),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -310,8 +329,11 @@ Row(
                           ),
                         ),
                         const SizedBox(width: 6),
-                        const Icon(Icons.chevron_right_rounded,
-                            size: 16, color: _sage),
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          size: 16,
+                          color: _sage,
+                        ),
                       ],
                     ),
                   ),
@@ -377,9 +399,7 @@ Row(
             child: Container(
               height: 1,
               decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [_border, Colors.transparent],
-                ),
+                gradient: LinearGradient(colors: [_border, Colors.transparent]),
               ),
             ),
           ),
@@ -392,18 +412,21 @@ Row(
     final article = state.featured!;
     final t = Helpers.getPreferredTranslation(
       article.translations
-          .map((t) => {
-                'language': t.language,
-                'title': t.title,
-                'content': t.content,
-                'excerpt': t.excerpt,
-              })
+          .map(
+            (t) => {
+              'language': t.language,
+              'title': t.title,
+              'content': t.content,
+              'excerpt': t.excerpt,
+            },
+          )
           .toList(),
     );
     if (t == null) return const SizedBox.shrink();
 
     final title = t['title'] as String? ?? '';
-    final excerpt = t['excerpt'] as String? ??
+    final excerpt =
+        t['excerpt'] as String? ??
         Helpers.makeExcerpt(t['content'] as String? ?? '', length: 180);
     final hasThumb =
         article.thumbnailUrl != null && article.thumbnailUrl!.isNotEmpty;
@@ -467,7 +490,9 @@ Row(
                       left: 12,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
                         decoration: BoxDecoration(
                           color: _sage,
                           borderRadius: BorderRadius.circular(8),
@@ -475,8 +500,11 @@ Row(
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.star_rounded,
-                                color: Colors.white, size: 11),
+                            const Icon(
+                              Icons.star_rounded,
+                              color: Colors.white,
+                              size: 11,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               'Featured',
@@ -501,7 +529,9 @@ Row(
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
                         decoration: BoxDecoration(
                           color: _sage,
                           borderRadius: BorderRadius.circular(8),
@@ -509,8 +539,11 @@ Row(
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.star_rounded,
-                                color: Colors.white, size: 11),
+                            const Icon(
+                              Icons.star_rounded,
+                              color: Colors.white,
+                              size: 11,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               'Featured',
@@ -533,7 +566,9 @@ Row(
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: _sageBg,
                         borderRadius: BorderRadius.circular(20),
@@ -603,27 +638,37 @@ Row(
                               ),
                               Text(
                                 Helpers.timeAgo(
-                                    article.updatedAt ?? article.createdAt),
+                                  article.updatedAt ?? article.createdAt,
+                                ),
                                 style: const TextStyle(
-                                    fontSize: 11, color: _inkLight),
+                                  fontSize: 11,
+                                  color: _inkLight,
+                                ),
                               ),
                             ],
                           ),
                         ),
                         if (article.viewCount > 0) ...[
-                          const Icon(Icons.remove_red_eye_outlined,
-                              size: 12, color: _inkLight),
+                          const Icon(
+                            Icons.remove_red_eye_outlined,
+                            size: 12,
+                            color: _inkLight,
+                          ),
                           const SizedBox(width: 3),
                           Text(
                             '${article.viewCount}',
-                            style:
-                                const TextStyle(fontSize: 11, color: _inkLight),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: _inkLight,
+                            ),
                           ),
                           const SizedBox(width: 10),
                         ],
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 8),
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
                           decoration: BoxDecoration(
                             color: _ink,
                             borderRadius: BorderRadius.circular(8),
@@ -682,8 +727,11 @@ Row(
                 shape: BoxShape.circle,
                 border: Border.all(color: const Color(0xFFFFD9A0)),
               ),
-              child: const Icon(Icons.wifi_off_outlined,
-                  size: 26, color: Color(0xFFD4860A)),
+              child: const Icon(
+                Icons.wifi_off_outlined,
+                size: 26,
+                color: Color(0xFFD4860A),
+              ),
             ),
             const SizedBox(height: 16),
             Text(
@@ -708,7 +756,8 @@ Row(
                 backgroundColor: _sage,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
               child: const Text('Try again'),
             ),
@@ -730,7 +779,10 @@ class _PatternPainter extends CustomPainter {
     const spacing = 26.0;
     for (double i = -size.height; i < size.width + size.height; i += spacing) {
       canvas.drawLine(
-          Offset(i, 0), Offset(i + size.height, size.height), paint);
+        Offset(i, 0),
+        Offset(i + size.height, size.height),
+        paint,
+      );
     }
 
     final accentPaint = Paint()

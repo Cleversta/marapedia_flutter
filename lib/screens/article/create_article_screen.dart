@@ -187,6 +187,7 @@ try {
     final typeOptions = AppConstants.articleTypes[_category] ?? [];
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: const Text('New Article',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
