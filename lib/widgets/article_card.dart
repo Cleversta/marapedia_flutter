@@ -31,10 +31,6 @@ class ArticleCard extends StatelessWidget {
         translation['excerpt'] as String? ??
         Helpers.makeExcerpt(translation['content'] as String? ?? '');
 
-    final thumbUrl = article.thumbnailUrl?.isNotEmpty == true
-        ? article.thumbnailUrl
-        : null;
-
     return GestureDetector(
       onTap: () => context.push('/articles/${article.slug}'),
       child: Container(
@@ -44,148 +40,106 @@ class ArticleCard extends StatelessWidget {
           border: Border.all(color: Colors.black, width: 0.3),
         ),
         clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min, // ← shrink-wrap; no Expanded needed
-          children: [
-            // ── Thumbnail ─────────────────────────────────────────────────
-            if (thumbUrl != null)
-              SizedBox(
-                height: 110,
-                width: double.infinity,
-                child: CachedNetworkImage(
-                  imageUrl: thumbUrl,
-                  fit: BoxFit.cover,
-                  placeholder: (_, __) => Container(color: Colors.grey[100]),
-                  errorWidget: (_, __, ___) => Container(
-                    color: Colors.grey[100],
-                    child: Center(
-                      child: Text(
-                        cat?['icon'] ?? '📁',
-                        style: const TextStyle(fontSize: 32),
-                      ),
-                    ),
-                  ),
-                ),
-              )
-            else
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Category badge
               Container(
-                height: 40,
-                width: double.infinity,
-                color: Colors.grey[50],
-                child: Center(
-                  child: Text(
-                    cat?['icon'] ?? '📁',
-                    style: TextStyle(fontSize: 20, color: Colors.grey[400]),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 7,
+                  vertical: 2,
+                ),
+                decoration: BoxDecoration(
+                  color: AppTheme.greenBg,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppTheme.greenLight),
+                ),
+                child: Text(
+                  '${cat?['icon'] ?? ''} ${cat?['label'] ?? ''}',
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: AppTheme.greenDark,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
+              const SizedBox(height: 5),
 
-            // ── Content ───────────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
+              // Title
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF111827),
+                  height: 1.3,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+
+              // Excerpt
+              if (excerpt.isNotEmpty) ...[
+                const SizedBox(height: 3),
+                Text(
+                  excerpt,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey[600],
+                    height: 1.4,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+
+              const SizedBox(height: 8),
+
+              // Footer
+              Row(
                 children: [
-                  // Category badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 7,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppTheme.greenBg,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppTheme.greenLight),
-                    ),
+                  _Avatar(
+                    avatarUrl: article.profile?.avatarUrl,
+                    username: article.profile?.username,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
                     child: Text(
-                      '${cat?['icon'] ?? ''} ${cat?['label'] ?? ''}',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: AppTheme.greenDark,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-
-                  // Title
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF111827),
-                      height: 1.3,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-
-                  // Excerpt
-                  if (excerpt.isNotEmpty) ...[
-                    const SizedBox(height: 3),
-                    Text(
-                      excerpt,
+                      article.profile?.username ?? 'Anonymous',
                       style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey[600],
-                        height: 1.4,
+                        fontSize: 10,
+                        color: Colors.grey[500],
                       ),
-                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
+                  ),
+                  if (article.viewCount > 0) ...[
+                    const Icon(
+                      Icons.remove_red_eye_outlined,
+                      size: 10,
+                      color: Colors.grey,
+                    ),
+                    const SizedBox(width: 2),
+                    Text(
+                      '${article.viewCount}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                    const SizedBox(width: 4),
                   ],
-
-                  const SizedBox(height: 8),
-
-                  // Footer
-                  Row(
-                    children: [
-                      _Avatar(
-                        avatarUrl: article.profile?.avatarUrl,
-                        username: article.profile?.username,
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          article.profile?.username ?? 'Anonymous',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.grey[500],
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (article.viewCount > 0) ...[
-                        const Icon(
-                          Icons.remove_red_eye_outlined,
-                          size: 10,
-                          color: Colors.grey,
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          '${article.viewCount}',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.grey[500],
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                      ],
-                      Text(
-                        Helpers.timeAgo(
-                            article.updatedAt ?? article.createdAt),
-                        style:
-                            TextStyle(fontSize: 10, color: Colors.grey[400]),
-                      ),
-                    ],
+                  Text(
+                    Helpers.timeAgo(article.updatedAt ?? article.createdAt),
+                    style: TextStyle(fontSize: 10, color: Colors.grey[400]),
                   ),
                 ],
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -145,13 +145,21 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     final sourceUrlDisplay = article.sourceUrl
         ?.replaceAll(RegExp(r'^https?://'), '')
         .replaceAll(RegExp(r'/$'), '');
+final hasThumb =
+    article.thumbnailUrl != null && article.thumbnailUrl!.isNotEmpty;
+final allImages = <ArticleImage>[
+  if (hasThumb) ArticleImage(url: article.thumbnailUrl!),
+  ...article.images.where(
+    (img) => img.url != article.thumbnailUrl,
+  ),
+];
 
-    final hasThumb =
-        article.thumbnailUrl != null && article.thumbnailUrl!.isNotEmpty;
-    final allImages = [
-      if (hasThumb) ArticleImage(url: article.thumbnailUrl!),
-      ...article.images.skip(hasThumb ? 1 : 0),
-    ];
+debugPrint('🖼️ thumbnailUrl: ${article.thumbnailUrl}');
+debugPrint('🖼️ images count: ${article.images.length}');
+debugPrint('🖼️ allImages count: ${allImages.length}');
+for (final img in allImages) {
+  debugPrint('🖼️ image url: ${img.url}');
+}
 
     final isSong =
         article.category == 'songs' || article.articleType == 'song';
