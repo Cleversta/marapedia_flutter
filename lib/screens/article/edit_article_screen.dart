@@ -43,8 +43,8 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
   final Map<String, TextEditingController> _titleCtrls = {};
   final Map<String, String> _contentMap = {};
   final TextEditingController _sourceUrlCtrl = TextEditingController();
-  final TextEditingController _singerCtrl = TextEditingController();     // ← NEW
-  final TextEditingController _songwriterCtrl = TextEditingController(); // ← NEW
+  final TextEditingController _singerCtrl = TextEditingController();
+  final TextEditingController _songwriterCtrl = TextEditingController();
 
   List<Map<String, dynamic>> _existingImages = [];
   final List<File> _newImages = [];
@@ -83,8 +83,8 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
       _articleType = article.articleType ?? '';
       _featured = article.featured;
       _sourceUrlCtrl.text = article.sourceUrl ?? '';
-      _singerCtrl.text = article.singer ?? '';         // ← NEW
-      _songwriterCtrl.text = article.songwriter ?? ''; // ← NEW
+      _singerCtrl.text = article.singer ?? '';
+      _songwriterCtrl.text = article.songwriter ?? '';
       _existingImages = article.images
           .map((i) => {'url': i.url, 'caption': i.caption ?? ''})
           .toList();
@@ -127,7 +127,6 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
         'source_url': _sourceUrlCtrl.text.trim().isEmpty
             ? null
             : _sourceUrlCtrl.text.trim(),
-        // ← NEW: save singer/songwriter (only meaningful for songs)
         'singer': _isSong && _singerCtrl.text.trim().isNotEmpty
             ? _singerCtrl.text.trim()
             : null,
@@ -187,7 +186,12 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
         AppConstants.articleTypes[_article!.category] ?? [];
     final edType = _editorType(_article!.category);
 
+    // FIX: read viewInsets here, at the top of build(), so it is always
+    // fresh on every rebuild triggered by keyboard show/hide.
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: const Color(0xFFF4F5F7),
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -248,323 +252,351 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
             ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (_error.isNotEmpty)
-              Container(
-                margin: const EdgeInsets.all(16),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.red[50],
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.red[200]!),
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        behavior: HitTestBehavior.opaque,
+        child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          // FIX: Apply bottom padding equal to keyboard height + safe margin.
+          // This is the primary fix — without this, content at the bottom
+          // is hidden behind the keyboard and cannot be scrolled into view.
+          padding: EdgeInsets.only(bottom: bottomInset + 40),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (_error.isNotEmpty)
+                Container(
+                  margin: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red[50],
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.red[200]!),
+                  ),
+                  child: Text(_error,
+                      style: TextStyle(
+                          fontSize: 13, color: Colors.red[700])),
                 ),
-                child: Text(_error,
-                    style: TextStyle(
-                        fontSize: 13, color: Colors.red[700])),
-              ),
 
-            // ── Article type ──────────────────────────────────────────────
-            if (typeOptions.isNotEmpty) ...[
-              _sectionLabel('Type'),
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16),
-                child: Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: typeOptions.map((t) {
-                    final isActive = _articleType == t['value'];
-                    return GestureDetector(
-                      onTap: () => setState(() =>
-                          _articleType = isActive ? '' : t['value']!),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: isActive
-                              ? AppTheme.greenPrimary
-                              : Colors.white,
-                          border: Border.all(
+              // ── Article type ──────────────────────────────────────
+              if (typeOptions.isNotEmpty) ...[
+                _sectionLabel('Type'),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: typeOptions.map((t) {
+                      final isActive = _articleType == t['value'];
+                      return GestureDetector(
+                        onTap: () => setState(() =>
+                            _articleType =
+                                isActive ? '' : t['value']!),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
                             color: isActive
                                 ? AppTheme.greenPrimary
-                                : const Color(0xFFE5E7EB),
+                                : Colors.white,
+                            border: Border.all(
+                              color: isActive
+                                  ? AppTheme.greenPrimary
+                                  : const Color(0xFFE5E7EB),
+                            ),
+                            borderRadius: BorderRadius.circular(20),
                           ),
-                          borderRadius: BorderRadius.circular(20),
+                          child: Text(
+                            t['label']!,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: isActive
+                                  ? Colors.white
+                                  : Colors.grey[600],
+                            ),
+                          ),
                         ),
-                        child: Text(
-                          t['label']!,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: isActive
-                                ? Colors.white
-                                : Colors.grey[600],
-                          ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
+
+              // ── Singer / Songwriter (songs only) ──────────────────
+              if (_isSong) ...[
+                _sectionLabel('Song Info'),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    children: [
+                      _textField(
+                        controller: _singerCtrl,
+                        hint: 'Singer / Artist name',
+                        icon: Icons.mic_outlined,
+                        bottomInset: bottomInset,
+                      ),
+                      const SizedBox(height: 8),
+                      _textField(
+                        controller: _songwriterCtrl,
+                        hint: 'Songwriter / Composer (optional)',
+                        icon: Icons.edit_note_outlined,
+                        bottomInset: bottomInset,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
+              // ── Images ────────────────────────────────────────────
+              _sectionLabel('Images'),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_existingImages.isNotEmpty ||
+                        _newImages.isNotEmpty)
+                      SizedBox(
+                        height: 80,
+                        child: ListView(
+                          scrollDirection: Axis.horizontal,
+                          children: [
+                            ..._existingImages
+                                .asMap()
+                                .entries
+                                .map(
+                                  (e) => Padding(
+                                    padding: const EdgeInsets.only(
+                                        right: 6),
+                                    child: Stack(
+                                      children: [
+                                        ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          child: Image.network(
+                                            e.value['url'],
+                                            width: 72,
+                                            height: 72,
+                                            fit: BoxFit.cover,
+                                          ),
+                                        ),
+                                        if (e.key == 0)
+                                          Positioned(
+                                            top: 2,
+                                            left: 2,
+                                            child: Container(
+                                              padding: const EdgeInsets
+                                                  .symmetric(
+                                                  horizontal: 4,
+                                                  vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: AppTheme
+                                                    .greenPrimary,
+                                                borderRadius:
+                                                    BorderRadius
+                                                        .circular(4),
+                                              ),
+                                              child: const Text('C',
+                                                  style: TextStyle(
+                                                      color:
+                                                          Colors.white,
+                                                      fontSize: 8,
+                                                      fontWeight:
+                                                          FontWeight
+                                                              .bold)),
+                                            ),
+                                          ),
+                                        Positioned(
+                                          top: 2,
+                                          right: 2,
+                                          child: GestureDetector(
+                                            onTap: () => setState(() =>
+                                                _existingImages
+                                                    .removeAt(e.key)),
+                                            child: Container(
+                                              width: 18,
+                                              height: 18,
+                                              decoration:
+                                                  const BoxDecoration(
+                                                      color: Colors.red,
+                                                      shape: BoxShape
+                                                          .circle),
+                                              child: const Icon(
+                                                  Icons.close,
+                                                  size: 10,
+                                                  color: Colors.white),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                            ..._newImages.asMap().entries.map(
+                                  (e) => Padding(
+                                    padding: const EdgeInsets.only(
+                                        right: 6),
+                                    child: Stack(
+                                      children: [
+                                        ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          child: Image.file(e.value,
+                                              width: 72,
+                                              height: 72,
+                                              fit: BoxFit.cover),
+                                        ),
+                                        Positioned(
+                                          top: 2,
+                                          right: 2,
+                                          child: GestureDetector(
+                                            onTap: () => setState(() =>
+                                                _newImages
+                                                    .removeAt(e.key)),
+                                            child: Container(
+                                              width: 18,
+                                              height: 18,
+                                              decoration:
+                                                  const BoxDecoration(
+                                                      color: Colors.red,
+                                                      shape: BoxShape
+                                                          .circle),
+                                              child: const Icon(
+                                                  Icons.close,
+                                                  size: 10,
+                                                  color: Colors.white),
+                                            ),
+                                          ),
+                                        ),
+                                        Positioned(
+                                          top: 2,
+                                          left: 2,
+                                          child: Container(
+                                            padding:
+                                                const EdgeInsets
+                                                    .symmetric(
+                                                    horizontal: 4,
+                                                    vertical: 2),
+                                            color: Colors.orange,
+                                            child: const Text('New',
+                                                style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 8)),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                          ],
                         ),
                       ),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ],
-
-            // ── Singer / Songwriter (songs only) ─────────────────────────
-            if (_isSong) ...[
-              _sectionLabel('Song Info'),
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  children: [
-                    _textField(
-                      controller: _singerCtrl,
-                      hint: 'Singer / Artist name',
-                      icon: Icons.mic_outlined,
-                    ),
                     const SizedBox(height: 8),
-                    _textField(
-                      controller: _songwriterCtrl,
-                      hint: 'Songwriter / Composer (optional)',
-                      icon: Icons.edit_note_outlined,
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        final picker = ImagePicker();
+                        final picked = await picker.pickMultiImage();
+                        setState(() => _newImages.addAll(
+                            picked.map((x) => File(x.path))));
+                      },
+                      icon: const Icon(
+                          Icons.add_photo_alternate_outlined,
+                          size: 16),
+                      label: const Text('Add Images'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.greenPrimary,
+                        side: const BorderSide(
+                            color: AppTheme.greenPrimary),
+                      ),
                     ),
                   ],
                 ),
               ),
-            ],
 
-            // ── Images ────────────────────────────────────────────────────
-            _sectionLabel('Images'),
-            Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (_existingImages.isNotEmpty ||
-                      _newImages.isNotEmpty)
-                    SizedBox(
-                      height: 80,
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        children: [
-                          ..._existingImages.asMap().entries.map(
-                                (e) => Padding(
-                              padding:
-                                  const EdgeInsets.only(right: 6),
-                              child: Stack(
-                                children: [
-                                  ClipRRect(
-                                    borderRadius:
-                                        BorderRadius.circular(8),
-                                    child: Image.network(
-                                      e.value['url'],
-                                      width: 72,
-                                      height: 72,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
-                                  if (e.key == 0)
-                                    Positioned(
-                                      top: 2,
-                                      left: 2,
-                                      child: Container(
-                                        padding: const EdgeInsets
-                                            .symmetric(
-                                            horizontal: 4,
-                                            vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: AppTheme.greenPrimary,
-                                          borderRadius:
-                                              BorderRadius.circular(
-                                                  4),
-                                        ),
-                                        child: const Text('C',
-                                            style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 8,
-                                                fontWeight:
-                                                    FontWeight.bold)),
-                                      ),
-                                    ),
-                                  Positioned(
-                                    top: 2,
-                                    right: 2,
-                                    child: GestureDetector(
-                                      onTap: () => setState(() =>
-                                          _existingImages
-                                              .removeAt(e.key)),
-                                      child: Container(
-                                        width: 18,
-                                        height: 18,
-                                        decoration:
-                                            const BoxDecoration(
-                                                color: Colors.red,
-                                                shape:
-                                                    BoxShape.circle),
-                                        child: const Icon(Icons.close,
-                                            size: 10,
-                                            color: Colors.white),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                              ),
-                          ..._newImages.asMap().entries.map(
-                                (e) => Padding(
-                              padding:
-                                  const EdgeInsets.only(right: 6),
-                              child: Stack(
-                                children: [
-                                  ClipRRect(
-                                    borderRadius:
-                                        BorderRadius.circular(8),
-                                    child: Image.file(e.value,
-                                        width: 72,
-                                        height: 72,
-                                        fit: BoxFit.cover),
-                                  ),
-                                  Positioned(
-                                    top: 2,
-                                    right: 2,
-                                    child: GestureDetector(
-                                      onTap: () => setState(() =>
-                                          _newImages.removeAt(e.key)),
-                                      child: Container(
-                                        width: 18,
-                                        height: 18,
-                                        decoration:
-                                            const BoxDecoration(
-                                                color: Colors.red,
-                                                shape:
-                                                    BoxShape.circle),
-                                        child: const Icon(Icons.close,
-                                            size: 10,
-                                            color: Colors.white),
-                                      ),
-                                    ),
-                                  ),
-                                  Positioned(
-                                    top: 2,
-                                    left: 2,
-                                    child: Container(
-                                      padding:
-                                          const EdgeInsets.symmetric(
-                                              horizontal: 4,
-                                              vertical: 2),
-                                      color: Colors.orange,
-                                      child: const Text('New',
-                                          style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 8)),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                              ),
-                        ],
-                      ),
-                    ),
-                  const SizedBox(height: 8),
-                  OutlinedButton.icon(
-                    onPressed: () async {
-                      final picker = ImagePicker();
-                      final picked = await picker.pickMultiImage();
-                      setState(() => _newImages.addAll(
-                          picked.map((x) => File(x.path))));
-                    },
-                    icon: const Icon(
-                        Icons.add_photo_alternate_outlined,
-                        size: 16),
-                    label: const Text('Add Images'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppTheme.greenPrimary,
-                      side: const BorderSide(
-                          color: AppTheme.greenPrimary),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // ── Source URL ────────────────────────────────────────────────
-            _sectionLabel('Source'),
-            Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16),
-              child: _textField(
-                controller: _sourceUrlCtrl,
-                hint: 'Source / related link (optional)  e.g. https://...',
-                icon: Icons.link,
-                keyboardType: TextInputType.url,
-                showClear: true,
-              ),
-            ),
-
-            // ── Featured ──────────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  const Text('Featured article',
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500)),
-                  const Spacer(),
-                  Switch(
-                    value: _featured,
-                    onChanged: (v) =>
-                        setState(() => _featured = v),
-                    activeThumbColor: AppTheme.greenPrimary,
-                  ),
-                ],
-              ),
-            ),
-
-            // ── Language tabs ─────────────────────────────────────────────
-            _sectionLabel('Content'),
-            _langTabs(),
-
-            // ── Title ─────────────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: TextField(
-                controller: _titleCtrls[_currentLang],
-                style: const TextStyle(
-                    fontSize: 22, fontWeight: FontWeight.w700),
-                decoration: InputDecoration(
-                  hintText: edType == _EditorType.song
-                      ? 'Song title...'
-                      : 'Article title...',
-                  border: InputBorder.none,
-                  filled: false,
-                  contentPadding: EdgeInsets.zero,
+              // ── Source URL ────────────────────────────────────────
+              _sectionLabel('Source'),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: _textField(
+                  controller: _sourceUrlCtrl,
+                  hint: 'Source / related link (optional)  e.g. https://...',
+                  icon: Icons.link,
+                  keyboardType: TextInputType.url,
+                  showClear: true,
+                  bottomInset: bottomInset,
                 ),
               ),
-            ),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Divider(),
-            ),
-            const SizedBox(height: 8),
 
-            // ── Editor area ───────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-              child: _buildEditor(edType),
-            ),
+              // ── Featured ──────────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    const Text('Featured article',
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500)),
+                    const Spacer(),
+                    Switch(
+                      value: _featured,
+                      onChanged: (v) =>
+                          setState(() => _featured = v),
+                      activeThumbColor: AppTheme.greenPrimary,
+                    ),
+                  ],
+                ),
+              ),
 
-            // ── Language completion ───────────────────────────────────────
-            _langCompletion(),
+              // ── Language tabs ─────────────────────────────────────
+              _sectionLabel('Content'),
+              _langTabs(),
 
-            const SizedBox(height: 40),
-          ],
+              // ── Title ─────────────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: TextField(
+                  controller: _titleCtrls[_currentLang],
+                  style: const TextStyle(
+                      fontSize: 22, fontWeight: FontWeight.w700),
+                  // FIX: ensure title field scrolls into view when
+                  // keyboard appears — use fresh bottomInset value
+                  scrollPadding: EdgeInsets.only(
+                    bottom: bottomInset + 80,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: edType == _EditorType.song
+                        ? 'Song title...'
+                        : 'Article title...',
+                    border: InputBorder.none,
+                    filled: false,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Divider(),
+              ),
+              const SizedBox(height: 8),
+
+              // ── Editor area ───────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                child: _buildEditor(edType),
+              ),
+
+              // ── Language completion ───────────────────────────────
+              _langCompletion(),
+
+              // FIX: Extra bottom spacing so the last widget clears the
+              // keyboard even on small screens. The SingleChildScrollView
+              // padding already accounts for viewInsets.bottom, but this
+              // gives visual breathing room after the last item.
+              const SizedBox(height: 24),
+            ],
+          ),
         ),
       ),
     );
@@ -594,11 +626,13 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
     }
   }
 
-  // ── Shared text field widget ─────────────────────────────────────────────────
+  // FIX: added bottomInset parameter so every inner TextField can set
+  // scrollPadding correctly without calling MediaQuery itself.
   Widget _textField({
     required TextEditingController controller,
     required String hint,
     required IconData icon,
+    required double bottomInset,
     TextInputType keyboardType = TextInputType.text,
     bool showClear = false,
   }) {
@@ -618,6 +652,10 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
             child: TextField(
               controller: controller,
               keyboardType: keyboardType,
+              // FIX: tell Flutter to scroll this field into view above
+              // the keyboard. Without this, tapping the field focuses it
+              // but the keyboard covers it on physical devices.
+              scrollPadding: EdgeInsets.only(bottom: bottomInset + 80),
               style: const TextStyle(
                   fontSize: 13, color: Color(0xFF4B5563)),
               decoration: InputDecoration(
@@ -713,8 +751,7 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
       );
 
   Widget _langCompletion() => Container(
-        margin:
-            const EdgeInsets.fromLTRB(16, 16, 16, 0),
+        margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: const Color(0xFFF9FAFB),

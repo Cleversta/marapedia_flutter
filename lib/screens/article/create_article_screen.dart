@@ -37,8 +37,8 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
   };
 
   final TextEditingController _sourceUrlCtrl = TextEditingController();
-  final TextEditingController _singerCtrl = TextEditingController();     // ← NEW
-  final TextEditingController _songwriterCtrl = TextEditingController(); // ← NEW
+  final TextEditingController _singerCtrl = TextEditingController();
+  final TextEditingController _songwriterCtrl = TextEditingController();
 
   final List<File> _images = [];
   final List<String> _captions = [];
@@ -102,73 +102,68 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
       _error = '';
     });
 
-try {
-  // Build slug — prefer languages that produce valid ASCII slugs
-  String _buildSlug() {
-    for (final lang in ['english', 'mara', 'mizo', 'myanmar']) {
-      final title = _titleCtrls[lang]?.text.trim() ?? '';
-      if (title.isNotEmpty) {
-        final s = slugify(title);
-        if (s.isNotEmpty) return s;
+    try {
+      String _buildSlug() {
+        for (final lang in ['english', 'mara', 'mizo', 'myanmar']) {
+          final title = _titleCtrls[lang]?.text.trim() ?? '';
+          if (title.isNotEmpty) {
+            final s = slugify(title);
+            if (s.isNotEmpty) return s;
+          }
+        }
+        return 'article-${DateTime.now().millisecondsSinceEpoch}';
       }
-    }
-    return 'article-${DateTime.now().millisecondsSinceEpoch}';
-  }
 
-  final slug = _buildSlug();
-  final repo = ArticleRepository();
+      final slug = _buildSlug();
+      final repo = ArticleRepository();
 
-  // Upload images
-  String? thumbnailUrl;
-  final uploadedImages = <Map<String, dynamic>>[];
-  for (int i = 0; i < _images.length; i++) {
-    final url = await UploadService.uploadImage(_images[i]);
-    if (i == 0) thumbnailUrl = url;
-    uploadedImages.add({
-      'url': url,
-      'caption': i < _captions.length ? _captions[i] : '',
-    });
-  }
+      String? thumbnailUrl;
+      final uploadedImages = <Map<String, dynamic>>[];
+      for (int i = 0; i < _images.length; i++) {
+        final url = await UploadService.uploadImage(_images[i]);
+        if (i == 0) thumbnailUrl = url;
+        uploadedImages.add({
+          'url': url,
+          'caption': i < _captions.length ? _captions[i] : '',
+        });
+      }
 
-  // Create article
-  final article = await repo.createArticle(
-    slug: slug,
-    category: _category,
-    status: status,
-    authorId: authState.userId,
-    thumbnailUrl: thumbnailUrl,
-    articleType: _articleType.isEmpty ? null : _articleType,
-    sourceUrl: _sourceUrlCtrl.text.trim().isEmpty
-        ? null
-        : _sourceUrlCtrl.text.trim(),
-    singer: _isSong && _singerCtrl.text.trim().isNotEmpty
-        ? _singerCtrl.text.trim()
-        : null,
-    songwriter: _isSong && _songwriterCtrl.text.trim().isNotEmpty
-        ? _songwriterCtrl.text.trim()
-        : null,
-  );
+      final article = await repo.createArticle(
+        slug: slug,
+        category: _category,
+        status: status,
+        authorId: authState.userId,
+        thumbnailUrl: thumbnailUrl,
+        articleType: _articleType.isEmpty ? null : _articleType,
+        sourceUrl: _sourceUrlCtrl.text.trim().isEmpty
+            ? null
+            : _sourceUrlCtrl.text.trim(),
+        singer: _isSong && _singerCtrl.text.trim().isNotEmpty
+            ? _singerCtrl.text.trim()
+            : null,
+        songwriter: _isSong && _songwriterCtrl.text.trim().isNotEmpty
+            ? _songwriterCtrl.text.trim()
+            : null,
+      );
 
-  // Insert images
-  if (uploadedImages.isNotEmpty) {
-    await repo.insertImages(article.id, uploadedImages, authState.userId);
-  }
+      if (uploadedImages.isNotEmpty) {
+        await repo.insertImages(article.id, uploadedImages, authState.userId);
+      }
 
-  // Insert translations
-  for (final lang in filledLangs) {
-    final content = _contentMap[lang]!;
-    await repo.upsertTranslation(
-      articleId: article.id,
-      language: lang,
-      title: _titleCtrls[lang]!.text.trim(),
-      content: content,
-      excerpt: Helpers.makeExcerpt(content),
-      updatedBy: authState.userId,
-    );
-  }
+      for (final lang in filledLangs) {
+        final content = _contentMap[lang]!;
+        await repo.upsertTranslation(
+          articleId: article.id,
+          language: lang,
+          title: _titleCtrls[lang]!.text.trim(),
+          content: content,
+          excerpt: Helpers.makeExcerpt(content),
+          updatedBy: authState.userId,
+        );
+      }
 
-  if (mounted) context.pushReplacement('/articles/$slug');
-} catch (e) {
+      if (mounted) context.pushReplacement('/articles/$slug');
+    } catch (e) {
       setState(() {
         _error = e.toString();
         _saving = false;
@@ -186,8 +181,13 @@ try {
 
     final typeOptions = AppConstants.articleTypes[_category] ?? [];
 
+    // FIX: read keyboard height here so every widget in build() can use it
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
     return Scaffold(
-      resizeToAvoidBottomInset: false,
+      // FIX: must be true so the scaffold shrinks when keyboard appears,
+      // allowing SingleChildScrollView to scroll content above the keyboard
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: const Text('New Article',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
@@ -239,6 +239,12 @@ try {
             ),
           Expanded(
             child: SingleChildScrollView(
+              keyboardDismissBehavior:
+                  ScrollViewKeyboardDismissBehavior.onDrag,
+              // FIX: pad the bottom of the scroll view by the keyboard
+              // height + a small margin so the last widget is never hidden
+              // behind the keyboard and can be scrolled into view.
+              padding: EdgeInsets.only(bottom: bottomInset + 40),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -257,7 +263,7 @@ try {
                               fontSize: 13, color: Colors.red[700])),
                     ),
 
-                  // ── Category ─────────────────────────────────────────────
+                  // ── Category ──────────────────────────────────────────────
                   _sectionTitle('Category'),
                   SizedBox(
                     height: 40,
@@ -302,12 +308,14 @@ try {
                             controller: _singerCtrl,
                             hint: 'Singer / Artist name',
                             icon: Icons.mic_outlined,
+                            bottomInset: bottomInset,
                           ),
                           const SizedBox(height: 8),
                           _textField(
                             controller: _songwriterCtrl,
                             hint: 'Songwriter / Composer (optional)',
                             icon: Icons.edit_note_outlined,
+                            bottomInset: bottomInset,
                           ),
                         ],
                       ),
@@ -417,6 +425,7 @@ try {
                       icon: Icons.link,
                       keyboardType: TextInputType.url,
                       showClear: true,
+                      bottomInset: bottomInset,
                     ),
                   ),
 
@@ -431,6 +440,9 @@ try {
                       controller: _titleCtrls[_currentLang],
                       style: const TextStyle(
                           fontSize: 22, fontWeight: FontWeight.w700),
+                      // FIX: scroll title field above keyboard when focused
+                      scrollPadding:
+                          EdgeInsets.only(bottom: bottomInset + 80),
                       decoration: const InputDecoration(
                         hintText: 'Article title...',
                         border: InputBorder.none,
@@ -513,11 +525,13 @@ try {
     );
   }
 
-  // ── Shared text field widget ─────────────────────────────────────────────────
+  // FIX: added required bottomInset parameter so the inner TextField
+  // can set scrollPadding correctly without calling MediaQuery itself.
   Widget _textField({
     required TextEditingController controller,
     required String hint,
     required IconData icon,
+    required double bottomInset,
     TextInputType keyboardType = TextInputType.text,
     bool showClear = false,
   }) {
@@ -536,6 +550,9 @@ try {
             child: TextField(
               controller: controller,
               keyboardType: keyboardType,
+              // FIX: tell Flutter to scroll this field into view above
+              // the keyboard when it gains focus on physical devices.
+              scrollPadding: EdgeInsets.only(bottom: bottomInset + 80),
               style: const TextStyle(
                   fontSize: 13, color: Color(0xFF4B5563)),
               decoration: InputDecoration(

@@ -183,7 +183,6 @@ class _SongEditorState extends State<SongEditor> {
   late TextEditingController _referenceCtrl;
   final Set<String> _editingLabel = {};
 
-  // ← FIX: track the last HTML we emitted so we can ignore the echo
   String? _lastEmitted;
 
   @override
@@ -224,14 +223,15 @@ class _SongEditorState extends State<SongEditor> {
     _singerCtrl.dispose();
     _referenceCtrl.dispose();
   }
-@override
-void didUpdateWidget(SongEditor old) {
-  super.didUpdateWidget(old);
-  if (widget.content != old.content && widget.content != _lastEmitted) {
-    _teardown();
-    setState(() => _boot(widget.content));
+
+  @override
+  void didUpdateWidget(SongEditor old) {
+    super.didUpdateWidget(old);
+    if (widget.content != old.content && widget.content != _lastEmitted) {
+      _teardown();
+      setState(() => _boot(widget.content));
+    }
   }
-}
 
   @override
   void dispose() {
@@ -239,23 +239,23 @@ void didUpdateWidget(SongEditor old) {
     super.dispose();
   }
 
- void _emit() {
-  for (final s in _sections) {
-    s.content = _ctrls['${s.id}_c']?.text ?? s.content;
-    s.chords = _ctrls['${s.id}_h']?.text ?? s.chords;
-    if (s.type == 'custom') {
-      final labelText = _ctrls['${s.id}_l']?.text.trim() ?? '';
-      if (labelText.isNotEmpty) s.label = labelText;
+  void _emit() {
+    for (final s in _sections) {
+      s.content = _ctrls['${s.id}_c']?.text ?? s.content;
+      s.chords = _ctrls['${s.id}_h']?.text ?? s.chords;
+      if (s.type == 'custom') {
+        final labelText = _ctrls['${s.id}_l']?.text.trim() ?? '';
+        if (labelText.isNotEmpty) s.label = labelText;
+      }
     }
+    _meta.songNumber = _songNumberCtrl.text;
+    _meta.writer = _writerCtrl.text;
+    _meta.singer = _singerCtrl.text;
+    _meta.reference = _referenceCtrl.text;
+    final html = serializeSong(_sections, _meta);
+    _lastEmitted = html;
+    widget.onChange(html);
   }
-  _meta.songNumber = _songNumberCtrl.text;
-  _meta.writer = _writerCtrl.text;
-  _meta.singer = _singerCtrl.text;
-  _meta.reference = _referenceCtrl.text;
-  final html = serializeSong(_sections, _meta);
-  _lastEmitted = html;
-  widget.onChange(html);
-}
 
   void _toggle(String id) => setState(
         () => _expanded.contains(id) ? _expanded.remove(id) : _expanded.add(id),
@@ -318,15 +318,18 @@ void didUpdateWidget(SongEditor old) {
 
   @override
   Widget build(BuildContext context) {
+    // FIX: get keyboard height once here and pass down
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
     return Directionality(
       textDirection: TextDirection.ltr,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _toolbar(),
-          if (_showMeta) ...[const SizedBox(height: 8), _metaPanel()],
+          if (_showMeta) ...[const SizedBox(height: 8), _metaPanel(bottomInset)],
           const SizedBox(height: 8),
-          ..._sections.asMap().entries.map((e) => _sectionCard(e.value, e.key)),
+          ..._sections.asMap().entries.map((e) => _sectionCard(e.value, e.key, bottomInset)),
           _addButton(),
           const SizedBox(height: 8),
           _footer(),
@@ -430,7 +433,7 @@ void didUpdateWidget(SongEditor old) {
         ),
       );
 
-  Widget _metaPanel() => Container(
+  Widget _metaPanel(double bottomInset) => Container(
         decoration: BoxDecoration(
           color: Colors.white,
           border: Border.all(color: const Color(0xFFBFDBFE)),
@@ -469,7 +472,7 @@ void didUpdateWidget(SongEditor old) {
                   spacing: 12,
                   runSpacing: 12,
                   children: [
-                    _mField('🔢', 'Song No.', _songNumberCtrl, 'e.g. 541', w),
+                    _mField('🔢', 'Song No.', _songNumberCtrl, 'e.g. 541', w, bottomInset),
                     _mDrop('🎹', 'Key (Doh is...)', _meta.key, _musicalKeys,
                         (v) {
                       setState(() => _meta.key = v);
@@ -480,9 +483,9 @@ void didUpdateWidget(SongEditor old) {
                       setState(() => _meta.timeSignature = v);
                       _emit();
                     }, w),
-                    _mField('✍️', 'Written by', _writerCtrl, 'Songwriter name', w),
-                    _mField('🎤', 'Sung by', _singerCtrl, 'Artist or group', w),
-                    _mField('📖', 'Reference', _referenceCtrl, 'e.g. Psalm 23:1', w),
+                    _mField('✍️', 'Written by', _writerCtrl, 'Songwriter name', w, bottomInset),
+                    _mField('🎤', 'Sung by', _singerCtrl, 'Artist or group', w, bottomInset),
+                    _mField('📖', 'Reference', _referenceCtrl, 'e.g. Psalm 23:1', w, bottomInset),
                   ],
                 );
               }),
@@ -492,7 +495,7 @@ void didUpdateWidget(SongEditor old) {
       );
 
   Widget _mField(String emoji, String label, TextEditingController ctrl,
-          String hint, double w) =>
+          String hint, double w, double bottomInset) =>
       SizedBox(
         width: w,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -511,6 +514,9 @@ void didUpdateWidget(SongEditor old) {
             controller: ctrl,
             onChanged: (_) => _emit(),
             style: const TextStyle(fontSize: 13),
+            scrollPhysics: const NeverScrollableScrollPhysics(),
+            // FIX: scroll field into view above keyboard
+            scrollPadding: EdgeInsets.only(bottom: bottomInset + 80),
             decoration: InputDecoration(
               hintText: hint,
               hintStyle:
@@ -583,7 +589,7 @@ void didUpdateWidget(SongEditor old) {
         ]),
       );
 
-  Widget _sectionCard(SongSection s, int idx) {
+  Widget _sectionCard(SongSection s, int idx, double bottomInset) {
     final cfg = _cfgFor(s.type);
     final isExpanded = _expanded.contains(s.id);
     final hasChords =
@@ -631,7 +637,7 @@ void didUpdateWidget(SongEditor old) {
                               }
                             },
                             child: isCustom && isEditingLbl
-                                ? _customLabelField(s, cfg)
+                                ? _customLabelField(s, cfg, bottomInset)
                                 : _labelBadge(s, cfg, isCustom, hasChords),
                           ),
                           const Spacer(),
@@ -663,8 +669,8 @@ void didUpdateWidget(SongEditor old) {
                       ),
                     ),
                     if (isExpanded) ...[
-                      if (_showChords) _chordsRow(s),
-                      _lyricsRow(s),
+                      if (_showChords) _chordsRow(s, bottomInset),
+                      _lyricsRow(s, bottomInset),
                     ],
                   ],
                 ),
@@ -721,7 +727,7 @@ void didUpdateWidget(SongEditor old) {
     );
   }
 
-  Widget _customLabelField(SongSection s, _SCfg cfg) {
+  Widget _customLabelField(SongSection s, _SCfg cfg, double bottomInset) {
     final ctrl = _ctrls['${s.id}_l']!;
     return Container(
       width: 140,
@@ -739,6 +745,9 @@ void didUpdateWidget(SongEditor old) {
             child: TextField(
               controller: ctrl,
               autofocus: true,
+              scrollPhysics: const NeverScrollableScrollPhysics(),
+              // FIX: scroll into view above keyboard
+              scrollPadding: EdgeInsets.only(bottom: bottomInset + 80),
               style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
@@ -783,7 +792,7 @@ void didUpdateWidget(SongEditor old) {
             size: 18, color: Color(0xFF9CA3AF)),
       );
 
-  Widget _chordsRow(SongSection s) => Container(
+  Widget _chordsRow(SongSection s, double bottomInset) => Container(
         decoration: const BoxDecoration(
           color: Color(0xFFFFFDF0),
           border: Border(top: BorderSide(color: Color(0xFFFDE68A))),
@@ -810,6 +819,9 @@ void didUpdateWidget(SongEditor old) {
               controller: _ctrls['${s.id}_h'],
               onChanged: (_) => _emit(),
               maxLines: 2,
+              scrollPhysics: const NeverScrollableScrollPhysics(),
+              // FIX: scroll into view above keyboard
+              scrollPadding: EdgeInsets.only(bottom: bottomInset + 80),
               style: const TextStyle(
                   fontSize: 13,
                   color: Color(0xFF92400E),
@@ -828,7 +840,7 @@ void didUpdateWidget(SongEditor old) {
         ]),
       );
 
-  Widget _lyricsRow(SongSection s) => Container(
+  Widget _lyricsRow(SongSection s, double bottomInset) => Container(
         decoration: const BoxDecoration(
             border:
                 Border(top: BorderSide(color: Color(0xFFF3F4F6)))),
@@ -856,6 +868,10 @@ void didUpdateWidget(SongEditor old) {
               onChanged: (_) => _emit(),
               maxLines: null,
               minLines: 5,
+              scrollPhysics: const NeverScrollableScrollPhysics(),
+              // FIX: scroll field into view above keyboard when cursor
+              // is near the bottom of a long lyrics block
+              scrollPadding: EdgeInsets.only(bottom: bottomInset + 80),
               style: const TextStyle(
                   fontSize: 14,
                   height: 1.9,

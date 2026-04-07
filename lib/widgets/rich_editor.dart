@@ -109,6 +109,7 @@ class RichEditorWidget extends StatefulWidget {
   final ValueChanged<String> onChange;
   final String placeholder;
   final String? label;
+  
 
   const RichEditorWidget({
     super.key,
@@ -128,6 +129,7 @@ class _RichEditorWidgetState extends State<RichEditorWidget>
   final FocusNode _focusNode = FocusNode();
   bool _suppressCallback = false;
   bool _focused = false;
+  final GlobalKey _editorKey = GlobalKey();
 
   late final AnimationController _borderAnim;
   late final Animation<double> _borderProgress;
@@ -148,10 +150,31 @@ class _RichEditorWidgetState extends State<RichEditorWidget>
       selection: const TextSelection.collapsed(offset: 0),
     );
     _controller.addListener(_onChanged);
-    _focusNode.addListener(() {
-      setState(() => _focused = _focusNode.hasFocus);
-      _focused ? _borderAnim.forward() : _borderAnim.reverse();
+// add this key to the class
+
+// in initState, update the focus listener:
+_focusNode.addListener(() {
+  final hasFocus = _focusNode.hasFocus;
+  setState(() => _focused = hasFocus);
+  hasFocus ? _borderAnim.forward() : _borderAnim.reverse();
+
+  if (hasFocus) {
+    // Wait for keyboard to finish animating up, then scroll editor into view
+    Future.delayed(const Duration(milliseconds: 350), () {
+      if (!mounted) return;
+      final ctx = _editorKey.currentContext;
+      if (ctx != null) {
+        Scrollable.ensureVisible(
+          ctx,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+          alignment: 0.0, // scroll so top of editor is visible
+          alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+        );
+      }
     });
+  }
+});
   }
 
   @override
@@ -176,7 +199,6 @@ class _RichEditorWidgetState extends State<RichEditorWidget>
 
   void _onChanged() {
     if (_suppressCallback) return;
-    // ← no setState here — fixes delete repeat on Android
     widget.onChange(_DeltaToHtml.convert(_controller.document));
   }
 
@@ -420,43 +442,43 @@ class _RichEditorWidgetState extends State<RichEditorWidget>
         ),
       );
 
-  Widget _buildEditor() => Container(
-        constraints: const BoxConstraints(minHeight: 180),
-        color: _EditorTheme.surface,
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOut,
-                width: 3,
-                color: _focused
-                    ? _EditorTheme.inkPrimary
-                    : Colors.transparent,
+Widget _buildEditor() {
+  return Container(
+    key: _editorKey,   // ← add this
+    constraints: const BoxConstraints(minHeight: 180),
+    color: _EditorTheme.surface,
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          width: 3,
+          height: 180,
+          color: _focused ? _EditorTheme.inkPrimary : Colors.transparent,
+        ),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+            child: QuillEditor.basic(
+              controller: _controller,
+              focusNode: _focusNode,
+              config: QuillEditorConfig(
+                placeholder: widget.placeholder,
+                padding: EdgeInsets.zero,
+                autoFocus: false,
+                expands: false,
+                scrollable: true,
+                minHeight: 180,
+                customStyles: _buildEditorStyles(),
               ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
-                  child: QuillEditor.basic(
-                    controller: _controller,
-                    focusNode: _focusNode,
-                    config: QuillEditorConfig(
-                      placeholder: widget.placeholder,
-                      padding: EdgeInsets.zero,
-                      autoFocus: false,
-                      expands: false,
-                      scrollable: true,
-                      customStyles: _buildEditorStyles(),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
-      );
-
+      ],
+    ),
+  );
+}
   Widget _buildFooter() => Container(
         height: 30,
         color: _EditorTheme.toolbarBg,
