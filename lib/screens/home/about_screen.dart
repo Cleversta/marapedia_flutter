@@ -571,12 +571,12 @@ class AboutScreen extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         GestureDetector(
-          onTap: () => launchUrl(Uri.parse('https://facebook.com/marapedia')),
+          onTap: () => launchUrl(Uri.parse('https://facebook.com/Marapedia')),
           child: _contactCard(
             icon: '📘',
             iconBg: const Color(0xFFEFF6FF),
             title: 'Facebook',
-            subtitle: 'facebook.com/marapedia',
+            subtitle: 'facebook.com/Marapedia',
           ),
         ),
       ],
@@ -811,9 +811,9 @@ class AboutScreen extends StatelessWidget {
           const SizedBox(height: 12),
           GestureDetector(
             onTap: () =>
-                launchUrl(Uri.parse('mailto:cleverstar02@gmail.com')),
+                launchUrl(Uri.parse('mailto:marasontleitu@gmail.com')),
             child: _contactRow(
-                Icons.email_outlined, 'cleverstar02@gmail.com'),
+                Icons.email_outlined, 'marasontleitu@gmail.com'),
           ),
           const SizedBox(height: 8),
           GestureDetector(
