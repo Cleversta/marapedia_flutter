@@ -2,7 +2,7 @@ class AppConstants {
   static const String supabaseUrl = 'https://jejdynhubeidvtxztuqv.supabase.co';
   static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplamR5bmh1YmVpZHZ0eHp0dXF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1NTQxNzQsImV4cCI6MjA5MDEzMDE3NH0.DDadJNXC1NLny_MoF4XAoYPVEhHZRGclAfFotDdVyvY';
 static const String uploadEndpoint =
-    'https://marapedia.vercel.app/api/upload';
+    'https://marapedia.org/api/upload';
   static const List<String> languagePriority = [
     'mara',
     'english',
