@@ -88,6 +88,22 @@ class ArticleRepository {
     return {'articles': json['articles'], 'users': json['users']};
   }
 
+  // ── Category counts ───────────────────────────────────────────────────────
+
+  Future<Map<String, int>> fetchCategoryCounts() async {
+    final response = await _db          // ← was `supabase`, now correctly `_db`
+        .from('articles')
+        .select('category')
+        .eq('status', 'published');
+
+    final counts = <String, int>{};
+    for (final row in response as List) {
+      final cat = row['category'] as String?;
+      if (cat != null) counts[cat] = (counts[cat] ?? 0) + 1;
+    }
+    return counts;
+  }
+
   // ── Authenticated / writes ────────────────────────────────────────────────
 
   Future<List<ArticleModel>> getMyArticles(String userId) async {
@@ -192,7 +208,6 @@ class ArticleRepository {
 
   // ── Favorites ─────────────────────────────────────────────────────────────
 
-  /// Returns true if the given article is favorited by [userId].
   Future<bool> isFavorited(String articleId, String userId) async {
     final res = await _db
         .from('favorites')
@@ -203,7 +218,6 @@ class ArticleRepository {
     return res != null;
   }
 
-  /// Fetch all articles favorited by [userId], newest first.
   Future<List<ArticleModel>> getFavorites(String userId) async {
     final res = await _db
         .from('favorites')
@@ -226,15 +240,20 @@ class ArticleRepository {
         .toList();
   }
 
-  /// Add article to favorites.
   Future<void> addFavorite(String articleId, String userId) async {
     await _db.from('favorites').insert({
       'user_id': userId,
-      'article_id': articleId,
+/*************  ✨ Windsurf Command ⭐  *************/
+  /// Fetch a map of category to count of published articles.
+  ///
+  /// Returns a map where the key is the category name and the value is the count of published articles in that category.
+  ///
+  /// For example, if there are 3 published articles in the 'marvel' category, the returned map will contain the key-value pair `'marvel': 3`.
+  ///
+/*******  8a362a21-56b0-4f64-9b7e-78865f9b7b8f  *******/      'article_id': articleId,
     });
   }
 
-  /// Remove article from favorites.
   Future<void> removeFavorite(String articleId, String userId) async {
     await _db
         .from('favorites')

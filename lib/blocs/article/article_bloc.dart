@@ -17,8 +17,8 @@ class ArticleBloc extends Bloc<ArticleEvent, ArticleState> {
     on<ArticleAllLoadRequested>(_onAllLoad);
     on<ArticlePublishRequested>(_onPublish);
     on<ArticleFeatureToggleRequested>(_onFeatureToggle);
-    on<ArticleFavoritesLoadRequested>(_onFavoritesLoad);   // ← NEW
-    on<ArticleFavoriteToggleRequested>(_onFavoriteToggle); // ← NEW
+    on<ArticleFavoritesLoadRequested>(_onFavoritesLoad);
+    on<ArticleFavoriteToggleRequested>(_onFavoriteToggle);
   }
 
   // ── Home ──────────────────────────────────────────────────────────────────
@@ -29,11 +29,18 @@ class ArticleBloc extends Bloc<ArticleEvent, ArticleState> {
   ) async {
     emit(ArticleLoading());
     try {
-      final data = await _repo.fetchHomeData();
-      emit(_homeFromMap(data, isOffline: false));
+      // Fetch home data and category counts in parallel
+      final results = await Future.wait([
+        _repo.fetchHomeData(),
+        _repo.fetchCategoryCounts(), // ← added
+      ]);
+      final data   = results[0] as Map<String, dynamic>;
+      final counts = results[1] as Map<String, int>;
+      emit(_homeFromMap(data, categoryCounts: counts, isOffline: false));
     } catch (_) {
       final cached = _repo.getCachedHomeData();
       if (cached != null) {
+        // Offline: no counts available — pills still render, just without badges
         emit(_homeFromMap(cached, isOffline: true));
       } else {
         emit(ArticleError('No internet connection and no cached data.'));
@@ -44,6 +51,7 @@ class ArticleBloc extends Bloc<ArticleEvent, ArticleState> {
   ArticleHomeLoaded _homeFromMap(
     Map<String, dynamic> data, {
     required bool isOffline,
+    Map<String, int> categoryCounts = const {}, // ← added
   }) {
     ArticleModel? featured;
     if (data['featured'] != null) {
@@ -63,6 +71,7 @@ class ArticleBloc extends Bloc<ArticleEvent, ArticleState> {
       articleCount: data['articleCount'] as int? ?? 0,
       userCount: data['userCount'] as int? ?? 0,
       isOffline: isOffline,
+      categoryCounts: categoryCounts, // ← added
     );
   }
 
@@ -80,9 +89,6 @@ class ArticleBloc extends Bloc<ArticleEvent, ArticleState> {
         return;
       }
       _repo.incrementViewCount(article.id).ignore();
-
-      // Check favorite status if a userId is available via the event.
-      // We emit without favorite first, then check asynchronously below.
       emit(ArticleDetailLoaded(article));
     } catch (_) {
       final cached = _repo.getCachedBySlug(event.slug);
@@ -259,7 +265,6 @@ class ArticleBloc extends Bloc<ArticleEvent, ArticleState> {
     ArticleFavoriteToggleRequested event,
     Emitter<ArticleState> emit,
   ) async {
-    // Optimistically flip the heart in the detail screen.
     final current = state;
     if (current is ArticleDetailLoaded) {
       emit(current.copyWith(isFavorited: !event.isFavorited));
@@ -272,15 +277,12 @@ class ArticleBloc extends Bloc<ArticleEvent, ArticleState> {
         await _repo.addFavorite(event.articleId, event.userId);
       }
 
-      // If the favorites list is currently loaded, remove the unfavorited
-      // article from it immediately so the tab stays in sync.
       if (event.isFavorited && current is ArticleFavoritesLoaded) {
         emit(ArticleFavoritesLoaded(
           current.articles.where((a) => a.id != event.articleId).toList(),
         ));
       }
     } catch (e) {
-      // Revert optimistic update on failure.
       if (current is ArticleDetailLoaded) {
         emit(current.copyWith(isFavorited: event.isFavorited));
       }

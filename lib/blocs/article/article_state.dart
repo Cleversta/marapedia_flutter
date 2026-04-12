@@ -18,6 +18,7 @@ class ArticleHomeLoaded extends ArticleState {
   final int articleCount;
   final int userCount;
   final bool isOffline;
+  final Map<String, int> categoryCounts; // ← added
 
   const ArticleHomeLoaded({
     this.featured,
@@ -26,11 +27,12 @@ class ArticleHomeLoaded extends ArticleState {
     required this.articleCount,
     required this.userCount,
     this.isOffline = false,
+    this.categoryCounts = const {}, // ← added
   });
 
   @override
   List<Object?> get props =>
-      [featured, recent, mostViewed, articleCount, userCount, isOffline];
+      [featured, recent, mostViewed, articleCount, userCount, isOffline, categoryCounts];
 }
 
 class ArticleCategoryLoaded extends ArticleState {
@@ -46,7 +48,7 @@ class ArticleCategoryLoaded extends ArticleState {
 class ArticleDetailLoaded extends ArticleState {
   final ArticleModel article;
   final bool isOffline;
-  final bool isFavorited; // ← NEW
+  final bool isFavorited;
 
   const ArticleDetailLoaded(
     this.article, {
@@ -93,8 +95,6 @@ class ArticleAllLoaded extends ArticleState {
   List<Object?> get props => [articles];
 }
 
-// ── Favorites ─────────────────────────────────────────────────────────────────
-
 class ArticleFavoritesLoaded extends ArticleState {
   final List<ArticleModel> articles;
 
@@ -103,8 +103,6 @@ class ArticleFavoritesLoaded extends ArticleState {
   @override
   List<Object?> get props => [articles];
 }
-
-// ── Error ─────────────────────────────────────────────────────────────────────
 
 class ArticleError extends ArticleState {
   final String message;

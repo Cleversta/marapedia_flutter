@@ -548,14 +548,22 @@ class _HomeScreenState extends State<HomeScreen>
       appBar: const MarapediaAppBar(),
       body: Column(
         children: [
-          CategoryTabs(
-            selected: _selectedCategory,
-            onTap: (cat) {
-              if (cat == 'photos') { context.push('/photos'); return; }
-              setState(() => _selectedCategory = cat);
-              context.push('/category/$cat');
-            },
-          ),
+BlocBuilder<ArticleBloc, ArticleState>(
+  builder: (context, state) {
+    final counts = state is ArticleHomeLoaded
+        ? state.categoryCounts
+        : <String, int>{};
+    return CategoryTabs(
+      selected: _selectedCategory,
+      counts: counts,
+      onTap: (cat) {
+        if (cat == 'photos') { context.push('/photos'); return; }
+        setState(() => _selectedCategory = cat);
+        context.push('/category/$cat');
+      },
+    );
+  },
+),
           Expanded(
             child: BlocConsumer<ArticleBloc, ArticleState>(
               listener: (context, state) {
