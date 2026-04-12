@@ -571,7 +571,7 @@ class AboutScreen extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         GestureDetector(
-          onTap: () => launchUrl(Uri.parse('https://facebook.com/Marapedia')),
+          onTap: () => launchUrl(Uri.parse('https://www.facebook.com/profile.php?id=100092171450260')),
           child: _contactCard(
             icon: '📘',
             iconBg: const Color(0xFFEFF6FF),
