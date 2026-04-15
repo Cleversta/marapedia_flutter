@@ -14,6 +14,12 @@ const _inkLight    = Color(0xFF8C7E6A);
 const _sage        = Color(0xFF5A7A5C);
 const _sageBg      = Color(0xFFEBF1EB);
 
+// Purple for admin, blue for editor
+const _adminBg  = Color(0xFFF3E8FF);
+const _adminFg  = Color(0xFF7E22CE);
+const _editorBg = Color(0xFFEFF6FF);
+const _editorFg = Color(0xFF1D4ED8);
+
 class ContributorsScreen extends StatefulWidget {
   const ContributorsScreen({super.key});
 
@@ -43,6 +49,20 @@ class _ContributorsScreenState extends State<ContributorsScreen> {
     }
   }
 
+  // Sort helpers
+  static int _byArticles(ContributorInfo a, ContributorInfo b) {
+    if (b.publishedCount != a.publishedCount) {
+      return b.publishedCount.compareTo(a.publishedCount);
+    }
+    if (b.totalCount != a.totalCount) {
+      return b.totalCount.compareTo(a.totalCount);
+    }
+    return a.profile.username.compareTo(b.profile.username);
+  }
+
+  static int _byNewest(ContributorInfo a, ContributorInfo b) =>
+      b.profile.createdAt.compareTo(a.profile.createdAt);
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -57,11 +77,7 @@ class _ContributorsScreenState extends State<ContributorsScreen> {
         ),
         title: Text(
           'Contributors',
-          style: GoogleFonts.lora(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: _ink,
-          ),
+          style: GoogleFonts.lora(fontSize: 18, fontWeight: FontWeight.w700, color: _ink),
         ),
         centerTitle: true,
         bottom: PreferredSize(
@@ -108,11 +124,15 @@ class _ContributorsScreenState extends State<ContributorsScreen> {
   }
 
   Widget _buildContent() {
-    final contributors = _contributors ?? [];
-    final active = contributors.where((c) => c.publishedCount > 0).toList();
-    final members = contributors.where((c) => c.publishedCount == 0).toList();
+    final all = _contributors ?? [];
 
-    final totalPublished = active.fold(0, (s, c) => s + c.publishedCount);
+    // Split into three groups
+    final admins  = (all.where((c) => c.profile.role == 'admin').toList()  ..sort(_byArticles));
+    final editors = (all.where((c) => c.profile.role == 'editor').toList() ..sort(_byArticles));
+    final members = (all.where((c) => c.profile.role != 'admin' && c.profile.role != 'editor').toList()
+      ..sort(_byNewest));
+
+    final totalPublished = all.fold(0, (s, c) => s + c.publishedCount);
 
     return RefreshIndicator(
       color: _sage,
@@ -120,6 +140,7 @@ class _ContributorsScreenState extends State<ContributorsScreen> {
       child: CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
+
           // ── Stats header ──────────────────────────────────────────────
           SliverToBoxAdapter(
             child: Container(
@@ -135,17 +156,19 @@ class _ContributorsScreenState extends State<ContributorsScreen> {
                   Text(
                     'The people preserving Mara history,\nsongs, stories, and culture.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 13, color: _inkLight, height: 1.5),
+                    style: const TextStyle(fontSize: 13, color: _inkLight, height: 1.5),
                   ),
                   const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _statItem('${contributors.length}', 'Members'),
+                      _statItem('${all.length}', 'Members', _sage),
                       Container(width: 1, height: 28, color: _border),
-                      _statItem('${active.length}', 'Contributors'),
+                      _statItem('${admins.length}', 'Admins', _adminFg),
                       Container(width: 1, height: 28, color: _border),
-                      _statItem('$totalPublished', 'Articles'),
+                      _statItem('${editors.length}', 'Editors', _editorFg),
+                      Container(width: 1, height: 28, color: _border),
+                      _statItem('$totalPublished', 'Articles', _sage),
                     ],
                   ),
                 ],
@@ -153,61 +176,31 @@ class _ContributorsScreenState extends State<ContributorsScreen> {
             ),
           ),
 
-          // ── Active contributors ───────────────────────────────────────
-          if (active.isNotEmpty) ...[
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
-                child: Row(
-                  children: [
-                    const Text('✦', style: TextStyle(fontSize: 11, color: _sage)),
-                    const SizedBox(width: 8),
-                    Text(
-                      'ACTIVE CONTRIBUTORS',
-                      style: GoogleFonts.lora(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: _inkLight,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          // ── Admins ────────────────────────────────────────────────────
+          if (admins.isNotEmpty) ...[
+            _sectionHeader('ADMINS', '◆', _adminFg),
             SliverList(
               delegate: SliverChildBuilderDelegate(
-                (context, index) => _ContributorTile(
-                  info: active[index],
-                  rank: index,
-                ),
-                childCount: active.length,
+                (context, i) => _StaffTile(info: admins[i], rank: i + 1),
+                childCount: admins.length,
               ),
             ),
           ],
 
-          // ── Members (no articles) ─────────────────────────────────────
-          if (members.isNotEmpty) ...[
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 24, 16, 10),
-                child: Row(
-                  children: [
-                    const Text('◈', style: TextStyle(fontSize: 11, color: _inkLight)),
-                    const SizedBox(width: 8),
-                    Text(
-                      'MEMBERS',
-                      style: GoogleFonts.lora(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: _inkLight,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                  ],
-                ),
+          // ── Editors ───────────────────────────────────────────────────
+          if (editors.isNotEmpty) ...[
+            _sectionHeader('EDITORS', '◆', _editorFg),
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, i) => _StaffTile(info: editors[i], rank: i + 1),
+                childCount: editors.length,
               ),
             ),
+          ],
+
+          // ── Members ───────────────────────────────────────────────────
+          if (members.isNotEmpty) ...[
+            _sectionHeader('MEMBERS', '◈', _inkLight),
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               sliver: SliverGrid(
@@ -218,12 +211,29 @@ class _ContributorsScreenState extends State<ContributorsScreen> {
                   childAspectRatio: 2.4,
                 ),
                 delegate: SliverChildBuilderDelegate(
-                  (context, index) => _MemberChip(profile: members[index].profile),
+                  (context, i) => _MemberChip(info: members[i]),
                   childCount: members.length,
                 ),
               ),
             ),
           ],
+
+          if (all.isEmpty)
+            SliverToBoxAdapter(
+              child: Container(
+                margin: const EdgeInsets.all(24),
+                padding: const EdgeInsets.symmetric(vertical: 40),
+                decoration: BoxDecoration(
+                  color: _parchmentDk,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: _border),
+                ),
+                child: const Center(
+                  child: Text('No contributors yet.',
+                      style: TextStyle(fontSize: 13, color: _inkLight)),
+                ),
+              ),
+            ),
 
           const SliverToBoxAdapter(child: SizedBox(height: 32)),
         ],
@@ -231,12 +241,35 @@ class _ContributorsScreenState extends State<ContributorsScreen> {
     );
   }
 
-  Widget _statItem(String value, String label) {
+  SliverToBoxAdapter _sectionHeader(String label, String icon, Color iconColor) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 24, 16, 10),
+        child: Row(
+          children: [
+            Text(icon, style: TextStyle(fontSize: 10, color: iconColor)),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: GoogleFonts.lora(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: _inkLight,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _statItem(String value, String label, Color valueColor) {
     return Column(
       children: [
         Text(value,
             style: GoogleFonts.lora(
-                fontSize: 22, fontWeight: FontWeight.w700, color: _sage)),
+                fontSize: 20, fontWeight: FontWeight.w700, color: valueColor)),
         const SizedBox(height: 2),
         Text(label, style: const TextStyle(fontSize: 11, color: _inkLight)),
       ],
@@ -244,32 +277,17 @@ class _ContributorsScreenState extends State<ContributorsScreen> {
   }
 }
 
-// ── Contributor list tile ─────────────────────────────────────────────────────
+// ── Staff tile (admins & editors) ─────────────────────────────────────────────
 
-class _ContributorTile extends StatelessWidget {
+class _StaffTile extends StatelessWidget {
   final ContributorInfo info;
-  final int rank;
+  final int rank; // 1-based rank within their group
 
-  const _ContributorTile({required this.info, required this.rank});
+  const _StaffTile({required this.info, required this.rank});
 
   @override
   Widget build(BuildContext context) {
     final profile = info.profile;
-    final rankWidget = rank == 0
-        ? const Text('🥇', style: TextStyle(fontSize: 18))
-        : rank == 1
-            ? const Text('🥈', style: TextStyle(fontSize: 18))
-            : rank == 2
-                ? const Text('🥉', style: TextStyle(fontSize: 18))
-                : SizedBox(
-                    width: 28,
-                    child: Text(
-                      '#${rank + 1}',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                          fontSize: 11, color: _inkLight, fontWeight: FontWeight.w600),
-                    ),
-                  );
 
     return GestureDetector(
       onTap: () => context.push('/contributors/${profile.username}'),
@@ -290,15 +308,26 @@ class _ContributorTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Rank
-            SizedBox(width: 28, child: rankWidget),
+            // Rank number (within group)
+            SizedBox(
+              width: 28,
+              child: Text(
+                '#$rank',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: _inkLight,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
             const SizedBox(width: 10),
 
             // Avatar
             _Avatar(avatarUrl: profile.avatarUrl, username: profile.username, radius: 20),
             const SizedBox(width: 12),
 
-            // Info
+            // Name + badge + meta
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -370,33 +399,51 @@ class _ContributorTile extends StatelessWidget {
   }
 }
 
-// ── Member chip (no articles) ─────────────────────────────────────────────────
+// ── Member chip (compact grid, newest first) ──────────────────────────────────
 
 class _MemberChip extends StatelessWidget {
-  final dynamic profile;
-  const _MemberChip({required this.profile});
+  final ContributorInfo info;
+  const _MemberChip({required this.info});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      decoration: BoxDecoration(
-        color: _parchmentDk,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _border),
-      ),
-      child: Row(
-        children: [
-          _Avatar(avatarUrl: profile.avatarUrl, username: profile.username, radius: 10),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              profile.username,
-              style: const TextStyle(fontSize: 11, color: _inkMid, fontWeight: FontWeight.w500),
-              overflow: TextOverflow.ellipsis,
+    final profile = info.profile;
+    return GestureDetector(
+      onTap: () => context.push('/contributors/${profile.username}'),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          color: _parchmentDk,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: _border),
+        ),
+        child: Row(
+          children: [
+            _Avatar(avatarUrl: profile.avatarUrl, username: profile.username, radius: 10),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    profile.username,
+                    style: const TextStyle(
+                      fontSize: 11, color: _inkMid, fontWeight: FontWeight.w500,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  // Show article count if member has any
+                  if (info.publishedCount > 0)
+                    Text(
+                      '${info.publishedCount} art.',
+                      style: const TextStyle(fontSize: 9, color: _sage),
+                    ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -413,7 +460,7 @@ class _Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final safe = avatarUrl != null && avatarUrl!.isNotEmpty ? avatarUrl : null;
+    final safe = (avatarUrl != null && avatarUrl!.isNotEmpty) ? avatarUrl : null;
     return CircleAvatar(
       radius: radius,
       backgroundColor: _sageBg,
@@ -447,23 +494,19 @@ class _RoleBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (role == 'admin') {
-      return _badge('admin', const Color(0xFFF3E8FF), const Color(0xFF7E22CE));
-    }
-    if (role == 'editor') {
-      return _badge('editor', const Color(0xFFEFF6FF), const Color(0xFF1D4ED8));
-    }
-    return const SizedBox.shrink();
+    return switch (role) {
+      'admin'  => _badge('admin',  _adminBg,  _adminFg),
+      'editor' => _badge('editor', _editorBg, _editorFg),
+      _        => _badge('member', _sageBg,   _sage),
+    };
   }
 
   Widget _badge(String label, Color bg, Color fg) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(label, style: TextStyle(fontSize: 9, color: fg, fontWeight: FontWeight.w600)),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
+      child: Text(label,
+          style: TextStyle(fontSize: 9, color: fg, fontWeight: FontWeight.w600)),
     );
   }
 }

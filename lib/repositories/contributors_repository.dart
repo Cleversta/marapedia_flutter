@@ -1,8 +1,6 @@
-
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/article_model.dart';
 import '../models/profile_model.dart';
-
 
 class ContributorInfo {
   final ProfileModel profile;
@@ -19,9 +17,7 @@ class ContributorInfo {
 class ContributorsRepository {
   final _db = Supabase.instance.client;
 
-  /// Fetch all profiles + their article counts, sorted by published desc.
   Future<List<ContributorInfo>> getContributors() async {
-    // Fetch profiles
     final profilesRes = await _db
         .from('profiles')
         .select('id, username, full_name, avatar_url, bio, role, created_at')
@@ -33,10 +29,7 @@ class ContributorsRepository {
 
     if (profiles.isEmpty) return [];
 
-    // Fetch article counts per author
-    final articlesRes = await _db
-        .from('articles')
-        .select('author_id, status');
+    final articlesRes = await _db.from('articles').select('author_id, status');
 
     final countMap = <String, Map<String, int>>{};
     for (final row in (articlesRes as List)) {
@@ -49,7 +42,7 @@ class ContributorsRepository {
       }
     }
 
-    final contributors = profiles.map((p) {
+    return profiles.map((p) {
       final counts = countMap[p.id];
       return ContributorInfo(
         profile: p,
@@ -57,22 +50,8 @@ class ContributorsRepository {
         totalCount: counts?['total'] ?? 0,
       );
     }).toList();
-
-    // Sort: published desc → total desc → username asc
-    contributors.sort((a, b) {
-      if (b.publishedCount != a.publishedCount) {
-        return b.publishedCount.compareTo(a.publishedCount);
-      }
-      if (b.totalCount != a.totalCount) {
-        return b.totalCount.compareTo(a.totalCount);
-      }
-      return a.profile.username.compareTo(b.profile.username);
-    });
-
-    return contributors;
   }
 
-  /// Fetch published articles by a specific author.
   Future<List<ArticleModel>> getArticlesByAuthor(String authorId) async {
     final res = await _db
         .from('articles')
