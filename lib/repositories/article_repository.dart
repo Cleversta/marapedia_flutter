@@ -23,14 +23,19 @@ class ArticleRepository {
     final mostViewed   = _parseList(results[1].body);
     final featuredList = _parseList(results[2].body);
     final featured     = featuredList.isEmpty ? null : featuredList.first;
-    final stats        = jsonDecode(results[3].body);
+    final stats        = jsonDecode(results[3].body) as Map<String, dynamic>;
+
+    // Extract category counts from stats response
+    final rawCounts = stats['categoryCounts'] as Map<String, dynamic>? ?? {};
+    final categoryCounts = rawCounts.map((k, v) => MapEntry(k, (v as num).toInt()));
 
     final data = <String, dynamic>{
-      'featured'    : featured?.toSimpleMap(),
-      'recent'      : recent.map((a) => a.toSimpleMap()).toList(),
-      'mostViewed'  : mostViewed.map((a) => a.toSimpleMap()).toList(),
-      'articleCount': stats['articles'] ?? 0,
-      'userCount'   : stats['users'] ?? 0,
+      'featured'       : featured?.toSimpleMap(),
+      'recent'         : recent.map((a) => a.toSimpleMap()).toList(),
+      'mostViewed'     : mostViewed.map((a) => a.toSimpleMap()).toList(),
+      'articleCount'   : stats['articles'] ?? 0,
+      'userCount'      : stats['users'] ?? 0,
+      'categoryCounts' : categoryCounts,
     };
     await CacheService.saveHome(data);
     return data;
@@ -91,17 +96,10 @@ class ArticleRepository {
   // ── Category counts ───────────────────────────────────────────────────────
 
   Future<Map<String, int>> fetchCategoryCounts() async {
-    final response = await _db          // ← was `supabase`, now correctly `_db`
-        .from('articles')
-        .select('category')
-        .eq('status', 'published');
-
-    final counts = <String, int>{};
-    for (final row in response as List) {
-      final cat = row['category'] as String?;
-      if (cat != null) counts[cat] = (counts[cat] ?? 0) + 1;
-    }
-    return counts;
+    final res = await http.get(Uri.parse('$_base/stats'));
+    final json = jsonDecode(res.body) as Map<String, dynamic>;
+    final raw = json['categoryCounts'] as Map<String, dynamic>? ?? {};
+    return raw.map((k, v) => MapEntry(k, (v as num).toInt()));
   }
 
   // ── Authenticated / writes ────────────────────────────────────────────────
@@ -243,14 +241,7 @@ class ArticleRepository {
   Future<void> addFavorite(String articleId, String userId) async {
     await _db.from('favorites').insert({
       'user_id': userId,
-/*************  ✨ Windsurf Command ⭐  *************/
-  /// Fetch a map of category to count of published articles.
-  ///
-  /// Returns a map where the key is the category name and the value is the count of published articles in that category.
-  ///
-  /// For example, if there are 3 published articles in the 'marvel' category, the returned map will contain the key-value pair `'marvel': 3`.
-  ///
-/*******  8a362a21-56b0-4f64-9b7e-78865f9b7b8f  *******/      'article_id': articleId,
+      'article_id': articleId,
     });
   }
 

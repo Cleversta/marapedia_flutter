@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:marapedia_flutter/widgets/comments_section.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../blocs/article/article_bloc.dart';
@@ -539,80 +540,74 @@ for (final img in allImages) {
                       // ── Content ─────────────────────────────────────────
                       _buildContent(article, translation.content,
                           translation.title),
-
-                      const SizedBox(height: 40),
-                      const Divider(color: Color(0xFFE7E5E4)),
-                      const SizedBox(height: 12),
-
-                      // ── Footer ──────────────────────────────────────────
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Updated ${Helpers.timeAgo(article.updatedAt ?? article.createdAt)}',
-                            style: TextStyle(
-                                fontSize: 11, color: Colors.grey[400]),
-                          ),
-                          GestureDetector(
-                            onTap: () => context.go('/'),
-                            child: const Text(
-                              '← Marapedia',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: AppTheme.greenPrimary,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      // ── Share button ────────────────────────────────────
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () =>
-                              _shareArticle(article.slug, translation.title),
-                          icon: const Icon(Icons.share_outlined, size: 16),
-                          label: const Text('Share Article'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppTheme.greenPrimary,
-                            side: const BorderSide(
-                                color: AppTheme.greenPrimary),
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 10),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      if (isSong) ...[
-                        const SizedBox(height: 8),
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: () {},
-                            icon: const Icon(Icons.download_outlined,
-                                size: 16),
-                            label: const Text('Save Lyrics as Image'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.grey[700],
-                              side: BorderSide(color: Colors.grey[300]!),
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 10),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-
-                      const SizedBox(height: 40),
+const SizedBox(height: 40),
+const Divider(color: Color(0xFFE7E5E4)),
+const SizedBox(height: 12),
+ 
+Row(
+  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  children: [
+    Text(
+      'Updated ${Helpers.timeAgo(article.updatedAt ?? article.createdAt)}',
+      style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+    ),
+    GestureDetector(
+      onTap: () => context.go('/'),
+      child: const Text(
+        '← Marapedia',
+        style: TextStyle(
+          fontSize: 11,
+          color: AppTheme.greenPrimary,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    ),
+  ],
+),
+ 
+const SizedBox(height: 16),
+ 
+// ── Share button ─────────────────────────────────────────────────────────
+SizedBox(
+  width: double.infinity,
+  child: OutlinedButton.icon(
+    onPressed: () => _shareArticle(article.slug, translation.title),
+    icon: const Icon(Icons.share_outlined, size: 16),
+    label: const Text('Share Article'),
+    style: OutlinedButton.styleFrom(
+      foregroundColor: AppTheme.greenPrimary,
+      side: const BorderSide(color: AppTheme.greenPrimary),
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+      ),
+    ),
+  ),
+),
+ 
+if (isSong) ...[
+  const SizedBox(height: 8),
+  SizedBox(
+    width: double.infinity,
+    child: OutlinedButton.icon(
+      onPressed: () {},
+      icon: const Icon(Icons.download_outlined, size: 16),
+      label: const Text('Save Lyrics as Image'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: Colors.grey[700],
+        side: BorderSide(color: Colors.grey[300]!),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
+    ),
+  ),
+],
+ 
+// ── Likes + Comments ────
+CommentsSection(articleId: article.id),
+const SizedBox(height: 40),
                     ],
                   ),
                 ),

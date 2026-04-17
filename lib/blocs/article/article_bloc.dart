@@ -34,7 +34,7 @@ class ArticleBloc extends Bloc<ArticleEvent, ArticleState> {
         _repo.fetchHomeData(),
         _repo.fetchCategoryCounts(), // ← added
       ]);
-      final data   = results[0] as Map<String, dynamic>;
+      final data   = results[0];
       final counts = results[1] as Map<String, int>;
       emit(_homeFromMap(data, categoryCounts: counts, isOffline: false));
     } catch (_) {
@@ -48,10 +48,10 @@ class ArticleBloc extends Bloc<ArticleEvent, ArticleState> {
     }
   }
 
-  ArticleHomeLoaded _homeFromMap(
+ArticleHomeLoaded _homeFromMap(
     Map<String, dynamic> data, {
     required bool isOffline,
-    Map<String, int> categoryCounts = const {}, // ← added
+    Map<String, int> categoryCounts = const {},
   }) {
     ArticleModel? featured;
     if (data['featured'] != null) {
@@ -64,6 +64,14 @@ class ArticleBloc extends Bloc<ArticleEvent, ArticleState> {
     final mostViewed = (data['mostViewed'] as List)
         .map((j) => ArticleModel.fromJson(Map<String, dynamic>.from(j)))
         .toList();
+
+    // Read counts from data map (populated by fetchHomeData) or fall back to param
+    final rawCounts = data['categoryCounts'];
+    final resolvedCounts = rawCounts is Map
+        ? Map<String, int>.from(
+            (rawCounts).map((k, v) => MapEntry(k.toString(), (v as num).toInt())))
+        : categoryCounts;
+
     return ArticleHomeLoaded(
       featured: featured,
       recent: recent,
@@ -71,10 +79,9 @@ class ArticleBloc extends Bloc<ArticleEvent, ArticleState> {
       articleCount: data['articleCount'] as int? ?? 0,
       userCount: data['userCount'] as int? ?? 0,
       isOffline: isOffline,
-      categoryCounts: categoryCounts, // ← added
+      categoryCounts: resolvedCounts,
     );
   }
-
   // ── Detail ────────────────────────────────────────────────────────────────
 
   Future<void> _onDetailLoad(
