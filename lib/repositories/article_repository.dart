@@ -4,10 +4,25 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/article_model.dart';
 import '../services/cache_service.dart';
 
-const _base = 'https://marapedia.vercel.app/api';
+const _base = 'https://marapedia.org/api';
+const _revalidateSecret = 'marapedia_revalidate_2026';
 
 class ArticleRepository {
   final _db = Supabase.instance.client;
+
+  // ── Cache revalidation ────────────────────────────────────────────────────
+
+  Future<void> revalidateCache(String slug) async {
+    try {
+      await http.post(
+        Uri.parse('$_base/revalidate'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'slug': slug, 'secret': _revalidateSecret}),
+      );
+    } catch (_) {
+      // Non-critical — ignore failures silently
+    }
+  }
 
   // ── Home (combined fetch + cache) ─────────────────────────────────────────
 
@@ -25,7 +40,6 @@ class ArticleRepository {
     final featured     = featuredList.isEmpty ? null : featuredList.first;
     final stats        = jsonDecode(results[3].body) as Map<String, dynamic>;
 
-    // Extract category counts from stats response
     final rawCounts = stats['categoryCounts'] as Map<String, dynamic>? ?? {};
     final categoryCounts = rawCounts.map((k, v) => MapEntry(k, (v as num).toInt()));
 
@@ -165,6 +179,7 @@ class ArticleRepository {
     required String content,
     required String excerpt,
     required String updatedBy,
+    String? slug, // ← optional: pass slug to auto-revalidate cache
   }) async {
     await _db.from('article_translations').upsert({
       'article_id': articleId,
@@ -175,6 +190,11 @@ class ArticleRepository {
       'updated_by': updatedBy,
       'updated_at': DateTime.now().toIso8601String(),
     }, onConflict: 'article_id,language');
+
+    // Bust Next.js cache so Flutter immediately reads fresh content
+    if (slug != null && slug.isNotEmpty) {
+      await revalidateCache(slug);
+    }
   }
 
   Future<void> updateArticle(String id, Map<String, dynamic> data) async {

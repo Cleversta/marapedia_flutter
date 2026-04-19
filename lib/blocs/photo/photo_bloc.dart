@@ -156,7 +156,8 @@ class PhotoBloc extends Bloc<PhotoEvent, PhotoState> {
   }
 
   // ── Toggle public ─────────────────────────────────────────────────────────
-  // FIX: was calling repo but never updating local state, so UI didn't refresh.
+  // FIX 1: was passing e.current instead of !e.current, so toggle was a no-op.
+  // FIX 2: was calling repo but never updating local state, so UI didn't refresh.
 
   Future<void> _onTogglePublic(
     PhotoTogglePublicRequested e,
@@ -168,13 +169,15 @@ class PhotoBloc extends Bloc<PhotoEvent, PhotoState> {
       if (current is PhotoAllLoaded) {
         final updated = current.albums.map((a) {
           if (a.id != e.id) return a;
-          return PhotoAlbum.fromJson({...a.toSimpleMap(), 'is_public': e.current});
+          // FIX: use !e.current (the new toggled value), not e.current
+          return PhotoAlbum.fromJson({...a.toSimpleMap(), 'is_public': !e.current});
         }).toList();
         emit(PhotoAllLoaded(updated));
       } else if (current is PhotoMyAlbumsLoaded) {
         final updated = current.albums.map((a) {
           if (a.id != e.id) return a;
-          return PhotoAlbum.fromJson({...a.toSimpleMap(), 'is_public': e.current});
+          // FIX: use !e.current (the new toggled value), not e.current
+          return PhotoAlbum.fromJson({...a.toSimpleMap(), 'is_public': !e.current});
         }).toList();
         emit(PhotoMyAlbumsLoaded(updated));
       }

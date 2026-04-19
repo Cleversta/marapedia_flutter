@@ -8,17 +8,35 @@ import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:marapedia_flutter/utils/app_theme.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import '../../utils/helpers.dart';
+
+String? extractYouTubeId(String url) {
+  final patterns = [
+    RegExp(r'youtube\.com/watch\?(?:.*&)?v=([a-zA-Z0-9_-]{11})'),
+    RegExp(r'youtu\.be/([a-zA-Z0-9_-]{11})'),
+    RegExp(r'youtube\.com/embed/([a-zA-Z0-9_-]{11})'),
+    RegExp(r'youtube\.com/shorts/([a-zA-Z0-9_-]{11})'),
+  ];
+  for (final p in patterns) {
+    final m = p.firstMatch(url);
+    if (m != null) return m.group(1);
+  }
+  return null;
+}
 
 class SongViewer extends StatefulWidget {
   final String content;
   final String title;
   final String? sourceUrl;
+  final String? youtubeUrl; // ← NEW: passed directly from DB
+
   const SongViewer({
     super.key,
     required this.content,
     required this.title,
     this.sourceUrl,
+    this.youtubeUrl, // ← NEW
   });
 
   @override
@@ -31,6 +49,64 @@ class _SongViewerState extends State<SongViewer> {
   double _fontSize = 15;
   static const double _min = 11;
   static const double _max = 22;
+
+  YoutubePlayerController? _ytController;
+  String? _videoId;
+  String? _resolvedYoutubeUrl; // the final URL we use (prop > meta)
+
+  @override
+  void initState() {
+    super.initState();
+    _initYtPlayer();
+  }
+
+  void _initYtPlayer() {
+    // 1. Try the direct prop first (from DB column)
+    // 2. Fallback to the HTML meta comment
+    final parsed = Helpers.parseSongHtml(widget.content);
+    final meta = parsed['meta'] as Map<String, String>;
+    final urlFromMeta = meta['youtubeUrl'] ?? '';
+
+    _resolvedYoutubeUrl = (widget.youtubeUrl != null && widget.youtubeUrl!.isNotEmpty)
+        ? widget.youtubeUrl!
+        : urlFromMeta;
+
+    _videoId = _resolvedYoutubeUrl!.isNotEmpty
+        ? extractYouTubeId(_resolvedYoutubeUrl!)
+        : null;
+
+    if (_videoId != null && _videoId!.isNotEmpty) {
+      _ytController = YoutubePlayerController(
+        initialVideoId: _videoId!,
+        flags: const YoutubePlayerFlags(
+          autoPlay: false,
+          mute: false,
+          enableCaption: false,
+          forceHD: false,
+        ),
+      );
+    }
+  }
+
+  @override
+  void didUpdateWidget(SongViewer old) {
+    super.didUpdateWidget(old);
+    if (widget.content != old.content ||
+        widget.youtubeUrl != old.youtubeUrl) {
+      _ytController?.dispose();
+      _ytController = null;
+      _videoId = null;
+      _resolvedYoutubeUrl = null;
+      _initYtPlayer();
+      setState(() {});
+    }
+  }
+
+  @override
+  void dispose() {
+    _ytController?.dispose();
+    super.dispose();
+  }
 
   Future<void> _launchUrl(String url) async {
     final uri = Uri.tryParse(url);
@@ -113,10 +189,7 @@ class _SongViewerState extends State<SongViewer> {
           child: Text(
             '${_fontSize.toInt()}',
             style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF6B7280),
-            ),
+                fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6B7280)),
           ),
         ),
         _sizeBtn(
@@ -143,11 +216,9 @@ class _SongViewerState extends State<SongViewer> {
             color: enabled ? const Color(0xFFD1D5DB) : const Color(0xFFE5E7EB),
           ),
         ),
-        child: Icon(
-          icon,
-          size: 15,
-          color: enabled ? const Color(0xFF374151) : const Color(0xFFD1D5DB),
-        ),
+        child: Icon(icon,
+            size: 15,
+            color: enabled ? const Color(0xFF374151) : const Color(0xFFD1D5DB)),
       ),
     );
   }
@@ -167,15 +238,47 @@ class _SongViewerState extends State<SongViewer> {
       );
     }
 
+    if (_ytController != null) {
+      return YoutubePlayerBuilder(
+        player: YoutubePlayer(
+          controller: _ytController!,
+          showVideoProgressIndicator: true,
+          progressIndicatorColor: const Color(0xFFEF4444),
+          progressColors: const ProgressBarColors(
+            playedColor: Color(0xFFEF4444),
+            handleColor: Color(0xFFEF4444),
+          ),
+        ),
+        builder: (context, player) {
+          return _buildContent(context, sections, meta, player);
+        },
+      );
+    }
+
+    return _buildContent(context, sections, meta, null);
+  }
+
+  Widget _buildContent(
+    BuildContext context,
+    List<Map<String, dynamic>> sections,
+    Map<String, String> meta,
+    Widget? player,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+
+        // ── YouTube player ─────────────────────────────────────────────────
+        if (player != null) ...[
+          _buildYouTubePlayer(player),
+          const SizedBox(height: 16),
+        ],
+
         // ── Toolbar row ────────────────────────────────────────────────────
         Row(
           children: [
             _buildFontSizeControl(),
             const Spacer(),
-            // Source URL badge
             if (widget.sourceUrl != null && widget.sourceUrl!.isNotEmpty) ...[
               GestureDetector(
                 onTap: () => _launchUrl(widget.sourceUrl!),
@@ -198,10 +301,9 @@ class _SongViewerState extends State<SongViewer> {
                               .replaceAll(RegExp(r'^https?://'), '')
                               .replaceAll(RegExp(r'/$'), ''),
                           style: const TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFF2563EB),
-                            fontWeight: FontWeight.w500,
-                          ),
+                              fontSize: 11,
+                              color: Color(0xFF2563EB),
+                              fontWeight: FontWeight.w500),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -213,7 +315,6 @@ class _SongViewerState extends State<SongViewer> {
               ),
               const SizedBox(width: 8),
             ],
-            // Save as image button
             TextButton.icon(
               onPressed: _saving ? null : _saveAsImage,
               icon: _saving
@@ -249,12 +350,20 @@ class _SongViewerState extends State<SongViewer> {
                 Text(
                   widget.title,
                   style: GoogleFonts.lora(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF1C1917),
-                  ),
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF1C1917)),
                 ),
                 const SizedBox(height: 4),
+
+                if (meta['songNumber'] != null && meta['songNumber']!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      '#${meta['songNumber']}',
+                      style: const TextStyle(fontSize: 12, color: Color(0xFFAAAAAA)),
+                    ),
+                  ),
 
                 if (meta['key'] != null ||
                     meta['reference'] != null ||
@@ -318,9 +427,8 @@ class _SongViewerState extends State<SongViewer> {
                   }
 
                   if (type == 'verse') {
-                    final numMatch =
-                        RegExp(r'verse\s*(\d+)', caseSensitive: false)
-                            .firstMatch(label);
+                    final numMatch = RegExp(r'verse\s*(\d+)', caseSensitive: false)
+                        .firstMatch(label);
                     final num = numMatch?.group(1) ?? '';
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 20),
@@ -403,10 +511,7 @@ class _SongViewerState extends State<SongViewer> {
                   child: Text(
                     'marapedia.org',
                     style: TextStyle(
-                      fontSize: 10,
-                      color: Color(0xFFD1D5DB),
-                      letterSpacing: 1,
-                    ),
+                        fontSize: 10, color: Color(0xFFD1D5DB), letterSpacing: 1),
                   ),
                 ),
               ],
@@ -414,6 +519,61 @@ class _SongViewerState extends State<SongViewer> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildYouTubePlayer(Widget player) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFCA5A5).withOpacity(0.5)),
+        color: Colors.black,
+      ),
+      clipBehavior: Clip.hardEdge,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Header bar
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            color: Colors.black87,
+            child: Row(
+              children: [
+                const Icon(Icons.play_circle_fill_rounded,
+                    size: 15, color: Color(0xFFEF4444)),
+                const SizedBox(width: 6),
+                const Text(
+                  'Watch on YouTube',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white70,
+                      letterSpacing: 0.3),
+                ),
+                const Spacer(),
+                if (_resolvedYoutubeUrl != null && _resolvedYoutubeUrl!.isNotEmpty)
+                  GestureDetector(
+                    onTap: () => launchUrl(
+                      Uri.parse(_resolvedYoutubeUrl!),
+                      mode: LaunchMode.externalApplication,
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Open app',
+                            style: TextStyle(fontSize: 11, color: Colors.white38)),
+                        SizedBox(width: 3),
+                        Icon(Icons.open_in_new, size: 12, color: Colors.white38),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          player,
+        ],
+      ),
     );
   }
 }

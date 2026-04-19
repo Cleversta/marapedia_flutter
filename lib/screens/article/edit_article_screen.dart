@@ -150,6 +150,7 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
           content: content,
           excerpt: Helpers.makeExcerpt(content),
           updatedBy: authState.userId,
+          slug: _article!.slug, // ← revalidates Next.js cache
         );
       }
 
@@ -157,8 +158,10 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
         _saving = false;
         _success = 'Saved!';
       });
-      Future.delayed(const Duration(seconds: 2), () {
-        if (mounted) setState(() => _success = '');
+
+      // ← Auto navigate back after save so viewer reloads with fresh data
+      Future.delayed(const Duration(milliseconds: 800), () {
+        if (mounted) context.pop();
       });
     } catch (e) {
       setState(() {
@@ -186,8 +189,6 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
         AppConstants.articleTypes[_article!.category] ?? [];
     final edType = _editorType(_article!.category);
 
-    // FIX: read viewInsets here, at the top of build(), so it is always
-    // fresh on every rebuild triggered by keyboard show/hide.
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Scaffold(
@@ -257,9 +258,6 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
         behavior: HitTestBehavior.opaque,
         child: SingleChildScrollView(
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          // FIX: Apply bottom padding equal to keyboard height + safe margin.
-          // This is the primary fix — without this, content at the bottom
-          // is hidden behind the keyboard and cannot be scrolled into view.
           padding: EdgeInsets.only(bottom: bottomInset + 40),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -560,8 +558,6 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
                   controller: _titleCtrls[_currentLang],
                   style: const TextStyle(
                       fontSize: 22, fontWeight: FontWeight.w700),
-                  // FIX: ensure title field scrolls into view when
-                  // keyboard appears — use fresh bottomInset value
                   scrollPadding: EdgeInsets.only(
                     bottom: bottomInset + 80,
                   ),
@@ -590,10 +586,6 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
               // ── Language completion ───────────────────────────────
               _langCompletion(),
 
-              // FIX: Extra bottom spacing so the last widget clears the
-              // keyboard even on small screens. The SingleChildScrollView
-              // padding already accounts for viewInsets.bottom, but this
-              // gives visual breathing room after the last item.
               const SizedBox(height: 24),
             ],
           ),
@@ -626,8 +618,6 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
     }
   }
 
-  // FIX: added bottomInset parameter so every inner TextField can set
-  // scrollPadding correctly without calling MediaQuery itself.
   Widget _textField({
     required TextEditingController controller,
     required String hint,
@@ -652,9 +642,6 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
             child: TextField(
               controller: controller,
               keyboardType: keyboardType,
-              // FIX: tell Flutter to scroll this field into view above
-              // the keyboard. Without this, tapping the field focuses it
-              // but the keyboard covers it on physical devices.
               scrollPadding: EdgeInsets.only(bottom: bottomInset + 80),
               style: const TextStyle(
                   fontSize: 13, color: Color(0xFF4B5563)),

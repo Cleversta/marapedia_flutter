@@ -38,6 +38,12 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
     context.read<PhotoBloc>().add(PhotoAlbumLoadRequested(widget.id));
   }
 
+  /// Reload the all-albums list so PhotosScreen shows the grid when we pop.
+  void _popAndReload() {
+    context.read<PhotoBloc>().add(const PhotoAllLoadRequested());
+    context.pop();
+  }
+
   void _confirmDeleteAlbum(BuildContext context, String albumId) {
     showDialog(
       context: context,
@@ -62,7 +68,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
               context
                   .read<PhotoBloc>()
                   .add(PhotoAlbumDeleteRequested(albumId));
-              context.pop();
+              _popAndReload();
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red[400],
@@ -120,61 +126,69 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<PhotoBloc, PhotoState>(
-      builder: (context, state) {
-        if (state is PhotoLoading) {
-          return Scaffold(
-            backgroundColor: _parchment,
-            appBar: AppBar(
-              backgroundColor: _parchment,
-              elevation: 0,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back_ios, size: 16, color: _ink),
-                onPressed: () => context.pop(),
-              ),
-            ),
-            body: const Center(
-              child: CircularProgressIndicator(color: _sage),
-            ),
-          );
+    // PopScope ensures that the system back gesture/button also reloads the list.
+    return PopScope(
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          // If pop was prevented for some reason, reload anyway.
+          context.read<PhotoBloc>().add(const PhotoAllLoadRequested());
         }
-
-        if (state is PhotoAlbumLoaded) {
-          return _buildAlbum(context, state.album,
-              isOffline: state.isOffline);
-        }
-
-        if (state is PhotoError) {
-          return Scaffold(
-            backgroundColor: _parchment,
-            appBar: AppBar(
-              backgroundColor: _parchment,
-              elevation: 0,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back_ios, size: 16, color: _ink),
-                onPressed: () => context.pop(),
-              ),
-            ),
-            body: Center(
-              child: Text(state.message,
-                  style: const TextStyle(color: _inkLight)),
-            ),
-          );
-        }
-
-        return Scaffold(
-          backgroundColor: _parchment,
-          appBar: AppBar(
-            backgroundColor: _parchment,
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios, size: 16, color: _ink),
-              onPressed: () => context.pop(),
-            ),
-          ),
-          body: const Center(child: CircularProgressIndicator(color: _sage)),
-        );
       },
+      child: BlocBuilder<PhotoBloc, PhotoState>(
+        builder: (context, state) {
+          if (state is PhotoLoading) {
+            return Scaffold(
+              backgroundColor: _parchment,
+              appBar: AppBar(
+                backgroundColor: _parchment,
+                elevation: 0,
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back_ios, size: 16, color: _ink),
+                  onPressed: _popAndReload,
+                ),
+              ),
+              body: const Center(
+                child: CircularProgressIndicator(color: _sage),
+              ),
+            );
+          }
+
+          if (state is PhotoAlbumLoaded) {
+            return _buildAlbum(context, state.album, isOffline: state.isOffline);
+          }
+
+          if (state is PhotoError) {
+            return Scaffold(
+              backgroundColor: _parchment,
+              appBar: AppBar(
+                backgroundColor: _parchment,
+                elevation: 0,
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back_ios, size: 16, color: _ink),
+                  onPressed: _popAndReload,
+                ),
+              ),
+              body: Center(
+                child: Text(state.message,
+                    style: const TextStyle(color: _inkLight)),
+              ),
+            );
+          }
+
+          return Scaffold(
+            backgroundColor: _parchment,
+            appBar: AppBar(
+              backgroundColor: _parchment,
+              elevation: 0,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back_ios, size: 16, color: _ink),
+                onPressed: _popAndReload,
+              ),
+            ),
+            body: const Center(child: CircularProgressIndicator(color: _sage)),
+          );
+        },
+      ),
     );
   }
 
@@ -202,7 +216,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
                 leading: IconButton(
                   icon: const Icon(Icons.arrow_back_ios,
                       size: 16, color: _ink),
-                  onPressed: () => context.pop(),
+                  onPressed: _popAndReload,
                 ),
                 title: Text(
                   album.title,

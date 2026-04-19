@@ -1,7 +1,24 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import '../../utils/app_theme.dart';
 
+// ── YouTube helper ─────────────────────────────────────────────────────────────
+String? extractYouTubeId(String url) {
+  final patterns = [
+    RegExp(r'youtube\.com/watch\?(?:.*&)?v=([a-zA-Z0-9_-]{11})'),
+    RegExp(r'youtu\.be/([a-zA-Z0-9_-]{11})'),
+    RegExp(r'youtube\.com/embed/([a-zA-Z0-9_-]{11})'),
+    RegExp(r'youtube\.com/shorts/([a-zA-Z0-9_-]{11})'),
+  ];
+  for (final p in patterns) {
+    final m = p.firstMatch(url);
+    if (m != null) return m.group(1);
+  }
+  return null;
+}
+
+// ── Models ────────────────────────────────────────────────────────────────────
 class SongSection {
   final String id;
   final String type;
@@ -25,6 +42,7 @@ class SongMeta {
   String reference;
   String timeSignature;
   String songNumber;
+  String youtubeUrl;
 
   SongMeta({
     this.key = '',
@@ -33,6 +51,7 @@ class SongMeta {
     this.reference = '',
     this.timeSignature = '',
     this.songNumber = '',
+    this.youtubeUrl = '',
   });
 
   factory SongMeta.fromJson(Map<String, dynamic> j) => SongMeta(
@@ -42,6 +61,7 @@ class SongMeta {
         reference: j['reference'] ?? '',
         timeSignature: j['timeSignature'] ?? '',
         songNumber: j['songNumber'] ?? '',
+        youtubeUrl: j['youtubeUrl'] ?? '',
       );
 
   Map<String, dynamic> toJson() => {
@@ -51,12 +71,17 @@ class SongMeta {
         'reference': reference,
         'timeSignature': timeSignature,
         'songNumber': songNumber,
+        'youtubeUrl': youtubeUrl,
       };
 
   bool get hasAny =>
-      key.isNotEmpty || writer.isNotEmpty || songNumber.isNotEmpty;
+      key.isNotEmpty ||
+      writer.isNotEmpty ||
+      songNumber.isNotEmpty ||
+      youtubeUrl.isNotEmpty;
 }
 
+// ── Section config ─────────────────────────────────────────────────────────────
 class _SCfg {
   final String type;
   final String label;
@@ -86,6 +111,7 @@ const _musicalKeys = [
 ];
 const _timeSignatures = ['4/4', '3/4', '6/8', '2/4', '12/8'];
 
+// ── Serialization ──────────────────────────────────────────────────────────────
 String serializeSong(List<SongSection> sections, SongMeta meta) {
   final metaComment = '<!--meta:${jsonEncode(meta.toJson())}-->';
   final body = sections.map((s) {
@@ -153,6 +179,7 @@ String _makeLabel(List<SongSection> sections, String type) {
 int _idCounter = 0;
 String _makeId() => '${DateTime.now().millisecondsSinceEpoch}_${_idCounter++}';
 
+// ── SongEditor widget ──────────────────────────────────────────────────────────
 class SongEditor extends StatefulWidget {
   final String content;
   final String language;
@@ -181,8 +208,12 @@ class _SongEditorState extends State<SongEditor> {
   late TextEditingController _writerCtrl;
   late TextEditingController _singerCtrl;
   late TextEditingController _referenceCtrl;
+  late TextEditingController _youtubeUrlCtrl;
   final Set<String> _editingLabel = {};
 
+  // ── YouTube live preview ───────────────────────────────────────────────────
+  YoutubePlayerController? _ytController;
+  String? _currentVideoId;
   String? _lastEmitted;
 
   @override
@@ -213,6 +244,8 @@ class _SongEditorState extends State<SongEditor> {
     _writerCtrl = TextEditingController(text: _meta.writer);
     _singerCtrl = TextEditingController(text: _meta.singer);
     _referenceCtrl = TextEditingController(text: _meta.reference);
+    _youtubeUrlCtrl = TextEditingController(text: _meta.youtubeUrl);
+    _syncYtPreview(_meta.youtubeUrl);
   }
 
   void _teardown() {
@@ -222,6 +255,31 @@ class _SongEditorState extends State<SongEditor> {
     _writerCtrl.dispose();
     _singerCtrl.dispose();
     _referenceCtrl.dispose();
+    _youtubeUrlCtrl.dispose();
+    _ytController?.dispose();
+    _ytController = null;
+    _currentVideoId = null;
+  }
+
+  void _syncYtPreview(String url) {
+    final id = extractYouTubeId(url);
+    if (id == _currentVideoId) return;
+    _currentVideoId = id;
+    _ytController?.dispose();
+    if (id != null && id.isNotEmpty) {
+      _ytController = YoutubePlayerController(
+        initialVideoId: id,
+        flags: const YoutubePlayerFlags(
+          autoPlay: false,
+          mute: false,
+          enableCaption: false,
+          forceHD: false,
+        ),
+      );
+    } else {
+      _ytController = null;
+    }
+    setState(() {});
   }
 
   @override
@@ -252,7 +310,10 @@ class _SongEditorState extends State<SongEditor> {
     _meta.writer = _writerCtrl.text;
     _meta.singer = _singerCtrl.text;
     _meta.reference = _referenceCtrl.text;
+    _meta.youtubeUrl = _youtubeUrlCtrl.text;
     final html = serializeSong(_sections, _meta);
+      print('=== EMITTING HTML (first 300 chars) ===');
+  print(html.substring(0, html.length.clamp(0, 300)));
     _lastEmitted = html;
     widget.onChange(html);
   }
@@ -318,9 +379,7 @@ class _SongEditorState extends State<SongEditor> {
 
   @override
   Widget build(BuildContext context) {
-    // FIX: get keyboard height once here and pass down
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-
     return Directionality(
       textDirection: TextDirection.ltr,
       child: Column(
@@ -338,6 +397,7 @@ class _SongEditorState extends State<SongEditor> {
     );
   }
 
+  // ── Toolbar ────────────────────────────────────────────────────────────────
   Widget _toolbar() => Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
@@ -350,10 +410,7 @@ class _SongEditorState extends State<SongEditor> {
             const Text('🎵', style: TextStyle(fontSize: 14)),
             const SizedBox(width: 6),
             const Text('Song Editor',
-                style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF374151))),
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF374151))),
             const SizedBox(width: 6),
             Container(width: 1, height: 14, color: const Color(0xFFD1D5DB)),
             const SizedBox(width: 6),
@@ -411,16 +468,13 @@ class _SongEditorState extends State<SongEditor> {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
           decoration: BoxDecoration(
             color: active ? aBg : Colors.white,
-            border: Border.all(
-                color: active ? aBorder : const Color(0xFFE5E7EB)),
+            border: Border.all(color: active ? aBorder : const Color(0xFFE5E7EB)),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon,
-                  size: 13,
-                  color: active ? aColor : const Color(0xFF6B7280)),
+              Icon(icon, size: 13, color: active ? aColor : const Color(0xFF6B7280)),
               const SizedBox(width: 4),
               Text(label,
                   style: TextStyle(
@@ -433,6 +487,7 @@ class _SongEditorState extends State<SongEditor> {
         ),
       );
 
+  // ── Meta panel ─────────────────────────────────────────────────────────────
   Widget _metaPanel(double bottomInset) => Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -443,49 +498,48 @@ class _SongEditorState extends State<SongEditor> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                    colors: [Color(0xFFEFF6FF), Color(0xFFEEF2FF)]),
+                gradient: LinearGradient(colors: [Color(0xFFEFF6FF), Color(0xFFEEF2FF)]),
                 borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(12),
-                    topRight: Radius.circular(12)),
-                border:
-                    Border(bottom: BorderSide(color: Color(0xFFDFEAFF))),
+                    topLeft: Radius.circular(12), topRight: Radius.circular(12)),
+                border: Border(bottom: BorderSide(color: Color(0xFFDFEAFF))),
               ),
               child: const Row(children: [
                 Text('🎼', style: TextStyle(fontSize: 13)),
                 SizedBox(width: 6),
                 Text('Song Information',
                     style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF1E40AF))),
+                        fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1E40AF))),
               ]),
             ),
             Padding(
               padding: const EdgeInsets.all(14),
               child: LayoutBuilder(builder: (ctx, bc) {
                 final w = (bc.maxWidth - 12) / 2;
-                return Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _mField('🔢', 'Song No.', _songNumberCtrl, 'e.g. 541', w, bottomInset),
-                    _mDrop('🎹', 'Key (Doh is...)', _meta.key, _musicalKeys,
-                        (v) {
-                      setState(() => _meta.key = v);
-                      _emit();
-                    }, w),
-                    _mDrop('⏱️', 'Time', _meta.timeSignature, _timeSignatures,
-                        (v) {
-                      setState(() => _meta.timeSignature = v);
-                      _emit();
-                    }, w),
-                    _mField('✍️', 'Written by', _writerCtrl, 'Songwriter name', w, bottomInset),
-                    _mField('🎤', 'Sung by', _singerCtrl, 'Artist or group', w, bottomInset),
-                    _mField('📖', 'Reference', _referenceCtrl, 'e.g. Psalm 23:1', w, bottomInset),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        _mField('🔢', 'Song No.', _songNumberCtrl, 'e.g. 541', w, bottomInset),
+                        _mDrop('🎹', 'Key (Doh is...)', _meta.key, _musicalKeys, (v) {
+                          setState(() => _meta.key = v);
+                          _emit();
+                        }, w),
+                        _mDrop('⏱️', 'Time', _meta.timeSignature, _timeSignatures, (v) {
+                          setState(() => _meta.timeSignature = v);
+                          _emit();
+                        }, w),
+                        _mField('✍️', 'Written by', _writerCtrl, 'Songwriter name', w, bottomInset),
+                        _mField('🎤', 'Sung by', _singerCtrl, 'Artist or group', w, bottomInset),
+                        _mField('📖', 'Reference', _referenceCtrl, 'e.g. Psalm 23:1', w, bottomInset),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    _youtubeField(bottomInset),
                   ],
                 );
               }),
@@ -493,6 +547,145 @@ class _SongEditorState extends State<SongEditor> {
           ],
         ),
       );
+
+  Widget _youtubeField(double bottomInset) {
+    final hasValidId = _currentVideoId != null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.play_circle_outline_rounded,
+                size: 13, color: hasValidId ? const Color(0xFFEF4444) : const Color(0xFF9CA3AF)),
+            const SizedBox(width: 4),
+            Text(
+              'YOUTUBE / VIDEO URL',
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+                color: hasValidId ? const Color(0xFF991B1B) : const Color(0xFF6B7280),
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _youtubeUrlCtrl,
+                scrollPhysics: const NeverScrollableScrollPhysics(),
+                scrollPadding: EdgeInsets.only(bottom: bottomInset + 80),
+                keyboardType: TextInputType.url,
+                style: const TextStyle(fontSize: 13),
+                decoration: InputDecoration(
+                  hintText: 'https://www.youtube.com/watch?v=...',
+                  hintStyle: const TextStyle(fontSize: 12, color: Color(0xFFD1D5DB)),
+                  filled: true,
+                  fillColor: hasValidId ? const Color(0xFFFFF5F5) : const Color(0xFFF9FAFB),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(
+                          color: hasValidId ? const Color(0xFFFCA5A5) : const Color(0xFFE5E7EB))),
+                  enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(
+                          color: hasValidId ? const Color(0xFFFCA5A5) : const Color(0xFFE5E7EB))),
+                  focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.5)),
+                  suffixIcon: _youtubeUrlCtrl.text.isNotEmpty
+                      ? GestureDetector(
+                          onTap: () {
+                            _youtubeUrlCtrl.clear();
+                            _syncYtPreview('');
+                            _emit();
+                          },
+                          child: const Icon(Icons.close, size: 16, color: Color(0xFF9CA3AF)),
+                        )
+                      : null,
+                ),
+                onChanged: (val) {
+                  _syncYtPreview(val);
+                  _emit();
+                },
+              ),
+            ),
+            if (hasValidId) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  border: Border.all(color: const Color(0xFFFCA5A5)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.check_circle_outline, size: 13, color: Color(0xFFDC2626)),
+                    SizedBox(width: 4),
+                    Text('Player will show',
+                        style: TextStyle(
+                            fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFFDC2626))),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'Paste a YouTube link — a player will appear at the top for readers.',
+          style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
+        ),
+
+        // ── Live preview ───────────────────────────────────────────────────
+        if (_ytController != null) ...[
+          const SizedBox(height: 12),
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFFCA5A5)),
+            ),
+            clipBehavior: Clip.hardEdge,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  color: const Color(0xFFFEF2F2),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.play_circle_fill_rounded,
+                          size: 14, color: Color(0xFFEF4444)),
+                      SizedBox(width: 6),
+                      Text('Live preview',
+                          style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF991B1B))),
+                    ],
+                  ),
+                ),
+                YoutubePlayer(
+                  controller: _ytController!,
+                  showVideoProgressIndicator: true,
+                  progressIndicatorColor: const Color(0xFFEF4444),
+                  progressColors: const ProgressBarColors(
+                    playedColor: Color(0xFFEF4444),
+                    handleColor: Color(0xFFEF4444),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
 
   Widget _mField(String emoji, String label, TextEditingController ctrl,
           String hint, double w, double bottomInset) =>
@@ -515,28 +708,22 @@ class _SongEditorState extends State<SongEditor> {
             onChanged: (_) => _emit(),
             style: const TextStyle(fontSize: 13),
             scrollPhysics: const NeverScrollableScrollPhysics(),
-            // FIX: scroll field into view above keyboard
             scrollPadding: EdgeInsets.only(bottom: bottomInset + 80),
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle:
-                  const TextStyle(fontSize: 12, color: Color(0xFFD1D5DB)),
+              hintStyle: const TextStyle(fontSize: 12, color: Color(0xFFD1D5DB)),
               filled: true,
               fillColor: const Color(0xFFF9FAFB),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide:
-                      const BorderSide(color: Color(0xFFE5E7EB))),
+                  borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
               enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide:
-                      const BorderSide(color: Color(0xFFE5E7EB))),
+                  borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
               focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(
-                      color: Color(0xFF3B82F6), width: 1.5)),
+                  borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5)),
             ),
           ),
         ]),
@@ -571,14 +758,11 @@ class _SongEditorState extends State<SongEditor> {
               child: DropdownButton<String>(
                 value: value.isEmpty ? null : value,
                 hint: const Text('Select',
-                    style: TextStyle(
-                        fontSize: 12, color: Color(0xFFD1D5DB))),
+                    style: TextStyle(fontSize: 12, color: Color(0xFFD1D5DB))),
                 isExpanded: true,
-                style: const TextStyle(
-                    fontSize: 13, color: Color(0xFF111827)),
+                style: const TextStyle(fontSize: 13, color: Color(0xFF111827)),
                 items: opts
-                    .map((k) =>
-                        DropdownMenuItem(value: k, child: Text(k)))
+                    .map((k) => DropdownMenuItem(value: k, child: Text(k)))
                     .toList(),
                 onChanged: (v) {
                   if (v != null) onChanged(v);
@@ -589,11 +773,11 @@ class _SongEditorState extends State<SongEditor> {
         ]),
       );
 
+  // ── Section card ───────────────────────────────────────────────────────────
   Widget _sectionCard(SongSection s, int idx, double bottomInset) {
     final cfg = _cfgFor(s.type);
     final isExpanded = _expanded.contains(s.id);
-    final hasChords =
-        (_ctrls['${s.id}_h']?.text ?? s.chords).trim().isNotEmpty;
+    final hasChords = (_ctrls['${s.id}_h']?.text ?? s.chords).trim().isNotEmpty;
     final isCustom = s.type == 'custom';
     final isEditingLbl = _editingLabel.contains(s.id);
 
@@ -622,8 +806,7 @@ class _SongEditorState extends State<SongEditor> {
                   children: [
                     Container(
                       color: const Color(0xFFF9FAFB),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       child: Row(
                         children: [
                           GestureDetector(
@@ -641,28 +824,17 @@ class _SongEditorState extends State<SongEditor> {
                                 : _labelBadge(s, cfg, isCustom, hasChords),
                           ),
                           const Spacer(),
-                          if (isCustom)
-                            GestureDetector(
-                                onTap: () => _toggle(s.id),
-                                child: _chevron(isExpanded))
-                          else
-                            GestureDetector(
-                                onTap: () => _toggle(s.id),
-                                child: _chevron(isExpanded)),
+                          GestureDetector(onTap: () => _toggle(s.id), child: _chevron(isExpanded)),
                           const SizedBox(width: 2),
-                          _arrowBtn(Icons.arrow_upward, idx == 0,
-                              () => _move(s.id, -1)),
-                          _arrowBtn(
-                              Icons.arrow_downward,
-                              idx == _sections.length - 1,
+                          _arrowBtn(Icons.arrow_upward, idx == 0, () => _move(s.id, -1)),
+                          _arrowBtn(Icons.arrow_downward, idx == _sections.length - 1,
                               () => _move(s.id, 1)),
                           const SizedBox(width: 2),
                           GestureDetector(
                             onTap: () => _removeSection(s.id),
                             child: const Padding(
                               padding: EdgeInsets.all(4),
-                              child: Icon(Icons.close,
-                                  size: 14, color: Color(0xFFD1D5DB)),
+                              child: Icon(Icons.close, size: 14, color: Color(0xFFD1D5DB)),
                             ),
                           ),
                         ],
@@ -682,28 +854,21 @@ class _SongEditorState extends State<SongEditor> {
     );
   }
 
-  Widget _labelBadge(
-      SongSection s, _SCfg cfg, bool isCustom, bool hasChords) {
+  Widget _labelBadge(SongSection s, _SCfg cfg, bool isCustom, bool hasChords) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-              color: cfg.bg, borderRadius: BorderRadius.circular(6)),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(color: cfg.bg, borderRadius: BorderRadius.circular(6)),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(s.label,
-                  style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: cfg.fg)),
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: cfg.fg)),
               if (isCustom) ...[
                 const SizedBox(width: 4),
-                Icon(Icons.edit_outlined,
-                    size: 11, color: cfg.fg.withOpacity(0.6)),
+                Icon(Icons.edit_outlined, size: 11, color: cfg.fg.withOpacity(0.6)),
               ],
             ],
           ),
@@ -711,16 +876,12 @@ class _SongEditorState extends State<SongEditor> {
         if (hasChords && _showChords) ...[
           const SizedBox(width: 6),
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
-                color: const Color(0xFFFEF3C7),
-                borderRadius: BorderRadius.circular(4)),
+                color: const Color(0xFFFEF3C7), borderRadius: BorderRadius.circular(4)),
             child: const Text('chords',
                 style: TextStyle(
-                    fontSize: 10,
-                    color: Color(0xFFD97706),
-                    fontWeight: FontWeight.w500)),
+                    fontSize: 10, color: Color(0xFFD97706), fontWeight: FontWeight.w500)),
           ),
         ],
       ],
@@ -734,8 +895,7 @@ class _SongEditorState extends State<SongEditor> {
       height: 30,
       decoration: BoxDecoration(
         color: cfg.bg,
-        border:
-            Border.all(color: cfg.accent.withOpacity(0.4), width: 1.5),
+        border: Border.all(color: cfg.accent.withOpacity(0.4), width: 1.5),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
@@ -746,12 +906,8 @@ class _SongEditorState extends State<SongEditor> {
               controller: ctrl,
               autofocus: true,
               scrollPhysics: const NeverScrollableScrollPhysics(),
-              // FIX: scroll into view above keyboard
               scrollPadding: EdgeInsets.only(bottom: bottomInset + 80),
-              style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: cfg.fg),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: cfg.fg),
               decoration: const InputDecoration(
                 border: InputBorder.none,
                 filled: false,
@@ -759,9 +915,7 @@ class _SongEditorState extends State<SongEditor> {
                 isDense: true,
               ),
               onChanged: (v) {
-                if (v.trim().isNotEmpty) {
-                  setState(() => s.label = v.trim());
-                }
+                if (v.trim().isNotEmpty) setState(() => s.label = v.trim());
                 _emit();
               },
               onSubmitted: (_) {
@@ -788,8 +942,7 @@ class _SongEditorState extends State<SongEditor> {
   Widget _chevron(bool isExpanded) => AnimatedRotation(
         turns: isExpanded ? 0 : -0.25,
         duration: const Duration(milliseconds: 200),
-        child: const Icon(Icons.expand_more,
-            size: 18, color: Color(0xFF9CA3AF)),
+        child: const Icon(Icons.expand_more, size: 18, color: Color(0xFF9CA3AF)),
       );
 
   Widget _chordsRow(SongSection s, double bottomInset) => Container(
@@ -808,9 +961,7 @@ class _SongEditorState extends State<SongEditor> {
                       color: Color(0xFFD97706),
                       letterSpacing: 1.5)),
               const SizedBox(width: 8),
-              Expanded(
-                  child: Container(
-                      height: 1, color: const Color(0xFFFDE68A))),
+              Expanded(child: Container(height: 1, color: const Color(0xFFFDE68A))),
             ]),
           ),
           Padding(
@@ -820,7 +971,6 @@ class _SongEditorState extends State<SongEditor> {
               onChanged: (_) => _emit(),
               maxLines: 2,
               scrollPhysics: const NeverScrollableScrollPhysics(),
-              // FIX: scroll into view above keyboard
               scrollPadding: EdgeInsets.only(bottom: bottomInset + 80),
               style: const TextStyle(
                   fontSize: 13,
@@ -829,8 +979,7 @@ class _SongEditorState extends State<SongEditor> {
                   letterSpacing: 0.8),
               decoration: const InputDecoration(
                 hintText: 'Am  G  C  F  |  G  Em  Am...',
-                hintStyle:
-                    TextStyle(fontSize: 12, color: Color(0xFFFBD38D)),
+                hintStyle: TextStyle(fontSize: 12, color: Color(0xFFFBD38D)),
                 border: InputBorder.none,
                 filled: false,
                 contentPadding: EdgeInsets.zero,
@@ -842,10 +991,8 @@ class _SongEditorState extends State<SongEditor> {
 
   Widget _lyricsRow(SongSection s, double bottomInset) => Container(
         decoration: const BoxDecoration(
-            border:
-                Border(top: BorderSide(color: Color(0xFFF3F4F6)))),
-        child:
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            border: Border(top: BorderSide(color: Color(0xFFF3F4F6)))),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
             child: Row(children: [
@@ -856,9 +1003,7 @@ class _SongEditorState extends State<SongEditor> {
                       color: Color(0xFF9CA3AF),
                       letterSpacing: 1.5)),
               const SizedBox(width: 8),
-              Expanded(
-                  child: Container(
-                      height: 1, color: const Color(0xFFF3F4F6))),
+              Expanded(child: Container(height: 1, color: const Color(0xFFF3F4F6))),
             ]),
           ),
           Padding(
@@ -869,18 +1014,12 @@ class _SongEditorState extends State<SongEditor> {
               maxLines: null,
               minLines: 5,
               scrollPhysics: const NeverScrollableScrollPhysics(),
-              // FIX: scroll field into view above keyboard when cursor
-              // is near the bottom of a long lyrics block
               scrollPadding: EdgeInsets.only(bottom: bottomInset + 80),
               style: const TextStyle(
-                  fontSize: 14,
-                  height: 1.9,
-                  fontFamily: 'monospace',
-                  color: Color(0xFF374151)),
+                  fontSize: 14, height: 1.9, fontFamily: 'monospace', color: Color(0xFF374151)),
               decoration: InputDecoration(
                 hintText: _placeholder,
-                hintStyle: const TextStyle(
-                    fontSize: 13, color: Color(0xFFD1D5DB)),
+                hintStyle: const TextStyle(fontSize: 13, color: Color(0xFFD1D5DB)),
                 border: InputBorder.none,
                 filled: false,
                 contentPadding: EdgeInsets.zero,
@@ -895,8 +1034,7 @@ class _SongEditorState extends State<SongEditor> {
                 valueListenable: _ctrls['${s.id}_c']!,
                 builder: (_, val, __) => Text(
                   '${val.text.split('\n').where((l) => l.trim().isNotEmpty).length} lines',
-                  style: const TextStyle(
-                      fontSize: 10, color: Color(0xFFD1D5DB)),
+                  style: const TextStyle(fontSize: 10, color: Color(0xFFD1D5DB)),
                 ),
               ),
             ),
@@ -904,20 +1042,18 @@ class _SongEditorState extends State<SongEditor> {
         ]),
       );
 
-  Widget _arrowBtn(
-          IconData icon, bool disabled, VoidCallback onTap) =>
+  Widget _arrowBtn(IconData icon, bool disabled, VoidCallback onTap) =>
       GestureDetector(
         onTap: disabled ? null : onTap,
         child: Padding(
           padding: const EdgeInsets.all(3),
           child: Icon(icon,
               size: 13,
-              color: disabled
-                  ? const Color(0xFFE5E7EB)
-                  : const Color(0xFF9CA3AF)),
+              color: disabled ? const Color(0xFFE5E7EB) : const Color(0xFF9CA3AF)),
         ),
       );
 
+  // ── Add button ─────────────────────────────────────────────────────────────
   Widget _addButton() => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -927,32 +1063,24 @@ class _SongEditorState extends State<SongEditor> {
               padding: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
                 border: Border.all(
-                  color: _showAddMenu
-                      ? const Color(0xFF86EFAC)
-                      : const Color(0xFFE5E7EB),
+                  color: _showAddMenu ? const Color(0xFF86EFAC) : const Color(0xFFE5E7EB),
                   width: 1.5,
                 ),
                 borderRadius: BorderRadius.circular(12),
-                color: _showAddMenu
-                    ? const Color(0xFFF0FDF4)
-                    : Colors.transparent,
+                color: _showAddMenu ? const Color(0xFFF0FDF4) : Colors.transparent,
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.add,
                       size: 18,
-                      color: _showAddMenu
-                          ? AppTheme.greenPrimary
-                          : const Color(0xFF9CA3AF)),
+                      color: _showAddMenu ? AppTheme.greenPrimary : const Color(0xFF9CA3AF)),
                   const SizedBox(width: 6),
                   Text('Add section',
                       style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
-                          color: _showAddMenu
-                              ? AppTheme.greenPrimary
-                              : const Color(0xFF9CA3AF))),
+                          color: _showAddMenu ? AppTheme.greenPrimary : const Color(0xFF9CA3AF))),
                 ],
               ),
             ),
@@ -972,95 +1100,81 @@ class _SongEditorState extends State<SongEditor> {
                       offset: const Offset(0, 4))
                 ],
               ),
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('CHOOSE SECTION TYPE',
-                        style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF9CA3AF),
-                            letterSpacing: 1.5)),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _sectionTypes
-                          .map((t) => GestureDetector(
-                                onTap: () => _addSection(t.type),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 14, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: t.bg,
-                                    borderRadius:
-                                        BorderRadius.circular(20),
-                                    border: Border.all(
-                                        color:
-                                            t.accent.withOpacity(0.3)),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(t.label,
-                                          style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w600,
-                                              color: t.fg)),
-                                      if (t.type == 'custom') ...[
-                                        const SizedBox(width: 4),
-                                        Icon(Icons.edit_outlined,
-                                            size: 11,
-                                            color:
-                                                t.fg.withOpacity(0.6)),
-                                      ],
-                                    ],
-                                  ),
-                                ),
-                              ))
-                          .toList(),
-                    ),
-                  ]),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('CHOOSE SECTION TYPE',
+                    style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF9CA3AF),
+                        letterSpacing: 1.5)),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _sectionTypes
+                      .map((t) => GestureDetector(
+                            onTap: () => _addSection(t.type),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: t.bg,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: t.accent.withOpacity(0.3)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(t.label,
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: t.fg)),
+                                  if (t.type == 'custom') ...[
+                                    const SizedBox(width: 4),
+                                    Icon(Icons.edit_outlined,
+                                        size: 11, color: t.fg.withOpacity(0.6)),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ))
+                      .toList(),
+                ),
+              ]),
             ),
           ],
         ],
       );
 
+  // ── Footer ─────────────────────────────────────────────────────────────────
   Widget _footer() => Row(
         children: [
-          Text(
-              '${_sections.length} section${_sections.length != 1 ? 's' : ''}',
-              style: const TextStyle(
-                  fontSize: 11, color: Color(0xFF9CA3AF))),
-          const Text(' · ',
-              style:
-                  TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+          Text('${_sections.length} section${_sections.length != 1 ? 's' : ''}',
+              style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+          const Text(' · ', style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
           Text('$_totalLines lines',
-              style: const TextStyle(
-                  fontSize: 11, color: Color(0xFF9CA3AF))),
+              style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
           if (_meta.key.isNotEmpty) ...[
-            const Text(' · ',
-                style: TextStyle(
-                    fontSize: 11, color: Color(0xFF9CA3AF))),
+            const Text(' · ', style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
             Text('Key of ${_meta.key}',
                 style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFFD97706))),
+                    fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFFD97706))),
           ],
           if (_meta.timeSignature.isNotEmpty) ...[
-            const Text(' · ',
-                style: TextStyle(
-                    fontSize: 11, color: Color(0xFF9CA3AF))),
+            const Text(' · ', style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
             Text(_meta.timeSignature,
-                style: const TextStyle(
-                    fontSize: 11, color: Color(0xFF9CA3AF))),
+                style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
           ],
           const Spacer(),
           if (_hasChords)
-            const Text('♪ chords added',
-                style: TextStyle(
-                    fontSize: 11, color: Color(0xFFD97706))),
+            const Text('♪ chords', style: TextStyle(fontSize: 11, color: Color(0xFFD97706))),
+          if (_currentVideoId != null) ...[
+            if (_hasChords)
+              const Text(' · ', style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+            const Icon(Icons.play_circle_outline_rounded, size: 13, color: Color(0xFFEF4444)),
+            const SizedBox(width: 3),
+            const Text('video linked', style: TextStyle(fontSize: 11, color: Color(0xFFEF4444))),
+          ],
         ],
       );
 }

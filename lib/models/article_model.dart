@@ -20,8 +20,9 @@ class ArticleModel {
   final String? thumbnailUrl;
   final String? excerpt;
   final String? sourceUrl;
-  final String? singer;      // ← NEW: who performs the song
-  final String? songwriter;  // ← NEW: who wrote the song
+  final String? youtubeUrl;  // ← NEW
+  final String? singer;
+  final String? songwriter;
   final String createdAt;
   final String? updatedAt;
   final String? authorId;
@@ -40,6 +41,7 @@ class ArticleModel {
     this.thumbnailUrl,
     this.excerpt,
     this.sourceUrl,
+    this.youtubeUrl,  // ← NEW
     this.singer,
     this.songwriter,
     required this.createdAt,
@@ -84,6 +86,7 @@ class ArticleModel {
       thumbnailUrl: json['thumbnail_url'],
       excerpt: json['excerpt'],
       sourceUrl: json['source_url'],
+      youtubeUrl: json['youtube_url'],  // ← NEW
       singer: json['singer'],
       songwriter: json['songwriter'],
       createdAt: json['created_at'] ?? '',
@@ -108,6 +111,7 @@ extension ArticleModelX on ArticleModel {
         'thumbnail_url': thumbnailUrl,
         'excerpt': excerpt,
         'source_url': sourceUrl,
+        'youtube_url': youtubeUrl,  // ← NEW
         'singer': singer,
         'songwriter': songwriter,
         'created_at': createdAt,
