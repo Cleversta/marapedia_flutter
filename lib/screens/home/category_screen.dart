@@ -20,6 +20,7 @@ class CategoryScreen extends StatefulWidget {
 
 class _CategoryScreenState extends State<CategoryScreen> {
   String _activeType = 'all';
+  bool _sortAZ = false;
 
   @override
   Widget build(BuildContext context) {
@@ -52,16 +53,27 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 .where((t) => (countByType[t['value']] ?? 0) > 0)
                 .toList();
 
-            final filtered = _activeType == 'all'
+            var filtered = _activeType == 'all'
                 ? articles
                 : articles
                     .where((a) => a.articleType == _activeType)
                     .toList();
 
+            if (_sortAZ) {
+              filtered = [...filtered]..sort((a, b) {
+                  final titleA =
+                      a.translations.isNotEmpty ? a.translations.first.title : '';
+                  final titleB =
+                      b.translations.isNotEmpty ? b.translations.first.title : '';
+                  return titleA.compareTo(titleB);
+                });
+            }
+
+            final isSongs = widget.category == 'songs';
+
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── Offline banner ────────────────────────────────────────
                 if (state.isOffline) const OfflineBanner(),
 
                 // ── Header ────────────────────────────────────────────────
@@ -116,27 +128,80 @@ class _CategoryScreenState extends State<CategoryScreen> {
                   ),
                 ),
 
-                // ── Type tabs ─────────────────────────────────────────────
-                if (typeTabs.isNotEmpty)
-                  Container(
-                    height: 42,
-                    color: Colors.white,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      children: [
-                        _typeTab('all', 'All', articles.length),
-                        ...typeTabs.map(
-                          (t) => _typeTab(
-                            t['value']!,
-                            t['label']!,
-                            countByType[t['value']] ?? 0,
+                // ── Type tabs + Sort toggle ────────────────────────────────
+                Container(
+                  color: Colors.white,
+                  child: Row(
+                    children: [
+                      // Scrollable tabs
+                      if (typeTabs.isNotEmpty)
+                        Expanded(
+                          child: SizedBox(
+                            height: 42,
+                            child: ListView(
+                              scrollDirection: Axis.horizontal,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 6),
+                              children: [
+                                _typeTab('all', 'All', articles.length),
+                                ...typeTabs.map(
+                                  (t) => _typeTab(
+                                    t['value']!,
+                                    t['label']!,
+                                    countByType[t['value']] ?? 0,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ],
-                    ),
+
+                      // A–Z sort button pinned right
+                      GestureDetector(
+                        onTap: () => setState(() => _sortAZ = !_sortAZ),
+                        child: Container(
+                          margin: const EdgeInsets.only(right: 12),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: _sortAZ
+                                ? AppTheme.greenPrimary
+                                : Colors.white,
+                            border: Border.all(
+                              color: _sortAZ
+                                  ? AppTheme.greenPrimary
+                                  : const Color(0xFFE5E7EB),
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.sort_by_alpha,
+                                size: 13,
+                                color: _sortAZ
+                                    ? Colors.white
+                                    : Colors.grey[600],
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'A–Z',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: _sortAZ
+                                      ? Colors.white
+                                      : Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
+                ),
                 const Divider(height: 1),
 
                 // ── Articles ──────────────────────────────────────────────
@@ -153,16 +218,15 @@ class _CategoryScreenState extends State<CategoryScreen> {
                               const SizedBox(height: 12),
                               Text(
                                 'No articles yet',
-                                style:
-                                    TextStyle(color: Colors.grey[400]),
+                                style: TextStyle(color: Colors.grey[400]),
                               ),
                               const SizedBox(height: 12),
                               ElevatedButton(
                                 onPressed: () => context.push(
                                   '/articles/create?category=${widget.category}',
                                 ),
-                                child: const Text(
-                                    'Be the first to contribute'),
+                                child:
+                                    const Text('Be the first to contribute'),
                               ),
                             ],
                           ),
@@ -172,10 +236,13 @@ class _CategoryScreenState extends State<CategoryScreen> {
                           itemCount: filtered.length,
                           itemBuilder: (_, i) => Padding(
                             padding: const EdgeInsets.only(bottom: 10),
-                            child: SizedBox(
-                              height: 220,
-                              child: ArticleCard(article: filtered[i]),
-                            ),
+                            child: isSongs
+                                ? ArticleCard(article: filtered[i])
+                                : SizedBox(
+                                    height: 220,
+                                    child:
+                                        ArticleCard(article: filtered[i]),
+                                  ),
                           ),
                         ),
                 ),
@@ -195,8 +262,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
       onTap: () => setState(() => _activeType = value),
       child: Container(
         margin: const EdgeInsets.only(right: 6),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
           color: isActive ? AppTheme.greenPrimary : Colors.white,
           border: Border.all(
@@ -231,8 +297,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 '$count',
                 style: TextStyle(
                   fontSize: 10,
-                  color:
-                      isActive ? Colors.white : Colors.grey[500],
+                  color: isActive ? Colors.white : Colors.grey[500],
                 ),
               ),
             ),

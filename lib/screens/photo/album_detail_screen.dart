@@ -38,10 +38,15 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
     context.read<PhotoBloc>().add(PhotoAlbumLoadRequested(widget.id));
   }
 
-  /// Reload the all-albums list so PhotosScreen shows the grid when we pop.
+  /// Pop and trigger a gallery reload via microtask so the BLoC event
+  /// fires after the route has settled back on PhotosScreen.
   void _popAndReload() {
-    context.read<PhotoBloc>().add(const PhotoAllLoadRequested());
     context.pop();
+    Future.microtask(() {
+      if (context.mounted) {
+        context.read<PhotoBloc>().add(const PhotoAllLoadRequested());
+      }
+    });
   }
 
   void _confirmDeleteAlbum(BuildContext context, String albumId) {
@@ -68,7 +73,12 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
               context
                   .read<PhotoBloc>()
                   .add(PhotoAlbumDeleteRequested(albumId));
-              _popAndReload();
+              // FIX: After deleting, force a reload then pop so the gallery
+              // reflects the deletion. We emit PhotoAllLoadRequested so that
+              // when PhotosScreen receives the PhotoAllLoaded state it renders
+              // the updated list without the deleted album.
+              context.read<PhotoBloc>().add(const PhotoAllLoadRequested());
+              context.pop();
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red[400],
@@ -126,12 +136,22 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // PopScope ensures that the system back gesture/button also reloads the list.
+    // FIX: PopScope now only handles the system back gesture.
+    // It does NOT dispatch any BLoC events — popping is enough because
+    // PhotosScreen's initState will NOT reload if state is already PhotoAllLoaded.
+    // The gallery will simply re-render from its existing BLoC state.
     return PopScope(
+      canPop: true,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) {
-          // If pop was prevented for some reason, reload anyway.
-          context.read<PhotoBloc>().add(const PhotoAllLoadRequested());
+        // When using the phone back key/gesture, the BLoC state is still
+        // PhotoAlbumLoaded. PhotosScreen's initState skips reload if state
+        // is PhotoAllLoaded — so we must reset it here so the gallery reloads.
+        if (didPop) {
+          Future.microtask(() {
+            if (context.mounted) {
+              context.read<PhotoBloc>().add(const PhotoAllLoadRequested());
+            }
+          });
         }
       },
       child: BlocBuilder<PhotoBloc, PhotoState>(

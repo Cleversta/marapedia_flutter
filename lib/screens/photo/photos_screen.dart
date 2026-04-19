@@ -47,7 +47,12 @@ class _PhotosScreenState extends State<PhotosScreen> {
         value: context.read<PhotoBloc>(),
         child: _UploadSheet(userId: userId),
       ),
-    ).then((_) => context.read<PhotoBloc>().add(const PhotoAllLoadRequested()));
+    ).then((_) {
+      // After upload sheet closes, always reload to show new album
+      if (mounted) {
+        context.read<PhotoBloc>().add(const PhotoAllLoadRequested());
+      }
+    });
   }
 
   @override
