@@ -4,7 +4,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:marapedia_flutter/screens/home/marapedia_footer.dart';
 import '../../blocs/article/article_bloc.dart';
 import '../../blocs/article/article_event.dart';
 import '../../blocs/article/article_state.dart';
@@ -33,24 +32,21 @@ const _sageLight   = Color(0xFFD4E4D4);
 // ═══════════════════════════════════════════════════════════════════════════════
 
 enum _HolidayTheme {
-  // Fixed dates
-  christmas,    // Dec 20-31
-  newYear,      // Jan 1-5
-  epiphany,     // Jan 6
-  allSaints,    // Nov 1
-  advent,       // Dec 1-19
-  lorrainDay,   // Sep 26 — R.A. Lorrain arrives in Maraland
-  // Easter-based moving dates
-  ashWednesday, // Easter - 46 days
-  palmSunday,   // Easter - 7 days
-  goodFriday,   // Easter - 2 days
-  easter,       // Easter Sunday + Monday
-  ascension,    // Easter + 39 days
-  pentecost,    // Easter + 49-50 days
+  christmas,
+  newYear,
+  epiphany,
+  allSaints,
+  advent,
+  lorrainDay,
+  ashWednesday,
+  palmSunday,
+  goodFriday,
+  easter,
+  ascension,
+  pentecost,
   default_,
 }
 
-/// Anonymous Gregorian algorithm — computes Easter Sunday for any year.
 DateTime _computeEaster(int year) {
   final a = year % 19;
   final b = year ~/ 100;
@@ -75,7 +71,6 @@ _HolidayTheme _getHolidayTheme() {
   final mo    = now.month;
   final dy    = now.day;
 
-  // Fixed dates (checked first)
   if (mo == 9  && dy == 26)             return _HolidayTheme.lorrainDay;
   if (mo == 11 && dy == 1)              return _HolidayTheme.allSaints;
   if (mo == 12 && dy >= 1 && dy <= 19)  return _HolidayTheme.advent;
@@ -83,7 +78,6 @@ _HolidayTheme _getHolidayTheme() {
   if (mo == 1  && dy <= 5)              return _HolidayTheme.newYear;
   if (mo == 1  && dy == 6)              return _HolidayTheme.epiphany;
 
-  // Easter-based moving dates
   final easter  = _computeEaster(now.year);
   final easterD = DateTime(easter.year, easter.month, easter.day);
   final ashWed  = easterD.subtract(const Duration(days: 46));
@@ -198,7 +192,6 @@ class _HolidayPainter extends CustomPainter {
   @override bool shouldRepaint(covariant CustomPainter old) => false;
 }
 
-// ── Christmas — snowflakes + pine silhouette + gold star ──────────────────────
 class _ChristmasPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -228,7 +221,6 @@ class _ChristmasPainter extends CustomPainter {
   @override bool shouldRepaint(covariant CustomPainter old) => false;
 }
 
-// ── New Year — gold sparkles + confetti dots ──────────────────────────────────
 class _NewYearPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -255,13 +247,11 @@ class _NewYearPainter extends CustomPainter {
   @override bool shouldRepaint(covariant CustomPainter old) => false;
 }
 
-// ── Epiphany — Star of Bethlehem + scattered stars ────────────────────────────
 class _EpiphanyPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final gold = Paint()..color = const Color(0xFFFFD700).withOpacity(0.22)..style = PaintingStyle.fill;
     final line = Paint()..color = const Color(0xFFFFD700).withOpacity(0.15)..style = PaintingStyle.stroke..strokeWidth = 0.8;
-    // Large central star
     final cx = size.width*0.5; final cy = size.height*0.08;
     for (int i = 0; i < 8; i++) {
       final a = i * math.pi / 4;
@@ -269,7 +259,6 @@ class _EpiphanyPainter extends CustomPainter {
           Paint()..color=const Color(0xFFFFD700).withOpacity(0.28)..strokeWidth=1.2..style=PaintingStyle.stroke);
     }
     canvas.drawCircle(Offset(cx,cy), 5, gold);
-    // Smaller stars
     const stars = [(0.08,0.12,6.0),(0.88,0.10,5.0),(0.20,0.30,4.0),(0.75,0.25,5.0),
       (0.05,0.55,4.0),(0.92,0.50,4.0),(0.30,0.70,3.0),(0.70,0.75,3.5),(0.50,0.85,4.0)];
     for (final (rx, ry, r) in stars) {
@@ -284,7 +273,6 @@ class _EpiphanyPainter extends CustomPainter {
   @override bool shouldRepaint(covariant CustomPainter old) => false;
 }
 
-// ── Ash Wednesday — subtle crosses + ash dots ─────────────────────────────────
 class _AshWednesdayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -305,7 +293,6 @@ class _AshWednesdayPainter extends CustomPainter {
   @override bool shouldRepaint(covariant CustomPainter old) => false;
 }
 
-// ── Palm Sunday — palm frond silhouettes ──────────────────────────────────────
 class _PalmSundayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -332,7 +319,6 @@ class _PalmSundayPainter extends CustomPainter {
   @override bool shouldRepaint(covariant CustomPainter old) => false;
 }
 
-// ── Good Friday — large faint cross + somber dots ─────────────────────────────
 class _GoodFridayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -349,7 +335,6 @@ class _GoodFridayPainter extends CustomPainter {
   @override bool shouldRepaint(covariant CustomPainter old) => false;
 }
 
-// ── Easter — sunrise rays + scattered light dots ──────────────────────────────
 class _EasterPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -370,7 +355,6 @@ class _EasterPainter extends CustomPainter {
   @override bool shouldRepaint(covariant CustomPainter old) => false;
 }
 
-// ── Ascension — upward rays + cloud puffs ────────────────────────────────────
 class _AscensionPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -398,7 +382,6 @@ class _AscensionPainter extends CustomPainter {
   @override bool shouldRepaint(covariant CustomPainter old) => false;
 }
 
-// ── Pentecost — flame shapes + ember dots ─────────────────────────────────────
 class _PentecostPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -425,7 +408,6 @@ class _PentecostPainter extends CustomPainter {
   @override bool shouldRepaint(covariant CustomPainter old) => false;
 }
 
-// ── All Saints — halo rings + soft dots ──────────────────────────────────────
 class _AllSaintsPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -443,7 +425,6 @@ class _AllSaintsPainter extends CustomPainter {
   @override bool shouldRepaint(covariant CustomPainter old) => false;
 }
 
-// ── Advent — 4 candles + star dots ───────────────────────────────────────────
 class _AdventPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -466,14 +447,12 @@ class _AdventPainter extends CustomPainter {
   @override bool shouldRepaint(covariant CustomPainter old) => false;
 }
 
-// ── R.A. Lorrain Day — open book + cross + heritage dots ─────────────────────
 class _LorrainDayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final ivory = Paint()..color = Colors.white.withOpacity(0.06)..style = PaintingStyle.fill;
     final line  = Paint()..color = Colors.white.withOpacity(0.08)..style = PaintingStyle.stroke..strokeWidth = 0.8;
     final gold  = Paint()..color = const Color(0xFFFFD700).withOpacity(0.14)..style = PaintingStyle.fill;
-    // Open Bible (bottom right)
     final bx = size.width*.80; final by = size.height*.78;
     canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(bx-32,by-20,30,28),const Radius.circular(2)),ivory);
     canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(bx+2,by-20,30,28),const Radius.circular(2)),ivory);
@@ -482,11 +461,9 @@ class _LorrainDayPainter extends CustomPainter {
       canvas.drawLine(Offset(bx-28,by-12+i*7.0),Offset(bx-6,by-12+i*7.0),line);
       canvas.drawLine(Offset(bx+6,by-12+i*7.0),Offset(bx+28,by-12+i*7.0),line);
     }
-    // Missionary cross (top left)
     final crossP = Paint()..color=Colors.white.withOpacity(0.07)..style=PaintingStyle.stroke..strokeWidth=8..strokeCap=StrokeCap.round;
     canvas.drawLine(Offset(size.width*.15,size.height*.08),Offset(size.width*.15,size.height*.30),crossP);
     canvas.drawLine(Offset(size.width*.08,size.height*.16),Offset(size.width*.22,size.height*.16),crossP);
-    // Heritage dots
     for (final (rx,ry,r) in [(0.40,0.10,2.5),(0.60,0.08,3.0),(0.85,0.15,2.0),(0.05,0.40,2.5),
       (0.50,0.45,2.0),(0.92,0.45,2.5),(0.30,0.60,2.0),(0.70,0.58,2.5),
       (0.10,0.80,2.0),(0.55,0.85,3.0),(0.88,0.90,2.0)]) {
@@ -496,7 +473,6 @@ class _LorrainDayPainter extends CustomPainter {
   @override bool shouldRepaint(covariant CustomPainter old) => false;
 }
 
-// ── Default diagonal pattern ──────────────────────────────────────────────────
 class _PatternPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -548,22 +524,22 @@ class _HomeScreenState extends State<HomeScreen>
       appBar: const MarapediaAppBar(),
       body: Column(
         children: [
-BlocBuilder<ArticleBloc, ArticleState>(
-  builder: (context, state) {
-    final counts = state is ArticleHomeLoaded
-        ? state.categoryCounts
-        : <String, int>{};
-    return CategoryTabs(
-      selected: _selectedCategory,
-      counts: counts,
-      onTap: (cat) {
-        if (cat == 'photos') { context.push('/photos'); return; }
-        setState(() => _selectedCategory = cat);
-        context.push('/category/$cat');
-      },
-    );
-  },
-),
+          BlocBuilder<ArticleBloc, ArticleState>(
+            builder: (context, state) {
+              final counts = state is ArticleHomeLoaded
+                  ? state.categoryCounts
+                  : <String, int>{};
+              return CategoryTabs(
+                selected: _selectedCategory,
+                counts: counts,
+                onTap: (cat) {
+                  if (cat == 'photos') { context.push('/photos'); return; }
+                  setState(() => _selectedCategory = cat);
+                  context.push('/category/$cat');
+                },
+              );
+            },
+          ),
           Expanded(
             child: BlocConsumer<ArticleBloc, ArticleState>(
               listener: (context, state) {
@@ -633,7 +609,6 @@ BlocBuilder<ArticleBloc, ArticleState>(
                     _buildArticleGrid(context, nonFeaturedMostViewed),
                   ],
                   const SizedBox(height: 32),
-                  const MarapediaFooter(),
                 ],
               ),
             ),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:marapedia_flutter/screens/home/marapedia_footer.dart';
 import '../../widgets/marapedia_app_bar.dart';
 
 const _ink = Color(0xFF1C1812);
@@ -155,11 +154,9 @@ class PrivacyScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 28),
                   _contactBox(),
-                  const SizedBox(height: 32),
                 ],
               ),
             ),
-            const MarapediaFooter(),
           ],
         ),
       ),

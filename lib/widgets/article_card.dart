@@ -7,7 +7,8 @@ import '../utils/app_theme.dart';
 
 class ArticleCard extends StatelessWidget {
   final ArticleModel article;
-  const ArticleCard({super.key, required this.article});
+  final bool hideImage;
+  const ArticleCard({super.key, required this.article, this.hideImage = false});
 
   @override
   Widget build(BuildContext context) {
@@ -30,6 +31,7 @@ class ArticleCard extends StatelessWidget {
     final excerpt =
         translation['excerpt'] as String? ??
         Helpers.makeExcerpt(translation['content'] as String? ?? '');
+    final thumbnailUrl = article.thumbnailUrl;
 
     return GestureDetector(
       onTap: () => context.push('/articles/${article.slug}'),
@@ -40,106 +42,160 @@ class ArticleCard extends StatelessWidget {
           border: Border.all(color: Colors.black, width: 0.3),
         ),
         clipBehavior: Clip.antiAlias,
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Category badge
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 7,
-                  vertical: 2,
-                ),
-                decoration: BoxDecoration(
-                  color: AppTheme.greenBg,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppTheme.greenLight),
-                ),
-                child: Text(
-                  '${cat?['icon'] ?? ''} ${cat?['label'] ?? ''}',
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: AppTheme.greenDark,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 5),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
 
-              // Title
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF111827),
-                  height: 1.3,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-
-              // Excerpt
-              if (excerpt.isNotEmpty) ...[
-                const SizedBox(height: 3),
-                Text(
-                  excerpt,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey[600],
-                    height: 1.4,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-
-              const SizedBox(height: 8),
-
-              // Footer
-              Row(
-                children: [
-                  _Avatar(
-                    avatarUrl: article.profile?.avatarUrl,
-                    username: article.profile?.username,
-                  ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      article.profile?.username ?? 'Anonymous',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey[500],
+            // ── Thumbnail ─────────────────────────────────────────────
+            if (!hideImage)
+              thumbnailUrl != null && thumbnailUrl.isNotEmpty
+                  ? SizedBox(
+                      height: 140,
+                      width: double.infinity,
+                      child: CachedNetworkImage(
+                        imageUrl: thumbnailUrl,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(
+                          height: 140,
+                          color: Colors.grey[100],
+                          child: const Center(
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppTheme.greenPrimary,
+                            ),
+                          ),
+                        ),
+                        errorWidget: (_, __, ___) => Container(
+                          height: 70,
+                          color: Colors.grey[50],
+                          alignment: Alignment.center,
+                          child: Text(
+                            cat?['icon'] ?? '',
+                            style: TextStyle(
+                              fontSize: 32,
+                              color: Colors.grey[300],
+                            ),
+                          ),
+                        ),
                       ),
+                    )
+                  : Container(
+                      height: 70,
+                      color: Colors.grey[50],
+                      alignment: Alignment.center,
+                      child: Text(
+                        cat?['icon'] ?? '',
+                        style: TextStyle(
+                          fontSize: 32,
+                          color: Colors.grey[300],
+                        ),
+                      ),
+                    ),
+
+            // ── Content ───────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Category badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.greenBg,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppTheme.greenLight),
+                    ),
+                    child: Text(
+                      '${cat?['icon'] ?? ''} ${cat?['label'] ?? ''}',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: AppTheme.greenDark,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+
+                  // Title
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF111827),
+                      height: 1.3,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+
+                  // Excerpt
+                  if (excerpt.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      excerpt,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey[600],
+                        height: 1.4,
+                      ),
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  if (article.viewCount > 0) ...[
-                    const Icon(
-                      Icons.remove_red_eye_outlined,
-                      size: 10,
-                      color: Colors.grey,
-                    ),
-                    const SizedBox(width: 2),
-                    Text(
-                      '${article.viewCount}',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey[500],
-                      ),
-                    ),
-                    const SizedBox(width: 4),
                   ],
-                  Text(
-                    Helpers.timeAgo(article.updatedAt ?? article.createdAt),
-                    style: TextStyle(fontSize: 10, color: Colors.grey[400]),
+
+                  const SizedBox(height: 8),
+
+                  // Footer
+                  Row(
+                    children: [
+                      _Avatar(
+                        avatarUrl: article.profile?.avatarUrl,
+                        username: article.profile?.username,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          article.profile?.username ?? 'Anonymous',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey[500],
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (article.viewCount > 0) ...[
+                        const Icon(
+                          Icons.remove_red_eye_outlined,
+                          size: 10,
+                          color: Colors.grey,
+                        ),
+                        const SizedBox(width: 2),
+                        Text(
+                          '${article.viewCount}',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                      ],
+                      Text(
+                        Helpers.timeAgo(article.updatedAt ?? article.createdAt),
+                        style: TextStyle(fontSize: 10, color: Colors.grey[400]),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

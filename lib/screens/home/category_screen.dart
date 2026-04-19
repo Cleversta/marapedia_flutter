@@ -234,16 +234,13 @@ class _CategoryScreenState extends State<CategoryScreen> {
                       : ListView.builder(
                           padding: const EdgeInsets.all(16),
                           itemCount: filtered.length,
-                          itemBuilder: (_, i) => Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: isSongs
-                                ? ArticleCard(article: filtered[i])
-                                : SizedBox(
-                                    height: 220,
-                                    child:
-                                        ArticleCard(article: filtered[i]),
-                                  ),
-                          ),
+itemBuilder: (_, i) => Padding(
+  padding: const EdgeInsets.only(bottom: 10),
+  child: ArticleCard(
+    article: filtered[i],
+    hideImage: widget.category == 'songs',
+  ),
+),
                         ),
                 ),
               ],

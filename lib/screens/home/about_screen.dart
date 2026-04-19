@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:marapedia_flutter/screens/home/marapedia_footer.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../widgets/marapedia_app_bar.dart';
 
@@ -47,11 +46,9 @@ class AboutScreen extends StatelessWidget {
                   _buildCTA(context),
                   const SizedBox(height: 32),
                   _buildFounder(context),
-                  const SizedBox(height: 32),
                 ],
               ),
             ),
-            const MarapediaFooter(),
           ],
         ),
       ),
