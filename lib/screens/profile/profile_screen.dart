@@ -1,9 +1,12 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import '../../blocs/auth/auth_bloc.dart';
 import '../../blocs/auth/auth_event.dart';
 import '../../blocs/auth/auth_state.dart';
@@ -30,9 +33,13 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _editing = false;
   bool _avatarUploading = false;
-  String _activeTab = 'articles'; // 'articles' | 'photos' | 'saved'
+  bool _deletingAccount = false;
+  String _activeTab = 'articles';
   final _fullNameCtrl = TextEditingController();
   final _bioCtrl = TextEditingController();
+
+  // ── Cache my articles so switching tabs doesn't wipe them ──────────────────
+  List<ArticleModel> _myArticles = [];
 
   @override
   void dispose() {
@@ -49,7 +56,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context.read<ArticleBloc>()
         ..add(ArticleMyListLoadRequested(authState.userId));
       context.read<PhotoBloc>()
-        .add(PhotoMyAlbumsLoadRequested(authState.userId));
+          .add(PhotoMyAlbumsLoadRequested(authState.userId));
       _fullNameCtrl.text = authState.profile.fullName ?? '';
       _bioCtrl.text = authState.profile.bio ?? '';
     }
@@ -65,11 +72,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final url = await UploadService.uploadImage(File(picked.path));
       if (mounted) {
-        context.read<AuthBloc>().add(AuthAvatarUpdateRequested(authState.userId, url));
+        context
+            .read<AuthBloc>()
+            .add(AuthAvatarUpdateRequested(authState.userId, url));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.toString())));
       }
     } finally {
       if (mounted) setState(() => _avatarUploading = false);
@@ -78,19 +88,59 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _saveProfile(ProfileModel profile) {
     context.read<AuthBloc>().add(AuthProfileUpdateRequested(
-      profile.id,
-      fullName: _fullNameCtrl.text.trim(),
-      bio: _bioCtrl.text.trim(),
-    ));
+          profile.id,
+          fullName: _fullNameCtrl.text.trim(),
+          bio: _bioCtrl.text.trim(),
+        ));
     setState(() => _editing = false);
   }
 
-  /// Switch to Saved tab and load favorites if not already loaded.
   void _switchToSaved(String userId) {
     setState(() => _activeTab = 'saved');
     final state = context.read<ArticleBloc>().state;
     if (state is! ArticleFavoritesLoaded) {
       context.read<ArticleBloc>().add(ArticleFavoritesLoadRequested(userId));
+    }
+  }
+
+  // ── Delete account ──────────────────────────────────────────────────────────
+  Future<void> _showDeleteAccountDialog(ProfileModel profile) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => _DeleteAccountDialog(username: profile.username),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _deletingAccount = true);
+    try {
+      final session = Supabase.instance.client.auth.currentSession;
+      if (session == null) throw Exception('Not authenticated');
+
+      final res = await http.delete(
+        Uri.parse('https://marapedia.org/api/account'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${session.accessToken}',
+        },
+        body: jsonEncode({'targetUserId': profile.id}),
+      );
+
+      final data = jsonDecode(res.body);
+      if (res.statusCode != 200) {
+        throw Exception(data['error'] ?? 'Failed to delete account');
+      }
+
+      await Supabase.instance.client.auth.signOut();
+      if (mounted) context.go('/');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(e.toString()), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _deletingAccount = false);
     }
   }
 
@@ -119,7 +169,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onPressed: () => context.pop(),
             ),
             title: const Text('My Profile',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                style:
+                    TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
             actions: [
               IconButton(
                 icon: Icon(_editing ? Icons.close : Icons.edit_outlined),
@@ -150,7 +201,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               radius: 40,
                               backgroundColor: AppTheme.greenLight,
                               backgroundImage: profile.avatarUrl != null
-                                  ? CachedNetworkImageProvider(profile.avatarUrl!)
+                                  ? CachedNetworkImageProvider(
+                                      profile.avatarUrl!)
                                   : null,
                               child: profile.avatarUrl == null
                                   ? Text(
@@ -170,7 +222,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       shape: BoxShape.circle),
                                   child: const Center(
                                     child: CircularProgressIndicator(
-                                        color: Colors.white, strokeWidth: 2),
+                                        color: Colors.white,
+                                        strokeWidth: 2),
                                   ),
                                 ),
                               ),
@@ -193,11 +246,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(height: 12),
                       Text(profile.username,
                           style: const TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.w700)),
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700)),
                       if (profile.fullName != null)
                         Text(profile.fullName!,
                             style: TextStyle(
-                                fontSize: 13, color: Colors.grey[500])),
+                                fontSize: 13,
+                                color: Colors.grey[500])),
                       const SizedBox(height: 6),
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -229,7 +284,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           controller: _fullNameCtrl,
                           decoration: const InputDecoration(
                             labelText: 'Full Name',
-                            prefixIcon: Icon(Icons.person_outline, size: 18),
+                            prefixIcon:
+                                Icon(Icons.person_outline, size: 18),
                           ),
                         ),
                         const SizedBox(height: 10),
@@ -239,7 +295,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           decoration: const InputDecoration(
                             labelText: 'Bio',
                             alignLabelWithHint: true,
-                            prefixIcon: Icon(Icons.info_outline, size: 18),
+                            prefixIcon:
+                                Icon(Icons.info_outline, size: 18),
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -262,6 +319,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               height: 1.5),
                         ),
                       ],
+
+                      // ── Danger zone ──────────────────────────────────
+                      const SizedBox(height: 16),
+                      const Divider(height: 1, color: Color(0xFFF3F4F6)),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Danger zone',
+                            style: TextStyle(
+                                fontSize: 11, color: Colors.grey[400]),
+                          ),
+                          GestureDetector(
+                            onTap: _deletingAccount
+                                ? null
+                                : () =>
+                                    _showDeleteAccountDialog(profile),
+                            child: _deletingAccount
+                                ? const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.red),
+                                  )
+                                : const Text(
+                                    '🗑️ Delete my account',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.red,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -271,24 +365,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: BlocBuilder<ArticleBloc, ArticleState>(
                     builder: (context, artState) {
-                      final myArticles = artState is ArticleMyListLoaded
-                          ? artState.articles
-                          : <ArticleModel>[];
-                      final published =
-                          myArticles.where((a) => a.status == 'published').length;
-                      final savedCount = artState is ArticleFavoritesLoaded
-                          ? artState.articles.length
-                          : null; // null = not loaded yet
+                      // ── Cache articles whenever we get a fresh load ──
+                      if (artState is ArticleMyListLoaded) {
+                        _myArticles = artState.articles;
+                      }
+
+                      final myArticles = _myArticles;
+                      final published = myArticles
+                          .where((a) => a.status == 'published')
+                          .length;
+                      final savedCount =
+                          artState is ArticleFavoritesLoaded
+                              ? artState.articles.length
+                              : null;
 
                       return BlocBuilder<PhotoBloc, PhotoState>(
                         builder: (context, photoState) {
-                          final albums = photoState is PhotoMyAlbumsLoaded
-                              ? photoState.albums
-                              : <dynamic>[];
+                          final albums =
+                              photoState is PhotoMyAlbumsLoaded
+                                  ? photoState.albums
+                                  : <dynamic>[];
                           return Row(
                             children: [
-                              _statCard('Articles', '${myArticles.length}',
-                                  Colors.grey[800]!),
+                              _statCard('Articles',
+                                  '${myArticles.length}', Colors.grey[800]!),
                               const SizedBox(width: 8),
                               _statCard('Published', '$published',
                                   AppTheme.greenPrimary),
@@ -296,17 +396,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               _statCard('Albums', '${albums.length}',
                                   Colors.pink[600]!),
                               const SizedBox(width: 8),
-                              // Saved stat — tappable shortcut to the tab
                               Expanded(
                                 child: GestureDetector(
-                                  onTap: () => _switchToSaved(authState.userId),
+                                  onTap: () =>
+                                      _switchToSaved(authState.userId),
                                   child: Container(
                                     padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
                                       color: _activeTab == 'saved'
                                           ? const Color(0xFFFFF1F2)
                                           : Colors.grey[50],
-                                      borderRadius: BorderRadius.circular(12),
+                                      borderRadius:
+                                          BorderRadius.circular(12),
                                       border: Border.all(
                                         color: _activeTab == 'saved'
                                             ? Colors.red[200]!
@@ -356,12 +457,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       _tab('articles', 'Articles'),
                       _tab('photos', 'Photo Albums'),
                       _tab('saved', 'Saved',
-                          onTap: () => _switchToSaved(authState.userId)),
+                          onTap: () =>
+                              _switchToSaved(authState.userId)),
                     ],
                   ),
                 ),
 
-                // ── Tab content ─────────────────────────────────────────
                 if (_activeTab == 'articles') _buildArticlesTab(),
                 if (_activeTab == 'photos') _buildPhotosTab(),
                 if (_activeTab == 'saved') _buildSavedTab(),
@@ -372,8 +473,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       },
     );
   }
-
-  // ── Helpers ──────────────────────────────────────────────────────────────
 
   Widget _statCard(String label, String value, Color color) => Expanded(
         child: Container(
@@ -391,8 +490,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       fontWeight: FontWeight.w800,
                       color: color)),
               Text(label,
-                  style:
-                      const TextStyle(fontSize: 10, color: Colors.grey)),
+                  style: const TextStyle(
+                      fontSize: 10, color: Colors.grey)),
             ],
           ),
         ),
@@ -428,19 +527,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       );
 
-  // ── Articles tab ──────────────────────────────────────────────────────────
-
   Widget _buildArticlesTab() => BlocBuilder<ArticleBloc, ArticleState>(
         builder: (context, state) {
-          if (state is ArticleLoading) {
+          // ── Cache articles whenever we get a fresh load ──────────────
+          if (state is ArticleMyListLoaded) {
+            _myArticles = state.articles;
+          }
+
+          // Show spinner only on very first load before we have any data
+          if (state is ArticleLoading && _myArticles.isEmpty) {
             return const Padding(
                 padding: EdgeInsets.all(16),
                 child: Center(child: CircularProgressIndicator()));
           }
 
-          final articles = state is ArticleMyListLoaded
-              ? state.articles
-              : <ArticleModel>[];
+          final articles = _myArticles;
 
           if (articles.isEmpty) {
             return Padding(
@@ -454,7 +555,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         style: TextStyle(color: Colors.grey[400])),
                     const SizedBox(height: 12),
                     ElevatedButton(
-                      onPressed: () => context.push('/articles/create'),
+                      onPressed: () =>
+                          context.push('/articles/create'),
                       child: const Text('Write your first article'),
                     ),
                   ],
@@ -465,11 +567,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           return Column(
             children: articles.map<Widget>((a) {
-              final ArticleTranslationModel? t = a.translations.isNotEmpty
-                  ? a.translations.firstWhere(
-                      (t) => t.language == 'english',
-                      orElse: () => a.translations.first)
-                  : null;
+              final ArticleTranslationModel? t =
+                  a.translations.isNotEmpty
+                      ? a.translations.firstWhere(
+                          (t) => t.language == 'english',
+                          orElse: () => a.translations.first)
+                      : null;
               final cat = Helpers.getCategoryInfo(a.category);
               final isPublished = a.status == 'published';
 
@@ -481,7 +584,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE5E7EB)),
+                    border:
+                        Border.all(color: const Color(0xFFE5E7EB)),
                   ),
                   child: Row(
                     children: [
@@ -500,7 +604,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             Text(
                                 '${cat?['label'] ?? ''} · ${Helpers.timeAgo(a.updatedAt ?? a.createdAt)}',
                                 style: TextStyle(
-                                    fontSize: 11, color: Colors.grey[400])),
+                                    fontSize: 11,
+                                    color: Colors.grey[400])),
                           ],
                         ),
                       ),
@@ -522,9 +627,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(width: 6),
                       GestureDetector(
-                        onTap: () => context.read<ArticleBloc>().add(
-                              ArticlePublishRequested(a.id, !isPublished),
-                            ),
+                        onTap: () =>
+                            context.read<ArticleBloc>().add(
+                                  ArticlePublishRequested(
+                                      a.id, !isPublished),
+                                ),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 4),
@@ -548,14 +655,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(width: 6),
                       GestureDetector(
-                        onTap: () =>
-                            context.push('/articles/edit/${a.slug}'),
+                        onTap: () => context
+                            .push('/articles/edit/${a.slug}'),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            border:
-                                Border.all(color: const Color(0xFFE5E7EB)),
+                            border: Border.all(
+                                color: const Color(0xFFE5E7EB)),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Text('Edit',
@@ -564,8 +671,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(width: 6),
                       GestureDetector(
-                        onTap: () =>
-                            _confirmDelete(context, a.id, t?.title ?? a.slug),
+                        onTap: () => _confirmDelete(
+                            context, a.id, t?.title ?? a.slug),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 4),
@@ -576,7 +683,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           child: Text('Delete',
                               style: TextStyle(
-                                  fontSize: 11, color: Colors.red[400])),
+                                  fontSize: 11,
+                                  color: Colors.red[400])),
                         ),
                       ),
                     ],
@@ -589,14 +697,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
         },
       );
 
-  void _confirmDelete(BuildContext context, String id, String title) {
+  void _confirmDelete(
+      BuildContext context, String id, String title) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16)),
         title: const Text('Delete Article',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            style: TextStyle(
+                fontSize: 16, fontWeight: FontWeight.w700)),
         content: Text(
             'Are you sure you want to delete "$title"? This cannot be undone.',
             style: const TextStyle(fontSize: 13)),
@@ -620,8 +730,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
-
-  // ── Photos tab ────────────────────────────────────────────────────────────
 
   Widget _buildPhotosTab() => BlocBuilder<PhotoBloc, PhotoState>(
         builder: (context, state) {
@@ -660,7 +768,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE5E7EB)),
+                    border:
+                        Border.all(color: const Color(0xFFE5E7EB)),
                   ),
                   child: Row(
                     children: [
@@ -668,7 +777,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         borderRadius: BorderRadius.circular(8),
                         child: a.thumbnailUrl != null
                             ? Image.network(a.thumbnailUrl!,
-                                width: 52, height: 52, fit: BoxFit.cover)
+                                width: 52,
+                                height: 52,
+                                fit: BoxFit.cover)
                             : Container(
                                 width: 52,
                                 height: 52,
@@ -679,7 +790,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment:
+                              CrossAxisAlignment.start,
                           children: [
                             Text(a.title,
                                 style: const TextStyle(
@@ -689,7 +801,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             Text(
                                 '${a.images.length} photos · ${Helpers.timeAgo(a.createdAt)}',
                                 style: TextStyle(
-                                    fontSize: 11, color: Colors.grey[400])),
+                                    fontSize: 11,
+                                    color: Colors.grey[400])),
                             const SizedBox(height: 2),
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -698,7 +811,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 color: isPublic
                                     ? AppTheme.greenBg
                                     : Colors.grey[100],
-                                borderRadius: BorderRadius.circular(20),
+                                borderRadius:
+                                    BorderRadius.circular(20),
                               ),
                               child: Text(
                                 isPublic ? 'Public' : 'Hidden',
@@ -713,8 +827,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       GestureDetector(
-                        onTap: () => context.read<PhotoBloc>().add(
-                            PhotoTogglePublicRequested(a.id, !isPublic)),
+                        onTap: () =>
+                            context.read<PhotoBloc>().add(
+                                PhotoTogglePublicRequested(
+                                    a.id, !isPublic)),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 4),
@@ -745,8 +861,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           );
         },
       );
-
-  // ── Saved (favorites) tab ─────────────────────────────────────────────────
 
   Widget _buildSavedTab() {
     return BlocBuilder<ArticleBloc, ArticleState>(
@@ -786,7 +900,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
 
         final authState = context.read<AuthBloc>().state;
-        final userId = authState is AuthAuthenticated ? authState.userId : '';
+        final userId =
+            authState is AuthAuthenticated ? authState.userId : '';
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -795,7 +910,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
               child: Text(
                 '${favorites.length} saved article${favorites.length == 1 ? '' : 's'}',
-                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                style:
+                    TextStyle(fontSize: 12, color: Colors.grey[500]),
               ),
             ),
             ...favorites.map<Widget>((a) {
@@ -814,11 +930,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE5E7EB)),
+                    border:
+                        Border.all(color: const Color(0xFFE5E7EB)),
                   ),
                   child: Row(
                     children: [
-                      // Thumbnail or category icon
                       if (a.thumbnailUrl != null &&
                           a.thumbnailUrl!.isNotEmpty)
                         ClipRRect(
@@ -844,15 +960,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           child: Center(
                             child: Text(cat?['icon'] ?? '📄',
-                                style: const TextStyle(fontSize: 22)),
+                                style:
+                                    const TextStyle(fontSize: 22)),
                           ),
                         ),
                       const SizedBox(width: 12),
-
-                      // Info
                       Expanded(
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment:
+                              CrossAxisAlignment.start,
                           children: [
                             Text(
                               t?.title ?? 'Untitled',
@@ -865,21 +981,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             Text(
                               '${cat?['label'] ?? ''} · ${a.profile?.username ?? 'Anonymous'} · ${Helpers.timeAgo(a.updatedAt ?? a.createdAt)}',
                               style: TextStyle(
-                                  fontSize: 11, color: Colors.grey[400]),
+                                  fontSize: 11,
+                                  color: Colors.grey[400]),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
                       ),
-
-                      // Remove button
                       GestureDetector(
                         onTap: () {
                           context.read<ArticleBloc>().add(
                                 ArticleFavoriteToggleRequested(
                                   articleId: a.id,
                                   userId: userId,
-                                  isFavorited: true, // we're removing
+                                  isFavorited: true,
                                 ),
                               );
                         },
@@ -887,7 +1002,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            border: Border.all(color: Colors.red[200]!),
+                            border: Border.all(
+                                color: Colors.red[200]!),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Icon(Icons.favorite,
@@ -903,6 +1019,143 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         );
       },
+    );
+  }
+}
+
+// ── Delete Account Dialog ─────────────────────────────────────────────────────
+class _DeleteAccountDialog extends StatefulWidget {
+  final String username;
+  const _DeleteAccountDialog({required this.username});
+
+  @override
+  State<_DeleteAccountDialog> createState() =>
+      _DeleteAccountDialogState();
+}
+
+class _DeleteAccountDialogState
+    extends State<_DeleteAccountDialog> {
+  final _ctrl = TextEditingController();
+  bool get _confirmed => _ctrl.text == 'DELETE';
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16)),
+      title: const Text(
+        'Delete Account',
+        style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: Colors.red),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFEF2F2),
+              borderRadius: BorderRadius.circular(10),
+              border:
+                  Border.all(color: const Color(0xFFFECACA)),
+            ),
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('⚠️ This cannot be undone.',
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.red)),
+                SizedBox(height: 4),
+                Text(
+                  'Your account will be permanently deleted. Your articles will remain but be anonymized.',
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFFB91C1C)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          RichText(
+            text: const TextSpan(
+              style: TextStyle(
+                  fontSize: 13, color: Color(0xFF374151)),
+              children: [
+                TextSpan(text: 'Type '),
+                TextSpan(
+                  text: 'DELETE',
+                  style: TextStyle(
+                      fontFamily: 'monospace',
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF111827)),
+                ),
+                TextSpan(text: ' to confirm'),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          StatefulBuilder(
+            builder: (_, setInner) => TextField(
+              controller: _ctrl,
+              onChanged: (_) {
+                setInner(() {});
+                setState(() {});
+              },
+              style: const TextStyle(
+                  fontFamily: 'monospace', fontSize: 14),
+              decoration: InputDecoration(
+                hintText: 'DELETE',
+                hintStyle:
+                    TextStyle(color: Colors.grey[400]),
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 10),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(
+                      color: Color(0xFFD1D5DB)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide:
+                      const BorderSide(color: Colors.red),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: Text('Cancel',
+              style: TextStyle(color: Colors.grey[600])),
+        ),
+        ElevatedButton(
+          onPressed: _confirmed
+              ? () => Navigator.pop(context, true)
+              : null,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red,
+            foregroundColor: Colors.white,
+            disabledBackgroundColor: Colors.red[200],
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8)),
+          ),
+          child: const Text('Delete My Account',
+              style: TextStyle(fontSize: 13)),
+        ),
+      ],
     );
   }
 }
