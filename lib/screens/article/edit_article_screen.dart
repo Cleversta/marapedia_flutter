@@ -150,7 +150,7 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
           content: content,
           excerpt: Helpers.makeExcerpt(content),
           updatedBy: authState.userId,
-          slug: _article!.slug, // ← revalidates Next.js cache
+          slug: _article!.slug,
         );
       }
 
@@ -159,7 +159,6 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
         _success = 'Saved!';
       });
 
-      // ← Auto navigate back after save so viewer reloads with fresh data
       Future.delayed(const Duration(milliseconds: 800), () {
         if (mounted) context.pop();
       });
@@ -179,19 +178,20 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
     }
     if (_article == null) {
       return Scaffold(
-        appBar:
-            AppBar(leading: BackButton(onPressed: () => context.pop())),
+        appBar: AppBar(leading: BackButton(onPressed: () => context.pop())),
         body: const Center(child: Text('Article not found')),
       );
     }
 
-    final typeOptions =
-        AppConstants.articleTypes[_article!.category] ?? [];
+    final typeOptions = AppConstants.articleTypes[_article!.category] ?? [];
     final edType = _editorType(_article!.category);
 
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    // Read keyboard height once here and pass it down where needed.
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
 
     return Scaffold(
+      // Must be true so the scaffold shrinks when keyboard opens,
+      // allowing SingleChildScrollView to scroll content up.
       resizeToAvoidBottomInset: true,
       backgroundColor: const Color(0xFFF4F5F7),
       appBar: AppBar(
@@ -214,8 +214,7 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(
-              height: 1, color: const Color(0xFFE8E8EC)),
+          child: Container(height: 1, color: const Color(0xFFE8E8EC)),
         ),
         actions: [
           if (_success.isNotEmpty)
@@ -258,7 +257,9 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
         behavior: HitTestBehavior.opaque,
         child: SingleChildScrollView(
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          padding: EdgeInsets.only(bottom: bottomInset + 40),
+          // Extra bottom padding so content is never hidden behind keyboard.
+          // 120 gives comfortable clearance above the keyboard.
+          padding: EdgeInsets.only(bottom: keyboardHeight + 120),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -272,8 +273,8 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
                     border: Border.all(color: Colors.red[200]!),
                   ),
                   child: Text(_error,
-                      style: TextStyle(
-                          fontSize: 13, color: Colors.red[700])),
+                      style:
+                          TextStyle(fontSize: 13, color: Colors.red[700])),
                 ),
 
               // ── Article type ──────────────────────────────────────
@@ -288,8 +289,7 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
                       final isActive = _articleType == t['value'];
                       return GestureDetector(
                         onTap: () => setState(() =>
-                            _articleType =
-                                isActive ? '' : t['value']!),
+                            _articleType = isActive ? '' : t['value']!),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 6),
@@ -332,14 +332,14 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
                         controller: _singerCtrl,
                         hint: 'Singer / Artist name',
                         icon: Icons.mic_outlined,
-                        bottomInset: bottomInset,
+                        keyboardHeight: keyboardHeight,
                       ),
                       const SizedBox(height: 8),
                       _textField(
                         controller: _songwriterCtrl,
                         hint: 'Songwriter / Composer (optional)',
                         icon: Icons.edit_note_outlined,
-                        bottomInset: bottomInset,
+                        keyboardHeight: keyboardHeight,
                       ),
                     ],
                   ),
@@ -353,20 +353,16 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (_existingImages.isNotEmpty ||
-                        _newImages.isNotEmpty)
+                    if (_existingImages.isNotEmpty || _newImages.isNotEmpty)
                       SizedBox(
                         height: 80,
                         child: ListView(
                           scrollDirection: Axis.horizontal,
                           children: [
-                            ..._existingImages
-                                .asMap()
-                                .entries
-                                .map(
+                            ..._existingImages.asMap().entries.map(
                                   (e) => Padding(
-                                    padding: const EdgeInsets.only(
-                                        right: 6),
+                                    padding:
+                                        const EdgeInsets.only(right: 6),
                                     child: Stack(
                                       children: [
                                         ClipRRect(
@@ -384,25 +380,23 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
                                             top: 2,
                                             left: 2,
                                             child: Container(
-                                              padding: const EdgeInsets
-                                                  .symmetric(
-                                                  horizontal: 4,
-                                                  vertical: 2),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 4,
+                                                      vertical: 2),
                                               decoration: BoxDecoration(
-                                                color: AppTheme
-                                                    .greenPrimary,
+                                                color:
+                                                    AppTheme.greenPrimary,
                                                 borderRadius:
-                                                    BorderRadius
-                                                        .circular(4),
+                                                    BorderRadius.circular(
+                                                        4),
                                               ),
                                               child: const Text('C',
                                                   style: TextStyle(
-                                                      color:
-                                                          Colors.white,
+                                                      color: Colors.white,
                                                       fontSize: 8,
                                                       fontWeight:
-                                                          FontWeight
-                                                              .bold)),
+                                                          FontWeight.bold)),
                                             ),
                                           ),
                                         Positioned(
@@ -418,10 +412,9 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
                                               decoration:
                                                   const BoxDecoration(
                                                       color: Colors.red,
-                                                      shape: BoxShape
-                                                          .circle),
-                                              child: const Icon(
-                                                  Icons.close,
+                                                      shape:
+                                                          BoxShape.circle),
+                                              child: const Icon(Icons.close,
                                                   size: 10,
                                                   color: Colors.white),
                                             ),
@@ -433,8 +426,8 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
                                 ),
                             ..._newImages.asMap().entries.map(
                                   (e) => Padding(
-                                    padding: const EdgeInsets.only(
-                                        right: 6),
+                                    padding:
+                                        const EdgeInsets.only(right: 6),
                                     child: Stack(
                                       children: [
                                         ClipRRect(
@@ -450,18 +443,16 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
                                           right: 2,
                                           child: GestureDetector(
                                             onTap: () => setState(() =>
-                                                _newImages
-                                                    .removeAt(e.key)),
+                                                _newImages.removeAt(e.key)),
                                             child: Container(
                                               width: 18,
                                               height: 18,
                                               decoration:
                                                   const BoxDecoration(
                                                       color: Colors.red,
-                                                      shape: BoxShape
-                                                          .circle),
-                                              child: const Icon(
-                                                  Icons.close,
+                                                      shape:
+                                                          BoxShape.circle),
+                                              child: const Icon(Icons.close,
                                                   size: 10,
                                                   color: Colors.white),
                                             ),
@@ -472,8 +463,7 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
                                           left: 2,
                                           child: Container(
                                             padding:
-                                                const EdgeInsets
-                                                    .symmetric(
+                                                const EdgeInsets.symmetric(
                                                     horizontal: 4,
                                                     vertical: 2),
                                             color: Colors.orange,
@@ -495,17 +485,16 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
                       onPressed: () async {
                         final picker = ImagePicker();
                         final picked = await picker.pickMultiImage();
-                        setState(() => _newImages.addAll(
-                            picked.map((x) => File(x.path))));
+                        setState(() => _newImages
+                            .addAll(picked.map((x) => File(x.path))));
                       },
-                      icon: const Icon(
-                          Icons.add_photo_alternate_outlined,
+                      icon: const Icon(Icons.add_photo_alternate_outlined,
                           size: 16),
                       label: const Text('Add Images'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppTheme.greenPrimary,
-                        side: const BorderSide(
-                            color: AppTheme.greenPrimary),
+                        side:
+                            const BorderSide(color: AppTheme.greenPrimary),
                       ),
                     ),
                   ],
@@ -518,29 +507,28 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: _textField(
                   controller: _sourceUrlCtrl,
-                  hint: 'Source / related link (optional)  e.g. https://...',
+                  hint:
+                      'Source / related link (optional)  e.g. https://...',
                   icon: Icons.link,
                   keyboardType: TextInputType.url,
                   showClear: true,
-                  bottomInset: bottomInset,
+                  keyboardHeight: keyboardHeight,
                 ),
               ),
 
               // ── Featured ──────────────────────────────────────────
               Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Row(
                   children: [
                     const Text('Featured article',
                         style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500)),
+                            fontSize: 13, fontWeight: FontWeight.w500)),
                     const Spacer(),
                     Switch(
                       value: _featured,
-                      onChanged: (v) =>
-                          setState(() => _featured = v),
+                      onChanged: (v) => setState(() => _featured = v),
                       activeThumbColor: AppTheme.greenPrimary,
                     ),
                   ],
@@ -558,9 +546,9 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
                   controller: _titleCtrls[_currentLang],
                   style: const TextStyle(
                       fontSize: 22, fontWeight: FontWeight.w700),
-                  scrollPadding: EdgeInsets.only(
-                    bottom: bottomInset + 80,
-                  ),
+                  // Keeps cursor visible when keyboard is up.
+                  scrollPadding:
+                      EdgeInsets.only(bottom: keyboardHeight + 80),
                   decoration: InputDecoration(
                     hintText: edType == _EditorType.song
                         ? 'Song title...'
@@ -622,7 +610,7 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
     required TextEditingController controller,
     required String hint,
     required IconData icon,
-    required double bottomInset,
+    required double keyboardHeight,
     TextInputType keyboardType = TextInputType.text,
     bool showClear = false,
   }) {
@@ -632,8 +620,7 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
         borderRadius: BorderRadius.circular(10),
         color: Colors.white,
       ),
-      padding:
-          const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: Row(
         children: [
           Icon(icon, size: 15, color: const Color(0xFFD1D5DB)),
@@ -642,7 +629,7 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
             child: TextField(
               controller: controller,
               keyboardType: keyboardType,
-              scrollPadding: EdgeInsets.only(bottom: bottomInset + 80),
+              scrollPadding: EdgeInsets.only(bottom: keyboardHeight + 80),
               style: const TextStyle(
                   fontSize: 13, color: Color(0xFF4B5563)),
               decoration: InputDecoration(
@@ -661,11 +648,9 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
               valueListenable: controller,
               builder: (_, __, ___) => controller.text.isNotEmpty
                   ? GestureDetector(
-                      onTap: () =>
-                          setState(() => controller.clear()),
+                      onTap: () => setState(() => controller.clear()),
                       child: const Icon(Icons.close,
-                          size: 14,
-                          color: Color(0xFFD1D5DB)),
+                          size: 14, color: Color(0xFFD1D5DB)),
                     )
                   : const SizedBox.shrink(),
             ),
@@ -676,20 +661,17 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
 
   Widget _langTabs() => Container(
         decoration: const BoxDecoration(
-          border: Border(
-              bottom: BorderSide(color: Color(0xFFE5E7EB))),
+          border:
+              Border(bottom: BorderSide(color: Color(0xFFE5E7EB))),
         ),
         child: Row(
-          children: ['mara', 'english', 'myanmar', 'mizo']
-              .map((lang) {
+          children: ['mara', 'english', 'myanmar', 'mizo'].map((lang) {
             final isActive = _currentLang == lang;
             return Expanded(
               child: GestureDetector(
-                onTap: () =>
-                    setState(() => _currentLang = lang),
+                onTap: () => setState(() => _currentLang = lang),
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 10),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
                   decoration: BoxDecoration(
                     border: Border(
                       bottom: BorderSide(
@@ -701,8 +683,7 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
                     ),
                   ),
                   child: Row(
-                    mainAxisAlignment:
-                        MainAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Container(
                         width: 6,
@@ -716,8 +697,7 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        AppConstants.languageLabels[lang] ??
-                            lang,
+                        AppConstants.languageLabels[lang] ?? lang,
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: isActive
@@ -758,19 +738,18 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
             ),
             const SizedBox(height: 8),
             Row(
-              children: ['mara', 'english', 'myanmar', 'mizo']
-                  .map((lang) {
+              children:
+                  ['mara', 'english', 'myanmar', 'mizo'].map((lang) {
                 final done = _hasContent(lang);
                 final isActive = _currentLang == lang;
                 return Expanded(
                   child: GestureDetector(
-                    onTap: () =>
-                        setState(() => _currentLang = lang),
+                    onTap: () => setState(() => _currentLang = lang),
                     child: Container(
                       margin: EdgeInsets.only(
                           right: lang == 'mizo' ? 0 : 8),
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 8),
+                      padding:
+                          const EdgeInsets.symmetric(vertical: 8),
                       decoration: BoxDecoration(
                         color: done
                             ? const Color(0xFFF0FDF4)
@@ -788,8 +767,7 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
                       child: Column(
                         children: [
                           Text(
-                            AppConstants.languageLabels[lang] ??
-                                lang,
+                            AppConstants.languageLabels[lang] ?? lang,
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w600,

@@ -81,6 +81,34 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
     });
   }
 
+  /// Builds the base slug from the first non-empty title found,
+  /// preferring English → Mara → Mizo → Myanmar order.
+  String _buildBaseSlug() {
+    for (final lang in ['english', 'mara', 'mizo', 'myanmar']) {
+      final title = _titleCtrls[lang]?.text.trim() ?? '';
+      if (title.isNotEmpty) {
+        final s = slugify(title);
+        if (s.isNotEmpty) return s;
+      }
+    }
+    return 'article-${DateTime.now().millisecondsSinceEpoch}';
+  }
+
+  /// Returns a slug that does not exist in the DB yet.
+  /// Tries baseSlug first, then baseSlug-2, baseSlug-3, etc.
+  Future<String> _resolveUniqueSlug(
+      ArticleRepository repo, String baseSlug) async {
+    String candidate = baseSlug;
+    int attempt = 1;
+    while (true) {
+      final exists = await repo.slugExists(candidate);
+      if (!exists) return candidate;
+      attempt++;
+      candidate = '$baseSlug-$attempt';
+    }
+  }
+
+
   Future<void> _save(String status) async {
     final authState = context.read<AuthBloc>().state;
     if (authState is! AuthAuthenticated) return;
@@ -92,8 +120,8 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
     }).toList();
 
     if (filledLangs.isEmpty) {
-      setState(() =>
-          _error = 'Please write at least one language version with title and content.');
+      setState(() => _error =
+          'Please write at least one language version with title and content.');
       return;
     }
 
@@ -103,20 +131,13 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
     });
 
     try {
-      String _buildSlug() {
-        for (final lang in ['english', 'mara', 'mizo', 'myanmar']) {
-          final title = _titleCtrls[lang]?.text.trim() ?? '';
-          if (title.isNotEmpty) {
-            final s = slugify(title);
-            if (s.isNotEmpty) return s;
-          }
-        }
-        return 'article-${DateTime.now().millisecondsSinceEpoch}';
-      }
-
-      final slug = _buildSlug();
       final repo = ArticleRepository();
 
+      // ── Resolve a unique slug ────────────────────────────────────────
+      final baseSlug = _buildBaseSlug();
+      final slug = await _resolveUniqueSlug(repo, baseSlug);
+
+      // ── Upload images ────────────────────────────────────────────────
       String? thumbnailUrl;
       final uploadedImages = <Map<String, dynamic>>[];
       for (int i = 0; i < _images.length; i++) {
@@ -128,6 +149,7 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
         });
       }
 
+      // ── Create article row ───────────────────────────────────────────
       final article = await repo.createArticle(
         slug: slug,
         category: _category,
@@ -146,10 +168,12 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
             : null,
       );
 
+      // ── Insert images ────────────────────────────────────────────────
       if (uploadedImages.isNotEmpty) {
         await repo.insertImages(article.id, uploadedImages, authState.userId);
       }
 
+      // ── Upsert translations ──────────────────────────────────────────
       for (final lang in filledLangs) {
         final content = _contentMap[lang]!;
         await repo.upsertTranslation(
@@ -181,12 +205,9 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
 
     final typeOptions = AppConstants.articleTypes[_category] ?? [];
 
-    // FIX: read keyboard height here so every widget in build() can use it
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Scaffold(
-      // FIX: must be true so the scaffold shrinks when keyboard appears,
-      // allowing SingleChildScrollView to scroll content above the keyboard
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: const Text('New Article',
@@ -210,7 +231,8 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
               child: Text(
                 canPublish ? 'Publish' : 'Submit',
                 style: const TextStyle(
-                    color: AppTheme.greenPrimary, fontWeight: FontWeight.w700),
+                    color: AppTheme.greenPrimary,
+                    fontWeight: FontWeight.w700),
               ),
             ),
         ],
@@ -230,8 +252,8 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
                   Expanded(
                     child: Text(
                       'Your article will be reviewed by an editor before publishing.',
-                      style: TextStyle(
-                          fontSize: 12, color: Color(0xFFD97706)),
+                      style:
+                          TextStyle(fontSize: 12, color: Color(0xFFD97706)),
                     ),
                   ),
                 ],
@@ -241,14 +263,11 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
             child: SingleChildScrollView(
               keyboardDismissBehavior:
                   ScrollViewKeyboardDismissBehavior.onDrag,
-              // FIX: pad the bottom of the scroll view by the keyboard
-              // height + a small margin so the last widget is never hidden
-              // behind the keyboard and can be scrolled into view.
               padding: EdgeInsets.only(bottom: bottomInset + 40),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Error
+                  // ── Error banner ──────────────────────────────────────
                   if (_error.isNotEmpty)
                     Container(
                       margin: const EdgeInsets.all(16),
@@ -263,7 +282,7 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
                               fontSize: 13, color: Colors.red[700])),
                     ),
 
-                  // ── Category ──────────────────────────────────────────────
+                  // ── Category ──────────────────────────────────────────
                   _sectionTitle('Category'),
                   SizedBox(
                     height: 40,
@@ -279,7 +298,7 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
                     ),
                   ),
 
-                  // ── Article type ──────────────────────────────────────────
+                  // ── Article type ──────────────────────────────────────
                   if (typeOptions.isNotEmpty) ...[
                     _sectionTitle('Type'),
                     Padding(
@@ -296,7 +315,7 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
                     ),
                   ],
 
-                  // ── Singer / Songwriter (songs only) ─────────────────────
+                  // ── Singer / Songwriter (songs only) ──────────────────
                   if (_isSong) ...[
                     _sectionTitle('Song Info'),
                     Padding(
@@ -322,7 +341,7 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
                     ),
                   ],
 
-                  // ── Images ────────────────────────────────────────────────
+                  // ── Images ────────────────────────────────────────────
                   _sectionTitle('Images'),
                   Padding(
                     padding:
@@ -414,14 +433,15 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
                     ),
                   ),
 
-                  // ── Source URL ────────────────────────────────────────────
+                  // ── Source URL ────────────────────────────────────────
                   _sectionTitle('Source'),
                   Padding(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 16),
                     child: _textField(
                       controller: _sourceUrlCtrl,
-                      hint: 'Source / related link (optional)  e.g. https://...',
+                      hint:
+                          'Source / related link (optional)  e.g. https://...',
                       icon: Icons.link,
                       keyboardType: TextInputType.url,
                       showClear: true,
@@ -429,18 +449,17 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
                     ),
                   ),
 
-                  // ── Language tabs ─────────────────────────────────────────
+                  // ── Language tabs ─────────────────────────────────────
                   _sectionTitle('Content'),
                   _langTabs(),
 
-                  // ── Title ─────────────────────────────────────────────────
+                  // ── Title ─────────────────────────────────────────────
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                     child: TextField(
                       controller: _titleCtrls[_currentLang],
                       style: const TextStyle(
                           fontSize: 22, fontWeight: FontWeight.w700),
-                      // FIX: scroll title field above keyboard when focused
                       scrollPadding:
                           EdgeInsets.only(bottom: bottomInset + 80),
                       decoration: const InputDecoration(
@@ -456,7 +475,7 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
                     child: Divider(),
                   ),
 
-                  // ── Content editor ────────────────────────────────────────
+                  // ── Content editor ────────────────────────────────────
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                     child: _category == 'songs'
@@ -479,7 +498,7 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
                           ),
                   ),
 
-                  // ── Bottom buttons ────────────────────────────────────────
+                  // ── Bottom buttons ────────────────────────────────────
                   Padding(
                     padding:
                         const EdgeInsets.fromLTRB(16, 24, 16, 40),
@@ -525,8 +544,6 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
     );
   }
 
-  // FIX: added required bottomInset parameter so the inner TextField
-  // can set scrollPadding correctly without calling MediaQuery itself.
   Widget _textField({
     required TextEditingController controller,
     required String hint,
@@ -550,8 +567,6 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
             child: TextField(
               controller: controller,
               keyboardType: keyboardType,
-              // FIX: tell Flutter to scroll this field into view above
-              // the keyboard when it gains focus on physical devices.
               scrollPadding: EdgeInsets.only(bottom: bottomInset + 80),
               style: const TextStyle(
                   fontSize: 13, color: Color(0xFF4B5563)),
@@ -584,8 +599,7 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
 
   Widget _langTabs() => Container(
         decoration: const BoxDecoration(
-          border:
-              Border(bottom: BorderSide(color: Color(0xFFE5E7EB))),
+          border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB))),
         ),
         child: Row(
           children: ['mara', 'english', 'myanmar', 'mizo'].map((lang) {

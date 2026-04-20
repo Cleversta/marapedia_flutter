@@ -48,7 +48,6 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     }
   }
 
-  /// Called once after the article loads to check the favorite status.
   Future<void> _checkFavoriteStatus(
       BuildContext context, String articleId) async {
     final authState = context.read<AuthBloc>().state;
@@ -146,21 +145,22 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     final sourceUrlDisplay = article.sourceUrl
         ?.replaceAll(RegExp(r'^https?://'), '')
         .replaceAll(RegExp(r'/$'), '');
-final hasThumb =
-    article.thumbnailUrl != null && article.thumbnailUrl!.isNotEmpty;
-final allImages = <ArticleImage>[
-  if (hasThumb) ArticleImage(url: article.thumbnailUrl!),
-  ...article.images.where(
-    (img) => img.url != article.thumbnailUrl,
-  ),
-];
 
-debugPrint('🖼️ thumbnailUrl: ${article.thumbnailUrl}');
-debugPrint('🖼️ images count: ${article.images.length}');
-debugPrint('🖼️ allImages count: ${allImages.length}');
-for (final img in allImages) {
-  debugPrint('🖼️ image url: ${img.url}');
-}
+    final hasThumb =
+        article.thumbnailUrl != null && article.thumbnailUrl!.isNotEmpty;
+    final allImages = <ArticleImage>[
+      if (hasThumb) ArticleImage(url: article.thumbnailUrl!),
+      ...article.images.where(
+        (img) => img.url != article.thumbnailUrl,
+      ),
+    ];
+
+    debugPrint('🖼️ thumbnailUrl: ${article.thumbnailUrl}');
+    debugPrint('🖼️ images count: ${article.images.length}');
+    debugPrint('🖼️ allImages count: ${allImages.length}');
+    for (final img in allImages) {
+      debugPrint('🖼️ image url: ${img.url}');
+    }
 
     final isSong =
         article.category == 'songs' || article.articleType == 'song';
@@ -199,9 +199,7 @@ for (final img in allImages) {
                                 ? Icons.favorite
                                 : Icons.favorite_border,
                             key: ValueKey(isFavorited),
-                            color: isFavorited
-                                ? Colors.red[400]
-                                : null,
+                            color: isFavorited ? Colors.red[400] : null,
                             size: 20,
                           ),
                         ),
@@ -540,74 +538,81 @@ for (final img in allImages) {
                       // ── Content ─────────────────────────────────────────
                       _buildContent(article, translation.content,
                           translation.title),
-const SizedBox(height: 40),
-const Divider(color: Color(0xFFE7E5E4)),
-const SizedBox(height: 12),
- 
-Row(
-  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  children: [
-    Text(
-      'Updated ${Helpers.timeAgo(article.updatedAt ?? article.createdAt)}',
-      style: TextStyle(fontSize: 11, color: Colors.grey[400]),
-    ),
-    GestureDetector(
-      onTap: () => context.go('/'),
-      child: const Text(
-        '← Marapedia',
-        style: TextStyle(
-          fontSize: 11,
-          color: AppTheme.greenPrimary,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    ),
-  ],
-),
- 
-const SizedBox(height: 16),
- 
-// ── Share button ─────────────────────────────────────────────────────────
-SizedBox(
-  width: double.infinity,
-  child: OutlinedButton.icon(
-    onPressed: () => _shareArticle(article.slug, translation.title),
-    icon: const Icon(Icons.share_outlined, size: 16),
-    label: const Text('Share Article'),
-    style: OutlinedButton.styleFrom(
-      foregroundColor: AppTheme.greenPrimary,
-      side: const BorderSide(color: AppTheme.greenPrimary),
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-      ),
-    ),
-  ),
-),
- 
-if (isSong) ...[
-  const SizedBox(height: 8),
-  SizedBox(
-    width: double.infinity,
-    child: OutlinedButton.icon(
-      onPressed: () {},
-      icon: const Icon(Icons.download_outlined, size: 16),
-      label: const Text('Save Lyrics as Image'),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: Colors.grey[700],
-        side: BorderSide(color: Colors.grey[300]!),
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
-      ),
-    ),
-  ),
-],
- 
-// ── Likes + Comments ────
-CommentsSection(articleId: article.id),
-const SizedBox(height: 40),
+
+                      const SizedBox(height: 40),
+                      const Divider(color: Color(0xFFE7E5E4)),
+                      const SizedBox(height: 12),
+
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Updated ${Helpers.timeAgo(article.updatedAt ?? article.createdAt)}',
+                            style: TextStyle(
+                                fontSize: 11, color: Colors.grey[400]),
+                          ),
+                          GestureDetector(
+                            onTap: () => context.go('/'),
+                            child: const Text(
+                              '← Marapedia',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppTheme.greenPrimary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // ── Share button ──────────────────────────────────────
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () =>
+                              _shareArticle(article.slug, translation.title),
+                          icon: const Icon(Icons.share_outlined, size: 16),
+                          label: const Text('Share Article'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppTheme.greenPrimary,
+                            side: const BorderSide(
+                                color: AppTheme.greenPrimary),
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      if (isSong) ...[
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () {},
+                            icon: const Icon(Icons.download_outlined,
+                                size: 16),
+                            label: const Text('Save Lyrics as Image'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.grey[700],
+                              side: BorderSide(color: Colors.grey[300]!),
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 10),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+
+                      // ── Likes + Comments ────
+                      CommentsSection(articleId: article.id),
+                      const SizedBox(height: 40),
                     ],
                   ),
                 ),
@@ -638,7 +643,7 @@ const SizedBox(height: 40),
       return PoemViewer(content: content);
     }
     return Html(
-      data: content,
+      data: content.replaceAll('<p></p>', '<p>&nbsp;</p>'),
       style: {
         'body': Style(
           fontFamily: 'Lora',
@@ -669,8 +674,7 @@ const SizedBox(height: 40),
           padding: HtmlPaddings.only(left: 16),
           color: const Color(0xFF166534),
           fontStyle: FontStyle.italic,
-          margin:
-              Margins.only(left: 0, right: 0, top: 12, bottom: 12),
+          margin: Margins.only(left: 0, right: 0, top: 12, bottom: 12),
         ),
         'a': Style(
           color: AppTheme.greenPrimary,
@@ -700,7 +704,8 @@ const SizedBox(height: 40),
                         imageUrl: images[_lightboxIndex!].url,
                         fit: BoxFit.contain,
                         width: double.infinity,
-                        height: MediaQuery.of(context).size.height * 0.7,
+                        height:
+                            MediaQuery.of(context).size.height * 0.7,
                       ),
                       if (images[_lightboxIndex!].caption != null) ...[
                         const SizedBox(height: 8),

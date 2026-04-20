@@ -23,6 +23,14 @@ class ArticleRepository {
       // Non-critical — ignore failures silently
     }
   }
+  Future<bool> slugExists(String slug) async {
+  final res = await _db
+      .from('articles')
+      .select('id')
+      .eq('slug', slug)
+      .maybeSingle();
+  return res != null;
+}
 
   // ── Home (combined fetch + cache) ─────────────────────────────────────────
 

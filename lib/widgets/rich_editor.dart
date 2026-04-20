@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
-import 'package:flutter_quill_delta_from_html/flutter_quill_delta_from_html.dart';
+import 'package:flutter_quill/quill_delta.dart';
 
 class _DeltaToHtml {
   static String convert(Document doc) {
@@ -32,7 +32,7 @@ class _DeltaToHtml {
       lineBuf.clear();
       final la = Map<String, dynamic>.from(lineAttrs);
       lineAttrs = {};
-      if (text.isEmpty && la.isEmpty) return;
+
       final listType = la['list'] as String?;
       if (listType != null) {
         openList(listType);
@@ -48,7 +48,8 @@ class _DeltaToHtml {
         } else if (la['blockquote'] == true) {
           buf.write('<blockquote>$text</blockquote>');
         } else {
-          buf.write('<p>${text.isEmpty ? '&nbsp;' : text}</p>');
+          // Empty line → <p><br></p> so the web side renders the gap
+          buf.write('<p>${text.isEmpty ? '<br>' : text}</p>');
         }
       }
     }
@@ -109,7 +110,6 @@ class RichEditorWidget extends StatefulWidget {
   final ValueChanged<String> onChange;
   final String placeholder;
   final String? label;
-  
 
   const RichEditorWidget({
     super.key,
@@ -129,7 +129,6 @@ class _RichEditorWidgetState extends State<RichEditorWidget>
   final FocusNode _focusNode = FocusNode();
   bool _suppressCallback = false;
   bool _focused = false;
-  final GlobalKey _editorKey = GlobalKey();
 
   late final AnimationController _borderAnim;
   late final Animation<double> _borderProgress;
@@ -150,31 +149,12 @@ class _RichEditorWidgetState extends State<RichEditorWidget>
       selection: const TextSelection.collapsed(offset: 0),
     );
     _controller.addListener(_onChanged);
-// add this key to the class
 
-// in initState, update the focus listener:
-_focusNode.addListener(() {
-  final hasFocus = _focusNode.hasFocus;
-  setState(() => _focused = hasFocus);
-  hasFocus ? _borderAnim.forward() : _borderAnim.reverse();
-
-  if (hasFocus) {
-    // Wait for keyboard to finish animating up, then scroll editor into view
-    Future.delayed(const Duration(milliseconds: 350), () {
-      if (!mounted) return;
-      final ctx = _editorKey.currentContext;
-      if (ctx != null) {
-        Scrollable.ensureVisible(
-          ctx,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-          alignment: 0.0, // scroll so top of editor is visible
-          alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
-        );
-      }
+    _focusNode.addListener(() {
+      final hasFocus = _focusNode.hasFocus;
+      setState(() => _focused = hasFocus);
+      hasFocus ? _borderAnim.forward() : _borderAnim.reverse();
     });
-  }
-});
   }
 
   @override
@@ -190,12 +170,122 @@ _focusNode.addListener(() {
   Document _fromHtml(String html) {
     if (html.trim().isEmpty) return Document();
     try {
-      final delta = HtmlToDelta().convert(html);
-      return Document.fromDelta(delta);
-    } catch (_) {
+      return Document.fromDelta(_htmlToDelta(html));
+    } catch (e) {
+      debugPrint('_fromHtml error: $e');
       return Document();
     }
   }
+
+  Delta _htmlToDelta(String html) {
+    final delta = Delta();
+
+    final blockPattern = RegExp(
+      r'<(p|h1|h2|h3|blockquote|ul|ol)(.*?)>(.*?)<\/\1>|<li>(.*?)<\/li>',
+      dotAll: true,
+      caseSensitive: false,
+    );
+
+    final blocks = blockPattern.allMatches(html).toList();
+    if (blocks.isEmpty) {
+      final plain = _stripTags(html);
+      if (plain.isNotEmpty) delta.insert('$plain\n');
+      return delta;
+    }
+
+    String? currentList;
+
+    void closeList() {
+      currentList = null;
+    }
+
+    for (final match in blocks) {
+      final tag = (match.group(1) ?? 'li').toLowerCase();
+      final inner = (match.group(3) ?? match.group(4) ?? '').trim();
+
+      if (tag == 'ul' || tag == 'ol') {
+        final listType = tag == 'ul' ? 'bullet' : 'ordered';
+        final liPattern = RegExp(r'<li>(.*?)<\/li>',
+            dotAll: true, caseSensitive: false);
+        for (final li in liPattern.allMatches(inner)) {
+          _parseInline(li.group(1) ?? '', delta);
+          delta.insert('\n', {'list': listType});
+        }
+        closeList();
+        continue;
+      }
+
+      if (tag == 'li') {
+        _parseInline(inner, delta);
+        delta.insert('\n',
+            {'list': currentList == 'ordered' ? 'ordered' : 'bullet'});
+        continue;
+      }
+
+      closeList();
+      _parseInline(inner, delta);
+
+      switch (tag) {
+        case 'h1':
+          delta.insert('\n', {'header': 1});
+          break;
+        case 'h2':
+          delta.insert('\n', {'header': 2});
+          break;
+        case 'h3':
+          delta.insert('\n', {'header': 3});
+          break;
+        case 'blockquote':
+          delta.insert('\n', {'blockquote': true});
+          break;
+        default:
+          delta.insert('\n');
+      }
+    }
+
+    return delta;
+  }
+
+  void _parseInline(String html, Delta delta) {
+    if (html.trim().isEmpty || html == '&nbsp;' || html == '<br>' || html == ' ') {
+      delta.insert(' ');
+      return;
+    }
+
+    final inlinePattern = RegExp(
+      r'<strong>(.*?)<\/strong>|<b>(.*?)<\/b>|<em>(.*?)<\/em>|<i>(.*?)<\/i>|<s>(.*?)<\/s>|<a href="(.*?)">(.*?)<\/a>|<span style="color:\s*(.*?)">(.*?)<\/span>|([^<]+)',
+      dotAll: true,
+      caseSensitive: false,
+    );
+
+    for (final m in inlinePattern.allMatches(html)) {
+      if (m.group(1) != null || m.group(2) != null) {
+        delta.insert(_decode(m.group(1) ?? m.group(2) ?? ''), {'bold': true});
+      } else if (m.group(3) != null || m.group(4) != null) {
+        delta.insert(_decode(m.group(3) ?? m.group(4) ?? ''), {'italic': true});
+      } else if (m.group(5) != null) {
+        delta.insert(_decode(m.group(5)!), {'strike': true});
+      } else if (m.group(6) != null) {
+        delta.insert(_decode(m.group(7) ?? ''), {'link': m.group(6)});
+      } else if (m.group(8) != null) {
+        delta.insert(_decode(m.group(9) ?? ''), {'color': m.group(8)});
+      } else if (m.group(10) != null) {
+        final text = _decode(m.group(10)!);
+        if (text.isNotEmpty) delta.insert(text);
+      }
+    }
+  }
+
+  String _stripTags(String html) =>
+      html.replaceAll(RegExp(r'<[^>]+>'), '');
+
+  String _decode(String s) => s
+      .replaceAll('&amp;', '&')
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>')
+      .replaceAll('&nbsp;', ' ')
+      .replaceAll('&#39;', "'")
+      .replaceAll('&quot;', '"');
 
   void _onChanged() {
     if (_suppressCallback) return;
@@ -378,8 +468,7 @@ _focusNode.addListener(() {
             return Container(
               decoration: BoxDecoration(
                 color: _EditorTheme.surface,
-                borderRadius:
-                    BorderRadius.circular(_EditorTheme.radius),
+                borderRadius: BorderRadius.circular(_EditorTheme.radius),
                 border: Border.all(color: borderColor, width: 1.5),
                 boxShadow: _focused
                     ? [
@@ -395,8 +484,7 @@ _focusNode.addListener(() {
             );
           },
           child: ClipRRect(
-            borderRadius:
-                BorderRadius.circular(_EditorTheme.radius - 1),
+            borderRadius: BorderRadius.circular(_EditorTheme.radius - 1),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -442,43 +530,51 @@ _focusNode.addListener(() {
         ),
       );
 
-Widget _buildEditor() {
-  return Container(
-    key: _editorKey,   // ← add this
-    constraints: const BoxConstraints(minHeight: 180),
-    color: _EditorTheme.surface,
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
-          width: 3,
-          height: 180,
-          color: _focused ? _EditorTheme.inkPrimary : Colors.transparent,
-        ),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
-            child: QuillEditor.basic(
-              controller: _controller,
-              focusNode: _focusNode,
-              config: QuillEditorConfig(
-                placeholder: widget.placeholder,
-                padding: EdgeInsets.zero,
-                autoFocus: false,
-                expands: false,
-                scrollable: true,
-                minHeight: 180,
-                customStyles: _buildEditorStyles(),
+  Widget _buildEditor() {
+    return Builder(
+      builder: (context) {
+        final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+        return Container(
+          constraints: const BoxConstraints(minHeight: 180),
+          color: _EditorTheme.surface,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOut,
+                width: 3,
+                height: 180,
+                color: _focused
+                    ? _EditorTheme.inkPrimary
+                    : Colors.transparent,
               ),
-            ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+                  child: QuillEditor.basic(
+                    controller: _controller,
+                    focusNode: _focusNode,
+                    config: QuillEditorConfig(
+                      placeholder: widget.placeholder,
+                      padding: EdgeInsets.zero,
+                      autoFocus: false,
+                      expands: false,
+                      scrollable: true,
+                      minHeight: 180,
+                      scrollBottomInset: keyboardHeight,
+                      customStyles: _buildEditorStyles(),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ),
-      ],
-    ),
-  );
-}
+        );
+      },
+    );
+  }
+
   Widget _buildFooter() => Container(
         height: 30,
         color: _EditorTheme.toolbarBg,
