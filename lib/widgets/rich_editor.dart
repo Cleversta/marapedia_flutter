@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_quill/quill_delta.dart';
 
+// ── Delta → HTML ──────────────────────────────────────────────────────────────
 class _DeltaToHtml {
   static String convert(Document doc) {
     final ops = doc.toDelta().toJson() as List<dynamic>;
@@ -48,7 +49,6 @@ class _DeltaToHtml {
         } else if (la['blockquote'] == true) {
           buf.write('<blockquote>$text</blockquote>');
         } else {
-          // Empty line → <p><br></p> so the web side renders the gap
           buf.write('<p>${text.isEmpty ? '<br>' : text}</p>');
         }
       }
@@ -58,8 +58,7 @@ class _DeltaToHtml {
       if (op is! Map) continue;
       final insert = op['insert'];
       if (insert is! String) continue;
-      final attrs =
-          (op['attributes'] as Map?)?.cast<String, dynamic>() ?? {};
+      final attrs = (op['attributes'] as Map?)?.cast<String, dynamic>() ?? {};
       if (insert == '\n') {
         if (attrs.isNotEmpty) lineAttrs = attrs;
         flushLine();
@@ -94,17 +93,15 @@ class _DeltaToHtml {
       .replaceAll('>', '&gt;');
 }
 
-abstract class _EditorTheme {
-  static const Color surface = Color(0xFFFFFFFF);
-  static const Color toolbarBg = Color(0xFFFAFAFA);
-  static const Color border = Color(0xFFE8E8E8);
-  static const Color borderFocused = Color(0xFF1A1A1A);
-  static const Color divider = Color(0xFFEEEEEE);
-  static const Color inkPrimary = Color(0xFF1A1A1A);
-  static const Color inkMuted = Color(0xFF8A8A8A);
-  static const double radius = 10.0;
+// ── Theme ─────────────────────────────────────────────────────────────────────
+abstract class _ET {
+  static const Color surface     = Color(0xFFFFFFFF);
+  static const Color border      = Color(0xFFE8E8E8);
+  static const Color inkPrimary  = Color(0xFF1A1A1A);
+  static const double radius     = 10.0;
 }
 
+// ── Widget ────────────────────────────────────────────────────────────────────
 class RichEditorWidget extends StatefulWidget {
   final String content;
   final ValueChanged<String> onChange;
@@ -124,37 +121,31 @@ class RichEditorWidget extends StatefulWidget {
 }
 
 class _RichEditorWidgetState extends State<RichEditorWidget>
-    with SingleTickerProviderStateMixin {
+    with WidgetsBindingObserver {
   late QuillController _controller;
   final FocusNode _focusNode = FocusNode();
   bool _suppressCallback = false;
   bool _focused = false;
+  OverlayEntry? _toolbarEntry;
 
-  late final AnimationController _borderAnim;
-  late final Animation<double> _borderProgress;
-
+  // ── Lifecycle ──────────────────────────────────────────────────────────────
   @override
   void initState() {
     super.initState();
-    _borderAnim = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 180),
-    );
-    _borderProgress = CurvedAnimation(
-      parent: _borderAnim,
-      curve: Curves.easeOut,
-    );
+    WidgetsBinding.instance.addObserver(this);
+
     _controller = QuillController(
       document: _fromHtml(widget.content),
       selection: const TextSelection.collapsed(offset: 0),
     );
     _controller.addListener(_onChanged);
+    _focusNode.addListener(_handleFocus);
+  }
 
-    _focusNode.addListener(() {
-      final hasFocus = _focusNode.hasFocus;
-      setState(() => _focused = hasFocus);
-      hasFocus ? _borderAnim.forward() : _borderAnim.reverse();
-    });
+  @override
+  void didChangeMetrics() {
+    super.didChangeMetrics();
+    _toolbarEntry?.markNeedsBuild();
   }
 
   @override
@@ -167,6 +158,167 @@ class _RichEditorWidgetState extends State<RichEditorWidget>
     }
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _removeToolbar();
+    _controller.removeListener(_onChanged);
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  // ── Focus & overlay toolbar ────────────────────────────────────────────────
+  void _handleFocus() {
+    final hasFocus = _focusNode.hasFocus;
+    setState(() => _focused = hasFocus);
+    if (hasFocus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _insertToolbar());
+    } else {
+      _removeToolbar();
+    }
+  }
+
+  void _insertToolbar() {
+    if (!mounted || !_focusNode.hasFocus) return;
+    _removeToolbar();
+    _toolbarEntry = OverlayEntry(builder: _buildToolbarOverlay);
+    Overlay.of(context).insert(_toolbarEntry!);
+  }
+
+  void _removeToolbar() {
+    _toolbarEntry?.remove();
+    _toolbarEntry = null;
+  }
+
+  Widget _buildToolbarOverlay(BuildContext ctx) {
+    final bottom = MediaQuery.of(ctx).viewInsets.bottom;
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: bottom,
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          decoration: BoxDecoration(
+            color: _ET.surface,
+            border: const Border(
+              top: BorderSide(color: Color(0xFFEEEEEE)),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.07),
+                blurRadius: 10,
+                offset: const Offset(0, -3),
+              ),
+            ],
+          ),
+          child: SafeArea(
+            top: false,
+            child: SizedBox(
+              height: 46,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: QuillSimpleToolbar(
+                      controller: _controller,
+                      config: _toolbarConfig,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => _focusNode.unfocus(),
+                    child: Container(
+                      width: 44,
+                      height: 46,
+                      alignment: Alignment.center,
+                      decoration: const BoxDecoration(
+                        border: Border(
+                            left: BorderSide(color: Color(0xFFEEEEEE))),
+                      ),
+                      child: const Icon(
+                        Icons.keyboard_hide_outlined,
+                        size: 19,
+                        color: Color(0xFF6B7280),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Color sanitization ─────────────────────────────────────────────────────
+  String _toHexColor(String color) {
+    final c = color.trim().toLowerCase();
+
+    if (RegExp(r'^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$').hasMatch(c)) {
+      return c;
+    }
+
+    final rgb = RegExp(
+      r'^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$',
+    ).firstMatch(c);
+    if (rgb != null) {
+      final r = int.parse(rgb.group(1)!).clamp(0, 255);
+      final g = int.parse(rgb.group(2)!).clamp(0, 255);
+      final b = int.parse(rgb.group(3)!).clamp(0, 255);
+      return '#${r.toRadixString(16).padLeft(2, '0')}'
+          '${g.toRadixString(16).padLeft(2, '0')}'
+          '${b.toRadixString(16).padLeft(2, '0')}';
+    }
+
+    final rgba = RegExp(
+      r'^rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d.]+)\s*\)$',
+    ).firstMatch(c);
+    if (rgba != null) {
+      final r = int.parse(rgba.group(1)!).clamp(0, 255);
+      final g = int.parse(rgba.group(2)!).clamp(0, 255);
+      final b = int.parse(rgba.group(3)!).clamp(0, 255);
+      final a = (double.parse(rgba.group(4)!) * 255).round().clamp(0, 255);
+      return '#${a.toRadixString(16).padLeft(2, '0')}'
+          '${r.toRadixString(16).padLeft(2, '0')}'
+          '${g.toRadixString(16).padLeft(2, '0')}'
+          '${b.toRadixString(16).padLeft(2, '0')}';
+    }
+
+    const named = {
+      'black':   '#000000',
+      'white':   '#ffffff',
+      'red':     '#ff0000',
+      'green':   '#008000',
+      'blue':    '#0000ff',
+      'yellow':  '#ffff00',
+      'orange':  '#ffa500',
+      'purple':  '#800080',
+      'pink':    '#ffc0cb',
+      'gray':    '#808080',
+      'grey':    '#808080',
+      'brown':   '#a52a2a',
+      'cyan':    '#00ffff',
+      'magenta': '#ff00ff',
+      'lime':    '#00ff00',
+      'indigo':  '#4b0082',
+      'violet':  '#ee82ee',
+      'gold':    '#ffd700',
+      'silver':  '#c0c0c0',
+      'navy':    '#000080',
+      'teal':    '#008080',
+      'maroon':  '#800000',
+      'olive':   '#808000',
+      'coral':   '#ff7f50',
+      'salmon':  '#fa8072',
+      'tan':     '#d2b48c',
+      'khaki':   '#f0e68c',
+      'beige':   '#f5f5dc',
+    };
+    return named[c] ?? '#000000';
+  }
+
+  // ── HTML parsing ───────────────────────────────────────────────────────────
   Document _fromHtml(String html) {
     if (html.trim().isEmpty) return Document();
     try {
@@ -179,52 +331,44 @@ class _RichEditorWidgetState extends State<RichEditorWidget>
 
   Delta _htmlToDelta(String html) {
     final delta = Delta();
-
     final blockPattern = RegExp(
       r'<(p|h1|h2|h3|blockquote|ul|ol)(.*?)>(.*?)<\/\1>|<li>(.*?)<\/li>',
       dotAll: true,
       caseSensitive: false,
     );
-
     final blocks = blockPattern.allMatches(html).toList();
     if (blocks.isEmpty) {
       final plain = _stripTags(html);
       if (plain.isNotEmpty) delta.insert('$plain\n');
       return delta;
     }
-
     String? currentList;
-
-    void closeList() {
-      currentList = null;
-    }
+    void closeList() => currentList = null;
 
     for (final match in blocks) {
       final tag = (match.group(1) ?? 'li').toLowerCase();
       final inner = (match.group(3) ?? match.group(4) ?? '').trim();
-
       if (tag == 'ul' || tag == 'ol') {
         final listType = tag == 'ul' ? 'bullet' : 'ordered';
-        final liPattern = RegExp(r'<li>(.*?)<\/li>',
-            dotAll: true, caseSensitive: false);
-        for (final li in liPattern.allMatches(inner)) {
+        for (final li in RegExp(
+          r'<li>(.*?)<\/li>',
+          dotAll: true,
+          caseSensitive: false,
+        ).allMatches(inner)) {
           _parseInline(li.group(1) ?? '', delta);
           delta.insert('\n', {'list': listType});
         }
         closeList();
         continue;
       }
-
       if (tag == 'li') {
         _parseInline(inner, delta);
         delta.insert('\n',
             {'list': currentList == 'ordered' ? 'ordered' : 'bullet'});
         continue;
       }
-
       closeList();
       _parseInline(inner, delta);
-
       switch (tag) {
         case 'h1':
           delta.insert('\n', {'header': 1});
@@ -242,33 +386,38 @@ class _RichEditorWidgetState extends State<RichEditorWidget>
           delta.insert('\n');
       }
     }
-
     return delta;
   }
 
   void _parseInline(String html, Delta delta) {
-    if (html.trim().isEmpty || html == '&nbsp;' || html == '<br>' || html == ' ') {
+    if (html.trim().isEmpty ||
+        html == '&nbsp;' ||
+        html == '<br>' ||
+        html == ' ') {
       delta.insert(' ');
       return;
     }
-
     final inlinePattern = RegExp(
-      r'<strong>(.*?)<\/strong>|<b>(.*?)<\/b>|<em>(.*?)<\/em>|<i>(.*?)<\/i>|<s>(.*?)<\/s>|<a href="(.*?)">(.*?)<\/a>|<span style="color:\s*(.*?)">(.*?)<\/span>|([^<]+)',
+      r'<strong>(.*?)<\/strong>|<b>(.*?)<\/b>|<em>(.*?)<\/em>|<i>(.*?)<\/i>'
+      r'|<s>(.*?)<\/s>|<a href="(.*?)">(.*?)<\/a>'
+      r'|<span style="color:\s*(.*?)">(.*?)<\/span>|([^<]+)',
       dotAll: true,
       caseSensitive: false,
     );
-
     for (final m in inlinePattern.allMatches(html)) {
       if (m.group(1) != null || m.group(2) != null) {
         delta.insert(_decode(m.group(1) ?? m.group(2) ?? ''), {'bold': true});
       } else if (m.group(3) != null || m.group(4) != null) {
-        delta.insert(_decode(m.group(3) ?? m.group(4) ?? ''), {'italic': true});
+        delta.insert(
+            _decode(m.group(3) ?? m.group(4) ?? ''), {'italic': true});
       } else if (m.group(5) != null) {
         delta.insert(_decode(m.group(5)!), {'strike': true});
       } else if (m.group(6) != null) {
         delta.insert(_decode(m.group(7) ?? ''), {'link': m.group(6)});
       } else if (m.group(8) != null) {
-        delta.insert(_decode(m.group(9) ?? ''), {'color': m.group(8)});
+        final rawColor = m.group(8)!.trim();
+        final safeColor = _toHexColor(rawColor);
+        delta.insert(_decode(m.group(9) ?? ''), {'color': safeColor});
       } else if (m.group(10) != null) {
         final text = _decode(m.group(10)!);
         if (text.isNotEmpty) delta.insert(text);
@@ -276,8 +425,7 @@ class _RichEditorWidgetState extends State<RichEditorWidget>
     }
   }
 
-  String _stripTags(String html) =>
-      html.replaceAll(RegExp(r'<[^>]+>'), '');
+  String _stripTags(String html) => html.replaceAll(RegExp(r'<[^>]+>'), '');
 
   String _decode(String s) => s
       .replaceAll('&amp;', '&')
@@ -292,25 +440,17 @@ class _RichEditorWidgetState extends State<RichEditorWidget>
     widget.onChange(_DeltaToHtml.convert(_controller.document));
   }
 
-  @override
-  void dispose() {
-    _controller.removeListener(_onChanged);
-    _controller.dispose();
-    _focusNode.dispose();
-    _borderAnim.dispose();
-    super.dispose();
-  }
-
+  // ── Toolbar config ─────────────────────────────────────────────────────────
   QuillSimpleToolbarConfig get _toolbarConfig => QuillSimpleToolbarConfig(
         multiRowsDisplay: false,
         buttonOptions: QuillSimpleToolbarButtonOptions(
           base: QuillToolbarBaseButtonOptions(
-            iconSize: 18,
-            iconButtonFactor: 1.2,
+            iconSize: 19,
+            iconButtonFactor: 1.15,
             iconTheme: QuillIconTheme(
               iconButtonUnselectedData: IconButtonData(
                 style: IconButton.styleFrom(
-                  foregroundColor: _EditorTheme.inkMuted,
+                  foregroundColor: const Color(0xFF6B7280),
                   backgroundColor: Colors.transparent,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(6),
@@ -319,8 +459,8 @@ class _RichEditorWidgetState extends State<RichEditorWidget>
               ),
               iconButtonSelectedData: IconButtonData(
                 style: IconButton.styleFrom(
-                  foregroundColor: _EditorTheme.inkPrimary,
-                  backgroundColor: const Color(0xFFEEEEEE),
+                  foregroundColor: _ET.inkPrimary,
+                  backgroundColor: const Color(0xFFF3F4F6),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(6),
                   ),
@@ -355,11 +495,12 @@ class _RichEditorWidgetState extends State<RichEditorWidget>
         showFontSize: false,
       );
 
+  // ── Editor styles ──────────────────────────────────────────────────────────
   DefaultStyles _buildEditorStyles() {
     const baseText = TextStyle(
       fontSize: 15,
-      height: 1.65,
-      color: _EditorTheme.inkPrimary,
+      height: 1.7,
+      color: _ET.inkPrimary,
       letterSpacing: 0.1,
     );
     return DefaultStyles(
@@ -377,7 +518,7 @@ class _RichEditorWidgetState extends State<RichEditorWidget>
           fontSize: 24,
           fontWeight: FontWeight.w700,
           height: 1.3,
-          color: _EditorTheme.inkPrimary,
+          color: _ET.inkPrimary,
           letterSpacing: -0.3,
         ),
         HorizontalSpacing.zero,
@@ -390,7 +531,7 @@ class _RichEditorWidgetState extends State<RichEditorWidget>
           fontSize: 19,
           fontWeight: FontWeight.w600,
           height: 1.35,
-          color: _EditorTheme.inkPrimary,
+          color: _ET.inkPrimary,
           letterSpacing: -0.2,
         ),
         HorizontalSpacing.zero,
@@ -403,7 +544,7 @@ class _RichEditorWidgetState extends State<RichEditorWidget>
           fontSize: 16,
           fontWeight: FontWeight.w600,
           height: 1.4,
-          color: _EditorTheme.inkPrimary,
+          color: _ET.inkPrimary,
         ),
         HorizontalSpacing.zero,
         VerticalSpacing(8, 4),
@@ -428,10 +569,7 @@ class _RichEditorWidgetState extends State<RichEditorWidget>
       ),
       placeHolder: DefaultTextBlockStyle(
         const TextStyle(
-          fontSize: 15,
-          height: 1.65,
-          color: Color(0xFFBBBBBB),
-        ),
+            fontSize: 15, height: 1.7, color: Color(0xFFBBBBBB)),
         HorizontalSpacing.zero,
         VerticalSpacing.zero,
         VerticalSpacing.zero,
@@ -440,6 +578,7 @@ class _RichEditorWidgetState extends State<RichEditorWidget>
     );
   }
 
+  // ── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -449,180 +588,90 @@ class _RichEditorWidgetState extends State<RichEditorWidget>
           Text(
             widget.label!,
             style: const TextStyle(
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: _EditorTheme.inkPrimary,
+              color: Color(0xFF374151),
               letterSpacing: 0.5,
             ),
           ),
           const SizedBox(height: 6),
         ],
-        AnimatedBuilder(
-          animation: _borderProgress,
-          builder: (context, child) {
-            final borderColor = Color.lerp(
-              _EditorTheme.border,
-              _EditorTheme.borderFocused,
-              _borderProgress.value,
-            )!;
-            return Container(
-              decoration: BoxDecoration(
-                color: _EditorTheme.surface,
-                borderRadius: BorderRadius.circular(_EditorTheme.radius),
-                border: Border.all(color: borderColor, width: 1.5),
-                boxShadow: _focused
-                    ? [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.06),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ]
-                    : [],
-              ),
-              child: child,
-            );
-          },
+        Container(
+          decoration: BoxDecoration(
+            color: _ET.surface,
+            borderRadius: BorderRadius.circular(_ET.radius),
+            border: Border.all(color: _ET.border, width: 1.5),
+          ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(_EditorTheme.radius - 1),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildToolbar(),
-                Container(height: 1, color: _EditorTheme.divider),
-                _buildEditor(),
-                _buildFooter(),
-              ],
+            borderRadius: BorderRadius.circular(_ET.radius - 1.5),
+            child: Builder(
+              builder: (context) => _buildEditorArea(
+                MediaQuery.of(context).viewInsets.bottom,
+              ),
             ),
           ),
+        ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 180),
+          child: _focused
+              ? Padding(
+                  padding: const EdgeInsets.only(top: 4, right: 2),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: ListenableBuilder(
+                      listenable: _controller,
+                      builder: (_, __) {
+                        final count = _controller.document
+                            .toPlainText()
+                            .trim()
+                            .length;
+                        return Text(
+                          '$count chars',
+                          style: const TextStyle(
+                            fontSize: 10.5,
+                            color: Color(0xFFBBBBBB),
+                            fontFeatures: [FontFeature.tabularFigures()],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                )
+              : const SizedBox.shrink(),
         ),
       ],
     );
   }
 
-  Widget _buildToolbar() => Container(
-        height: 44,
-        color: _EditorTheme.toolbarBg,
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: Row(
-          children: [
-            Expanded(
-              child: QuillSimpleToolbar(
+  Widget _buildEditorArea(double keyboardHeight) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 180),
+      color: _ET.surface,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(width: 3),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 16, 14, 16),
+              child: QuillEditor.basic(
                 controller: _controller,
-                config: _toolbarConfig,
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(right: 10),
-              child: ListenableBuilder(
-                listenable: _controller,
-                builder: (_, __) => Text(
-                  '${_controller.document.toPlainText().trim().length}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: _EditorTheme.inkMuted,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
+                focusNode: _focusNode,
+                config: QuillEditorConfig(
+                  placeholder: widget.placeholder,
+                  padding: EdgeInsets.zero,
+                  autoFocus: false,
+                  expands: false,
+                  scrollable: true,
+                  scrollBottomInset:
+                      keyboardHeight > 0 ? keyboardHeight + 46 : 0,
+                  customStyles: _buildEditorStyles(),
                 ),
               ),
             ),
-          ],
-        ),
-      );
-
-  Widget _buildEditor() {
-    return Builder(
-      builder: (context) {
-        final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
-        return Container(
-          constraints: const BoxConstraints(minHeight: 180),
-          color: _EditorTheme.surface,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOut,
-                width: 3,
-                height: 180,
-                color: _focused
-                    ? _EditorTheme.inkPrimary
-                    : Colors.transparent,
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
-                  child: QuillEditor.basic(
-                    controller: _controller,
-                    focusNode: _focusNode,
-                    config: QuillEditorConfig(
-                      placeholder: widget.placeholder,
-                      padding: EdgeInsets.zero,
-                      autoFocus: false,
-                      expands: false,
-                      scrollable: true,
-                      minHeight: 180,
-                      scrollBottomInset: keyboardHeight,
-                      customStyles: _buildEditorStyles(),
-                    ),
-                  ),
-                ),
-              ),
-            ],
           ),
-        );
-      },
+        ],
+      ),
     );
   }
-
-  Widget _buildFooter() => Container(
-        height: 30,
-        color: _EditorTheme.toolbarBg,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        child: Row(
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 6,
-              height: 6,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _focused
-                    ? const Color(0xFF22C55E)
-                    : _EditorTheme.border,
-              ),
-            ),
-            const SizedBox(width: 6),
-            AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 200),
-              style: TextStyle(
-                fontSize: 10.5,
-                color: _focused
-                    ? const Color(0xFF16A34A)
-                    : _EditorTheme.inkMuted,
-                letterSpacing: 0.3,
-                fontWeight: FontWeight.w500,
-              ),
-              child: Text(_focused ? 'Editing' : 'Click to edit'),
-            ),
-            const Spacer(),
-            ListenableBuilder(
-              listenable: _controller,
-              builder: (_, __) {
-                final count =
-                    _controller.document.toPlainText().trim().length;
-                return Text(
-                  '$count char${count == 1 ? '' : 's'}',
-                  style: const TextStyle(
-                    fontSize: 10.5,
-                    color: _EditorTheme.inkMuted,
-                    letterSpacing: 0.3,
-                    fontFeatures: [FontFeature.tabularFigures()],
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      );
 }
