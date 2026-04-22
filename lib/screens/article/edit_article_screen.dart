@@ -44,6 +44,7 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
   final Map<String, TextEditingController> _titleCtrls = {};
   final Map<String, String> _contentMap = {};
   final TextEditingController _sourceUrlCtrl = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
 
   List<Map<String, dynamic>> _existingImages = [];
   final List<File> _newImages = [];
@@ -51,6 +52,7 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
   bool get _isSong => _article?.category == 'songs';
 
   @override
+
   void initState() {
     super.initState();
     for (final lang in ['mara', 'english', 'myanmar', 'mizo']) {
@@ -62,6 +64,7 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     for (final c in _titleCtrls.values) c.dispose();
     _sourceUrlCtrl.dispose();
     super.dispose();
@@ -202,9 +205,10 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
         onTap: () => FocusScope.of(context).unfocus(),
         behavior: HitTestBehavior.opaque,
         child: SingleChildScrollView(
+          controller: _scrollController,
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           padding: EdgeInsets.only(
-              bottom: keyboardHeight > 0 ? keyboardHeight + 100 : 40),
+             bottom: keyboardHeight > 0 ? 70 : 40),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -610,6 +614,7 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
                 _ => Padding(
                     padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
                     child: RichEditorWidget(
+                      pageScrollController: _scrollController,
                       key: ValueKey(
                           'rich_${edType.name}_$_currentLang'),
                       content: _contentMap[_currentLang] ?? '',

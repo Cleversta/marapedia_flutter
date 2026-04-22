@@ -40,6 +40,7 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
   final TextEditingController _sourceUrlCtrl = TextEditingController();
   final List<File> _images = [];
   final List<String> _captions = [];
+  final ScrollController _scrollController = ScrollController();
 
   bool get _isSong => _category == 'songs';
 
@@ -54,6 +55,7 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     for (final c in _titleCtrls.values) c.dispose();
     _sourceUrlCtrl.dispose();
     super.dispose();
@@ -206,9 +208,10 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
           if (!canPublish) _draftBanner(),
           Expanded(
             child: SingleChildScrollView(
+              controller: _scrollController, 
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: EdgeInsets.only(
-                bottom: bottomInset > 0 ? bottomInset + 100 : 40,
+                bottom: bottomInset > 0 ? 70 : 40,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -600,6 +603,7 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
                   : Padding(
                       padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
                       child: RichEditorWidget(
+                        pageScrollController: _scrollController, 
                         key: ValueKey('rich_${_category}_$_currentLang'),
                         content: _contentMap[_currentLang]!,
                         onChange: (html) =>
