@@ -145,7 +145,7 @@ class ArticleRepository {
 
   Future<void> incrementViewCount(String id) async {
     await http.post(
-      Uri.parse('https://marapedia.vercel.app/api/view'),
+      Uri.parse('https://marapedia.org/api/view'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'id': id}),
     );
