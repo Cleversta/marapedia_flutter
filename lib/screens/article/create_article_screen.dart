@@ -208,8 +208,9 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
           if (!canPublish) _draftBanner(),
           Expanded(
             child: SingleChildScrollView(
-              controller: _scrollController, 
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              controller: _scrollController,
+              // ── FIX: manual so the keyboard never dismisses on scroll ──
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
               padding: EdgeInsets.only(
                 bottom: bottomInset > 0 ? 70 : 40,
               ),
@@ -470,7 +471,6 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
                           ? const Color(0xFF9CA3AF)
                           : AppTheme.greenPrimary,
                     ),
-                    // Badge showing count
                     if (_images.isNotEmpty)
                       Positioned(
                         top: 6,
@@ -603,7 +603,7 @@ class _CreateArticleScreenState extends State<CreateArticleScreen> {
                   : Padding(
                       padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
                       child: RichEditorWidget(
-                        pageScrollController: _scrollController, 
+                        pageScrollController: _scrollController,
                         key: ValueKey('rich_${_category}_$_currentLang'),
                         content: _contentMap[_currentLang]!,
                         onChange: (html) =>

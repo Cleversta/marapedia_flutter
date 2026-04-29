@@ -119,84 +119,22 @@ class RichEditorWidget extends StatefulWidget {
   State<RichEditorWidget> createState() => _RichEditorWidgetState();
 }
 
-class _RichEditorWidgetState extends State<RichEditorWidget>
-    with WidgetsBindingObserver {
+class _RichEditorWidgetState extends State<RichEditorWidget> {
   late QuillController _controller;
   final FocusNode _focusNode = FocusNode();
   bool _suppressCallback = false;
   bool _focused = false;
   OverlayEntry? _toolbarEntry;
 
-  // Track last cursor line so we only scroll on actual line changes
-  int _lastCursorLine = -1;
-
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _controller = QuillController(
       document: _fromHtml(widget.content),
       selection: const TextSelection.collapsed(offset: 0),
     );
     _controller.addListener(_onChanged);
-    // ← NEW: listen to selection changes for cursor-based auto-scroll
-    _controller.addListener(_onSelectionChanged);
     _focusNode.addListener(_handleFocus);
-  }
-
-  // Fires when keyboard actually appears/disappears
-  @override
-  void didChangeMetrics() {
-    super.didChangeMetrics();
-    _toolbarEntry?.markNeedsBuild();
-    if (_focusNode.hasFocus) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        _scrollEditorIntoView();
-      });
-    }
-  }
-
-  // ── NEW: scroll when cursor moves to a new line (Enter key or arrow down) ──
-  void _onSelectionChanged() {
-    if (!_focusNode.hasFocus) return;
-    final doc = _controller.document;
-    final offset = _controller.selection.extentOffset;
-    if (offset < 0) return;
-
-    // Calculate which line the cursor is on by counting '\n' chars before it
-    final plainText = doc.toPlainText();
-    final safeOffset = offset.clamp(0, plainText.length);
-    final textBefore = plainText.substring(0, safeOffset);
-    final currentLine = '\n'.allMatches(textBefore).length;
-
-    if (currentLine != _lastCursorLine) {
-      _lastCursorLine = currentLine;
-      // Defer so the editor has finished laying out the new line
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        _scrollEditorIntoView();
-      });
-    }
-  }
-
-  void _scrollEditorIntoView() {
-    final sc = widget.pageScrollController;
-    if (sc != null && sc.hasClients) {
-      sc.animateTo(
-        sc.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOut,
-      );
-      return;
-    }
-    // Fallback: ask the nearest Scrollable ancestor
-    Scrollable.ensureVisible(
-      context,
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOut,
-      alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
-    );
   }
 
   @override
@@ -211,10 +149,8 @@ class _RichEditorWidgetState extends State<RichEditorWidget>
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     _removeToolbar();
     _controller.removeListener(_onChanged);
-    _controller.removeListener(_onSelectionChanged);
     _controller.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -224,7 +160,7 @@ class _RichEditorWidgetState extends State<RichEditorWidget>
     final hasFocus = _focusNode.hasFocus;
     setState(() => _focused = hasFocus);
     if (hasFocus) {
-      _lastCursorLine = -1; // reset on focus
+      // Rebuild toolbar so it tracks keyboard height correctly
       WidgetsBinding.instance.addPostFrameCallback((_) => _insertToolbar());
     } else {
       _removeToolbar();
@@ -241,6 +177,37 @@ class _RichEditorWidgetState extends State<RichEditorWidget>
   void _removeToolbar() {
     _toolbarEntry?.remove();
     _toolbarEntry = null;
+  }
+
+  // Only scroll when the user is actively typing near the bottom of the doc.
+  // Tapping anywhere (top, middle, bottom) will NOT trigger a forced scroll.
+  void _onChanged() {
+    if (_suppressCallback) return;
+    widget.onChange(_DeltaToHtml.convert(_controller.document));
+
+    if (_focusNode.hasFocus) {
+      final doc = _controller.document;
+      final offset = _controller.selection.extentOffset;
+      final length = doc.length;
+      // Only auto-scroll when the cursor is in the bottom 20% of the document,
+      // i.e. the user is appending content, not editing the middle/top.
+      if (length > 0 && offset >= (length * 0.8).floor()) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _scrollCursorIntoView();
+        });
+      }
+    }
+  }
+
+  // Uses ensureVisible with keepVisibleAtEnd — only scrolls DOWN if the cursor
+  // is clipped below the viewport. Never scrolls UP, never jumps to the bottom.
+  void _scrollCursorIntoView() {
+    Scrollable.ensureVisible(
+      context,
+      duration: const Duration(milliseconds: 150),
+      curve: Curves.easeOut,
+      alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+    );
   }
 
   Widget _buildToolbarOverlay(BuildContext ctx) {
@@ -404,11 +371,6 @@ class _RichEditorWidgetState extends State<RichEditorWidget>
       .replaceAll('&amp;', '&').replaceAll('&lt;', '<')
       .replaceAll('&gt;', '>').replaceAll('&nbsp;', ' ')
       .replaceAll('&#39;', "'").replaceAll('&quot;', '"');
-
-  void _onChanged() {
-    if (_suppressCallback) return;
-    widget.onChange(_DeltaToHtml.convert(_controller.document));
-  }
 
   QuillSimpleToolbarConfig get _toolbarConfig => QuillSimpleToolbarConfig(
         multiRowsDisplay: false,

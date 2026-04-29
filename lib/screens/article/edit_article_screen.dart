@@ -52,7 +52,6 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
   bool get _isSong => _article?.category == 'songs';
 
   @override
-
   void initState() {
     super.initState();
     for (final lang in ['mara', 'english', 'myanmar', 'mizo']) {
@@ -206,9 +205,10 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
         behavior: HitTestBehavior.opaque,
         child: SingleChildScrollView(
           controller: _scrollController,
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          // ── FIX: manual so the keyboard never dismisses on scroll ──
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
           padding: EdgeInsets.only(
-             bottom: keyboardHeight > 0 ? 70 : 40),
+              bottom: keyboardHeight > 0 ? 70 : 40),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
