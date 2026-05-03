@@ -7,7 +7,36 @@ import '../blocs/auth/auth_bloc.dart';
 import '../blocs/auth/auth_event.dart';
 import '../blocs/auth/auth_state.dart';
 import '../utils/app_theme.dart';
+import '../utils/constants.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
+
+// ─── Colour palette (mirrors web CAT_PALETTE) ─────────────────────────────────
+
+class _CatColor {
+  final Color light;
+  final Color mid;
+  final Color dark;
+  final Color bar;
+  const _CatColor({
+    required this.light,
+    required this.mid,
+    required this.dark,
+    required this.bar,
+  });
+}
+
+const _catPalette = [
+  _CatColor(light: Color(0xFFEAF3DE), mid: Color(0xFF639922), dark: Color(0xFF27500A), bar: Color(0xFF97C459)), // green
+  _CatColor(light: Color(0xFFE6F1FB), mid: Color(0xFF378ADD), dark: Color(0xFF0C447C), bar: Color(0xFF85B7EB)), // blue
+  _CatColor(light: Color(0xFFEEEDFE), mid: Color(0xFF7F77DD), dark: Color(0xFF3C3489), bar: Color(0xFFAFA9EC)), // purple
+  _CatColor(light: Color(0xFFFAEEDA), mid: Color(0xFFBA7517), dark: Color(0xFF412402), bar: Color(0xFFEF9F27)), // amber
+  _CatColor(light: Color(0xFFFAECE7), mid: Color(0xFFD85A30), dark: Color(0xFF4A1B0C), bar: Color(0xFFF0997B)), // coral
+  _CatColor(light: Color(0xFFE1F5EE), mid: Color(0xFF1D9E75), dark: Color(0xFF04342C), bar: Color(0xFF5DCAA5)), // teal
+  _CatColor(light: Color(0xFFFBEAF0), mid: Color(0xFFD4537E), dark: Color(0xFF4B1528), bar: Color(0xFFED93B1)), // pink
+  _CatColor(light: Color(0xFFF1EFE8), mid: Color(0xFF5F5E5A), dark: Color(0xFF2C2C2A), bar: Color(0xFF888780)), // gray
+];
+
+_CatColor _colorForIndex(int i) => _catPalette[i % _catPalette.length];
 
 // ─── Notification model ───────────────────────────────────────────────────────
 
@@ -78,12 +107,17 @@ class _MarapediaAppBarState extends State<MarapediaAppBar> {
   Timer? _timer;
   String? _currentUserId;
 
+  // category counts passed in from outside via key or simple polling
+  Map<String, int> _categoryCounts = {};
+
   int get _unread => _notifs.where((n) => !n.read).length;
+  int get _totalCount => _categoryCounts.values.fold(0, (a, b) => a + b);
 
   @override
   void initState() {
     super.initState();
     _initNotifications();
+    _loadCategoryCounts();
   }
 
   void _initNotifications() {
@@ -93,6 +127,21 @@ class _MarapediaAppBarState extends State<MarapediaAppBar> {
     _loadNotifications();
     _timer = Timer.periodic(
         const Duration(seconds: 60), (_) => _loadNotifications());
+  }
+
+  Future<void> _loadCategoryCounts() async {
+    try {
+      final data = await Supabase.instance.client
+          .from('articles')
+          .select('category')
+          .eq('status', 'published');
+      final counts = <String, int>{};
+      for (final row in (data as List)) {
+        final cat = row['category'] as String?;
+        if (cat != null) counts[cat] = (counts[cat] ?? 0) + 1;
+      }
+      if (mounted) setState(() => _categoryCounts = counts);
+    } catch (_) {}
   }
 
   Future<void> _loadNotifications() async {
@@ -115,8 +164,7 @@ class _MarapediaAppBarState extends State<MarapediaAppBar> {
   }
 
   Future<void> _markAllRead() async {
-    final unreadIds =
-        _notifs.where((n) => !n.read).map((n) => n.id).toList();
+    final unreadIds = _notifs.where((n) => !n.read).map((n) => n.id).toList();
     if (unreadIds.isEmpty) return;
     try {
       await Supabase.instance.client
@@ -160,6 +208,38 @@ class _MarapediaAppBarState extends State<MarapediaAppBar> {
         _ctrl.clear();
       });
     }
+  }
+
+  void _openCategoriesDrawer() {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'categories-drawer',
+      barrierColor: Colors.black.withOpacity(0.5),
+      transitionDuration: const Duration(milliseconds: 280),
+      pageBuilder: (_, __, ___) => const SizedBox.shrink(),
+      transitionBuilder: (ctx, anim, _, __) {
+        final slide = Tween<Offset>(
+          begin: const Offset(-1, 0),
+          end: Offset.zero,
+        ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic));
+
+        return Align(
+          alignment: Alignment.centerLeft,
+          child: SlideTransition(
+            position: slide,
+            child: _CategoriesDrawer(
+              categoryCounts: _categoryCounts,
+              totalCount: _totalCount,
+              onNavigate: (route) {
+                Navigator.pop(ctx);
+                context.push(route);
+              },
+            ),
+          ),
+        );
+      },
+    );
   }
 
   void _openNotifications() {
@@ -206,18 +286,14 @@ class _MarapediaAppBarState extends State<MarapediaAppBar> {
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Marapedia',
-              style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF111827)),
-            ),
+            const Text('Marapedia',
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF111827))),
             const SizedBox(height: 4),
-            const Text(
-              'The Free Mara Encyclopedia',
-              style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
-            ),
+            const Text('The Free Mara Encyclopedia',
+                style: TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
             const SizedBox(height: 16),
             for (final item in [
               (Icons.info_outline_rounded, 'About Marapedia', '/about'),
@@ -238,12 +314,9 @@ class _MarapediaAppBarState extends State<MarapediaAppBar> {
                       Icon(item.$1, color: AppTheme.greenPrimary, size: 20),
                       const SizedBox(width: 14),
                       Expanded(
-                        child: Text(
-                          item.$2,
-                          style: const TextStyle(
-                              fontSize: 14, color: Color(0xFF374151)),
-                        ),
-                      ),
+                          child: Text(item.$2,
+                              style: const TextStyle(
+                                  fontSize: 14, color: Color(0xFF374151)))),
                       Icon(Icons.chevron_right_rounded,
                           size: 16, color: Colors.grey[400]),
                     ],
@@ -411,7 +484,7 @@ class _MarapediaAppBarState extends State<MarapediaAppBar> {
       elevation: 0,
       scrolledUnderElevation: 1,
       shadowColor: Colors.black12,
-      leadingWidth: _searching ? 56 : 160,
+      leadingWidth: _searching ? 56 : 200,
       leading: _searching
           ? IconButton(
               icon: const Icon(Icons.arrow_back),
@@ -420,34 +493,61 @@ class _MarapediaAppBarState extends State<MarapediaAppBar> {
                 _ctrl.clear();
               }),
             )
-          : GestureDetector(
-              onTap: () => context.go('/'),
-              child: Padding(
-                padding: const EdgeInsets.only(left: 12),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Image.asset('assets/logo.png',
-                        width: 32, height: 32, fit: BoxFit.contain),
-                    const SizedBox(width: 6),
-                    RichText(
-                      text: const TextSpan(
-                        style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF111827)),
-                        children: [
-                          TextSpan(text: 'Mara'),
-                          TextSpan(
-                              text: 'pedia',
-                              style:
-                                  TextStyle(color: AppTheme.greenPrimary)),
-                        ],
-                      ),
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // ── Hamburger ──
+                GestureDetector(
+                  onTap: _openCategoriesDrawer,
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    margin: const EdgeInsets.only(left: 8),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                  ],
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _bar(18),
+                        const SizedBox(height: 5),
+                        _bar(13),
+                        const SizedBox(height: 5),
+                        _bar(18),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 4),
+                // ── Logo ──
+                GestureDetector(
+                  onTap: () => context.go('/'),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Image.asset('assets/logo.png',
+                          width: 32, height: 32, fit: BoxFit.contain),
+                      const SizedBox(width: 6),
+                      RichText(
+                        text: const TextSpan(
+                          style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF111827)),
+                          children: [
+                            TextSpan(text: 'Mara'),
+                            TextSpan(
+                                text: 'pedia',
+                                style:
+                                    TextStyle(color: AppTheme.greenPrimary)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
       title: _searching
           ? TextField(
@@ -468,6 +568,15 @@ class _MarapediaAppBarState extends State<MarapediaAppBar> {
       actions: _buildActions(),
     );
   }
+
+  Widget _bar(double width) => Container(
+        width: width,
+        height: 1.5,
+        decoration: BoxDecoration(
+          color: const Color(0xFF4B5563),
+          borderRadius: BorderRadius.circular(2),
+        ),
+      );
 
   Widget _buildAvatar(AuthAuthenticated state) {
     final url = state.profile.avatarUrl;
@@ -493,6 +602,436 @@ class _MarapediaAppBarState extends State<MarapediaAppBar> {
                     fontSize: 13),
               )
             : null,
+      ),
+    );
+  }
+}
+
+// ─── Categories Drawer ────────────────────────────────────────────────────────
+
+class _CategoriesDrawer extends StatefulWidget {
+  final Map<String, int> categoryCounts;
+  final int totalCount;
+  final void Function(String route) onNavigate;
+
+  const _CategoriesDrawer({
+    required this.categoryCounts,
+    required this.totalCount,
+    required this.onNavigate,
+  });
+
+  @override
+  State<_CategoriesDrawer> createState() => _CategoriesDrawerState();
+}
+
+class _CategoriesDrawerState extends State<_CategoriesDrawer> {
+  String _formatCount(int n) {
+    if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}k';
+    return '$n';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final cats = AppConstants.categories;
+    final maxCount = cats.fold<int>(1, (prev, cat) {
+      final c = widget.categoryCounts[cat['value']] ?? 0;
+      return c > prev ? c : prev;
+    });
+
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        width: screenWidth * 0.80,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          color: Color(0xFFF7F6F2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 24,
+              offset: Offset(4, 0),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // ── Header ──────────────────────────────────────────────────
+              Container(
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF0F3D20), Color(0xFF166534), Color(0xFF16803D)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: Stack(
+                  children: [
+                    // Decorative circles
+                    Positioned(
+                      right: -40,
+                      top: -40,
+                      child: Container(
+                        width: 160,
+                        height: 160,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                              color: Colors.white.withOpacity(0.07), width: 1),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      right: -60,
+                      top: -60,
+                      child: Container(
+                        width: 220,
+                        height: 220,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                              color: Colors.white.withOpacity(0.04), width: 1),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: -20,
+                      bottom: -20,
+                      child: Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withOpacity(0.03),
+                        ),
+                      ),
+                    ),
+                    // Content
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Close + brand row
+                          Row(
+                            children: [
+                              Image.asset('assets/logo.png',
+                                  width: 24, height: 24, fit: BoxFit.contain),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'MARAPEDIA',
+                                style: TextStyle(
+                                  color: Colors.white54,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 2.2,
+                                ),
+                              ),
+                              const Spacer(),
+                              GestureDetector(
+                                onTap: () => Navigator.pop(context),
+                                child: Container(
+                                  width: 30,
+                                  height: 30,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.10),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.close,
+                                      color: Colors.white, size: 16),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                          const Text(
+                            'Browse',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 26,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.5,
+                              height: 1,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          // Stat pills
+                          Row(
+                            children: [
+                              _StatPill('${widget.totalCount.toLocaleString()} articles'),
+                              const SizedBox(width: 8),
+                              _StatPill('${cats.length} categories'),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // ── Category rows ────────────────────────────────────────────
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                  itemCount: cats.length,
+                  itemBuilder: (context, i) {
+                    final cat = cats[i];
+                    final value = cat['value']!;
+                    final label = cat['label']!;
+                    final icon = cat['icon']!;
+                    final color = _colorForIndex(i);
+                    final count = widget.categoryCounts[value] ?? 0;
+                    final barPct = maxCount > 0
+                        ? (count / maxCount).clamp(0.05, 1.0)
+                        : 0.05;
+
+                    return _CategoryRow(
+                      icon: icon,
+                      label: label,
+                      count: count,
+                      barPct: barPct,
+                      color: color,
+                      formatCount: _formatCount,
+                      onTap: () {
+                        if (value == 'photos') {
+                          widget.onNavigate('/photos');
+                        } else {
+                          widget.onNavigate('/category/$value');
+                        }
+                      },
+                    );
+                  },
+                ),
+              ),
+
+              // ── Footer CTA ───────────────────────────────────────────────
+              Container(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  border: Border(top: BorderSide(color: Color(0xFFE5E7EB))),
+                ),
+                child: GestureDetector(
+                  onTap: () => widget.onNavigate('/articles/create'),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF15803D),
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF14532D).withOpacity(0.20),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.add, color: Colors.white, size: 16),
+                        SizedBox(width: 8),
+                        Text(
+                          'Contribute Article',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Stat pill ────────────────────────────────────────────────────────────────
+
+class _StatPill extends StatelessWidget {
+  final String label;
+  const _StatPill(this.label);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white70,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Category row ─────────────────────────────────────────────────────────────
+
+class _CategoryRow extends StatefulWidget {
+  final String icon;
+  final String label;
+  final int count;
+  final double barPct;
+  final _CatColor color;
+  final String Function(int) formatCount;
+  final VoidCallback onTap;
+
+  const _CategoryRow({
+    required this.icon,
+    required this.label,
+    required this.count,
+    required this.barPct,
+    required this.color,
+    required this.formatCount,
+    required this.onTap,
+  });
+
+  @override
+  State<_CategoryRow> createState() => _CategoryRowState();
+}
+
+class _CategoryRowState extends State<_CategoryRow>
+    with SingleTickerProviderStateMixin {
+  bool _pressed = false;
+  late AnimationController _barCtrl;
+  late Animation<double> _barAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _barCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 600));
+    _barAnim = Tween<double>(begin: 0, end: widget.barPct).animate(
+        CurvedAnimation(parent: _barCtrl, curve: Curves.easeOutCubic));
+    // Stagger the bar animation slightly
+    Future.delayed(const Duration(milliseconds: 80), () {
+      if (mounted) _barCtrl.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _barCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        margin: const EdgeInsets.symmetric(vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+        decoration: BoxDecoration(
+          color: _pressed ? widget.color.light : Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            // Icon box
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: widget.color.light,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+              ),
+              child: Center(
+                child: Text(widget.icon,
+                    style: const TextStyle(fontSize: 18)),
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            // Label + bar
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.label,
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF111111),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (widget.count > 0) ...[
+                    const SizedBox(height: 6),
+                    AnimatedBuilder(
+                      animation: _barAnim,
+                      builder: (_, __) => ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: SizedBox(
+                          height: 3,
+                          width: 64,
+                          child: Stack(
+                            children: [
+                              Container(
+                                  color: const Color(0xFFE5E5E2),
+                                  width: double.infinity),
+                              FractionallySizedBox(
+                                widthFactor: _barAnim.value,
+                                child: Container(color: widget.color.bar),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+            // Count
+            if (widget.count > 0)
+              Text(
+                widget.formatCount(widget.count),
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                  color: widget.color.dark,
+                  letterSpacing: -0.3,
+                ),
+              ),
+
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right_rounded,
+                size: 16, color: Colors.grey[400]),
+          ],
+        ),
       ),
     );
   }
@@ -585,10 +1124,9 @@ class _ProfileDrawer extends StatelessWidget {
                             child: CircleAvatar(
                               radius: 34,
                               backgroundColor: Colors.white24,
-                              backgroundImage:
-                                  (url != null && url.isNotEmpty)
-                                      ? CachedNetworkImageProvider(url)
-                                      : null,
+                              backgroundImage: (url != null && url.isNotEmpty)
+                                  ? CachedNetworkImageProvider(url)
+                                  : null,
                               child: (url == null || url.isEmpty)
                                   ? Text(
                                       profile.username[0].toUpperCase(),
@@ -899,7 +1437,8 @@ class _DrawerItemState extends State<_DrawerItem> {
                   const SizedBox(height: 1),
                   Text(
                     widget.subtitle,
-                    style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                    style:
+                        TextStyle(fontSize: 11, color: Colors.grey[500]),
                   ),
                 ],
               ),
@@ -981,8 +1520,8 @@ class _NotificationSheet extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.75),
+      constraints:
+          BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.75),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -1023,8 +1562,8 @@ class _NotificationSheet extends StatelessWidget {
                     size: 40, color: Color(0xFFD1D5DB)),
                 SizedBox(height: 12),
                 Text('No notifications yet',
-                    style: TextStyle(
-                        color: Color(0xFF9CA3AF), fontSize: 14)),
+                    style:
+                        TextStyle(color: Color(0xFF9CA3AF), fontSize: 14)),
               ]),
             )
           else
@@ -1108,5 +1647,19 @@ class _NotificationSheet extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+// ─── int extension for locale formatting ─────────────────────────────────────
+
+extension _IntFormat on int {
+  String toLocaleString() {
+    final s = toString();
+    final buf = StringBuffer();
+    for (int i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+      buf.write(s[i]);
+    }
+    return buf.toString();
   }
 }

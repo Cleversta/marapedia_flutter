@@ -113,66 +113,70 @@ class _SongViewerState extends State<SongViewer> {
     if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
-  Future<void> _saveAsImage() async {
-    if (Platform.isAndroid) {
-      final androidVersion = await _getAndroidVersion();
-      PermissionStatus status;
-      if (androidVersion >= 33) {
-        status = await Permission.photos.request();
-      } else {
-        status = await Permission.storage.request();
-      }
-      if (!status.isGranted) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Storage permission denied')),
-          );
-        }
-        return;
-      }
+Future<void> _saveAsImage() async {
+  if (Platform.isAndroid) {
+    final androidVersion = await _getAndroidVersion();
+    PermissionStatus status;
+
+    if (androidVersion >= 33) {
+      status = await Permission.photos.request();
+    } else if (androidVersion >= 29) {
+      status = PermissionStatus.granted; // Android 10–12: no runtime permission needed
+    } else {
+      status = await Permission.storage.request(); // Android 9 and below
     }
 
-    setState(() => _saving = true);
-    try {
-      final boundary = _captureKey.currentContext?.findRenderObject()
-          as RenderRepaintBoundary?;
-      if (boundary == null) return;
+    if (!status.isGranted) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Storage permission denied')),
+        );
+      }
+      return;
+    }
+  }
 
-      final image = await boundary.toImage(pixelRatio: 3.0);
-      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-      final bytes = byteData!.buffer.asUint8List();
+  setState(() => _saving = true);
+  try {
+    final boundary = _captureKey.currentContext?.findRenderObject()
+        as RenderRepaintBoundary?;
+    if (boundary == null) return;
 
-      final result = await ImageGallerySaverPlus.saveImage(
-        bytes,
-        name: widget.title.replaceAll(' ', '_').toLowerCase(),
-        quality: 100,
+    final image = await boundary.toImage(pixelRatio: 3.0);
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    final bytes = byteData!.buffer.asUint8List();
+
+    final result = await ImageGallerySaverPlus.saveImage(
+      bytes,
+      name: widget.title.replaceAll(' ', '_').toLowerCase(),
+      quality: 100,
+    );
+
+    if (mounted) {
+      final success = result['isSuccess'] == true;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success ? 'Saved to gallery!' : 'Failed to save image'),
+          backgroundColor: success ? Colors.green[700] : Colors.red[400],
+        ),
       );
-
-      if (mounted) {
-        final success = result['isSuccess'] == true;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(success ? 'Saved to gallery!' : 'Failed to save image'),
-            backgroundColor: success ? Colors.green[700] : Colors.red[400],
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _saving = false);
     }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
+  } finally {
+    if (mounted) setState(() => _saving = false);
   }
+}
 
-  Future<int> _getAndroidVersion() async {
-    if (!Platform.isAndroid) return 0;
-    final info = await DeviceInfoPlugin().androidInfo;
-    return info.version.sdkInt;
-  }
+Future<int> _getAndroidVersion() async {
+  if (!Platform.isAndroid) return 0;
+  final info = await DeviceInfoPlugin().androidInfo;
+  return info.version.sdkInt;
+}
 
   Widget _buildFontSizeControl() {
     return Row(
