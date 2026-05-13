@@ -21,6 +21,7 @@ class AuthRegisterRequested extends AuthEvent {
   @override List<Object?> get props => [email, password, username, fullName];
 }
 class AuthLogoutRequested extends AuthEvent {}
+class AuthGoogleLoginRequested extends AuthEvent {}
 class AuthProfileUpdateRequested extends AuthEvent {
   final String userId;
   final String? fullName;

@@ -1,3 +1,5 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/profile_model.dart';
 import '../services/secure_storage_service.dart';
@@ -64,6 +66,25 @@ class AuthRepository {
   Future<ProfileModel?> updateAvatar(String userId, String avatarUrl) async {
     await _db.from('profiles').update({'avatar_url': avatarUrl}).eq('id', userId);
     return fetchProfile(userId);
+  }
+
+  Future<ProfileModel?> signInWithGoogle() async {
+    final webClientId = dotenv.env['GOOGLE_WEB_CLIENT_ID']!;
+    final googleSignIn = GoogleSignIn(serverClientId: webClientId);
+    final googleUser = await googleSignIn.signIn();
+    if (googleUser == null) throw Exception('cancelled');
+
+    final googleAuth = await googleUser.authentication;
+    final idToken = googleAuth.idToken;
+    if (idToken == null) throw Exception('Failed to get Google ID token');
+
+    final res = await _auth.signInWithIdToken(
+      provider: OAuthProvider.google,
+      idToken: idToken,
+      accessToken: googleAuth.accessToken,
+    );
+    if (res.user == null) throw Exception('Google sign-in failed');
+    return fetchProfile(res.user!.id);
   }
 
   Future<void> tryAutoLogin() async {

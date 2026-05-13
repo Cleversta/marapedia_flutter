@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'dart:ui' as ui;
 import 'package:google_fonts/google_fonts.dart';
-import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
+import 'package:gal/gal.dart';
 import 'package:marapedia_flutter/utils/app_theme.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -112,28 +112,22 @@ class _SongViewerState extends State<SongViewer> {
     final uri = Uri.tryParse(url);
     if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
-
 Future<void> _saveAsImage() async {
+  // Only need permission on Android 9 and below
   if (Platform.isAndroid) {
     final androidVersion = await _getAndroidVersion();
-    PermissionStatus status;
-
-    if (androidVersion >= 33) {
-      status = await Permission.photos.request();
-    } else if (androidVersion >= 29) {
-      status = PermissionStatus.granted; // Android 10–12: no runtime permission needed
-    } else {
-      status = await Permission.storage.request(); // Android 9 and below
-    }
-
-    if (!status.isGranted) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Storage permission denied')),
-        );
+    if (androidVersion <= 28) {
+      final status = await Permission.storage.request();
+      if (!status.isGranted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Storage permission denied')),
+          );
+        }
+        return;
       }
-      return;
     }
+    // Android 10+: gal uses MediaStore directly, no permission needed
   }
 
   setState(() => _saving = true);
@@ -146,18 +140,15 @@ Future<void> _saveAsImage() async {
     final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
     final bytes = byteData!.buffer.asUint8List();
 
-    final result = await ImageGallerySaverPlus.saveImage(
-      bytes,
-      name: widget.title.replaceAll(' ', '_').toLowerCase(),
-      quality: 100,
-    );
+    // gal saves directly via MediaStore — no READ_MEDIA_IMAGES needed
+    await Gal.putImageBytes(bytes,
+        name: widget.title.replaceAll(' ', '_').toLowerCase());
 
     if (mounted) {
-      final success = result['isSuccess'] == true;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(success ? 'Saved to gallery!' : 'Failed to save image'),
-          backgroundColor: success ? Colors.green[700] : Colors.red[400],
+          content: const Text('Saved to gallery!'),
+          backgroundColor: Colors.green[700],
         ),
       );
     }

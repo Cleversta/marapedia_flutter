@@ -5,6 +5,7 @@ import '../../blocs/auth/auth_bloc.dart';
 import '../../blocs/auth/auth_event.dart';
 import '../../blocs/auth/auth_state.dart';
 import '../../utils/app_theme.dart';
+import '../../widgets/google_sign_in_button.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -33,6 +34,7 @@ class _LoginScreenState extends State<LoginScreen> {
       body: BlocConsumer<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is AuthAuthenticated) context.go('/');
+          if (state is AuthNeedsUsername) context.go('/complete-profile');
           if (state is AuthError) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(state.message), backgroundColor: Colors.red[700]),
@@ -71,6 +73,22 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 6),
                       Text('Sign in to your account', style: TextStyle(color: Colors.grey[500], fontSize: 14)),
                       const SizedBox(height: 32),
+
+                      // Google sign-in
+                      GoogleSignInButton(
+                        onPressed: loading ? null : () =>
+                          context.read<AuthBloc>().add(AuthGoogleLoginRequested()),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(children: [
+                        const Expanded(child: Divider()),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Text('or sign in with email', style: TextStyle(fontSize: 12, color: Colors.grey[400])),
+                        ),
+                        const Expanded(child: Divider()),
+                      ]),
+                      const SizedBox(height: 12),
 
                       // Card
                       Container(

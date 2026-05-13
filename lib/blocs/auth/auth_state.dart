@@ -19,6 +19,13 @@ class AuthAuthenticated extends AuthState {
 
 class AuthUnauthenticated extends AuthState {}
 
+class AuthNeedsUsername extends AuthState {
+  final String userId;
+  final String? fullName;
+  const AuthNeedsUsername({required this.userId, this.fullName});
+  @override List<Object?> get props => [userId, fullName];
+}
+
 class AuthEmailConfirmationRequired extends AuthState {
   final String message;
   const AuthEmailConfirmationRequired(this.message);

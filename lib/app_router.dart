@@ -8,6 +8,7 @@ import 'package:marapedia_flutter/screens/splash_screen.dart';
 import 'blocs/article/article_bloc.dart';
 import 'blocs/article/article_event.dart';
 import 'repositories/article_repository.dart';
+import 'screens/auth/complete_profile_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
 import 'screens/home/home_screen.dart';
@@ -44,8 +45,9 @@ final appRouter = GoRouter(
       ),
     ),
 
-    GoRoute(path: '/login',    builder: (_, __) => const LoginScreen()),
-    GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
+    GoRoute(path: '/login',            builder: (_, __) => const LoginScreen()),
+    GoRoute(path: '/register',         builder: (_, __) => const RegisterScreen()),
+    GoRoute(path: '/complete-profile', builder: (_, __) => const CompleteProfileScreen()),
 
     GoRoute(
       path: '/category/:name',

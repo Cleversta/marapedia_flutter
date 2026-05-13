@@ -1141,7 +1141,7 @@ class _ProfileDrawer extends StatelessWidget {
                           ),
                           const SizedBox(height: 14),
                           Text(
-                            profile.username,
+                            profile.fullName?.isNotEmpty == true ? profile.fullName! : profile.username,
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 18,

@@ -12,6 +12,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthLoginRequested>(_onLogin);
     on<AuthRegisterRequested>(_onRegister);
     on<AuthLogoutRequested>(_onLogout);
+    on<AuthGoogleLoginRequested>(_onGoogleLogin);
     on<AuthProfileUpdateRequested>(_onProfileUpdate);
     on<AuthAvatarUpdateRequested>(_onAvatarUpdate);
   }
@@ -109,6 +110,33 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       }
     } catch (e) {
       emit(AuthError(e.toString().replaceAll('Exception: ', '')));
+    }
+  }
+
+  Future<void> _onGoogleLogin(
+    AuthGoogleLoginRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(AuthLoading());
+    try {
+      final profile = await _repo.signInWithGoogle();
+      final user = Supabase.instance.client.auth.currentUser!;
+      if (profile != null) {
+        emit(AuthAuthenticated(userId: user.id, email: user.email ?? '', profile: profile));
+      } else {
+        final meta = user.userMetadata;
+        emit(AuthNeedsUsername(
+          userId: user.id,
+          fullName: (meta?['full_name'] ?? meta?['name']) as String?,
+        ));
+      }
+    } catch (e) {
+      final msg = e.toString().replaceAll('Exception: ', '');
+      if (msg == 'cancelled') {
+        emit(AuthUnauthenticated());
+      } else {
+        emit(AuthError(msg));
+      }
     }
   }
 
