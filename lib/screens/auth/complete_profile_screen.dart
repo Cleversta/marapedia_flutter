@@ -61,7 +61,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     if (err != null) {
       setState(() { _loading = false; _error = err; });
     } else {
-      if (mounted) context.go('/');
+      if (mounted) context.go('/home');
     }
   }
 

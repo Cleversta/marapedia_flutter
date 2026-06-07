@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+import '../../blocs/auth/auth_bloc.dart';
+import '../../blocs/auth/auth_state.dart';
 import '../../utils/helpers.dart';
 import '../../utils/app_theme.dart';
 
@@ -49,13 +53,17 @@ class ArticleComment {
 
 // ─── Fingerprint helper ───────────────────────────────────────────────────────
 
+String? _cachedFingerprint;
+
 Future<String> _getFingerprint() async {
+  if (_cachedFingerprint != null) return _cachedFingerprint!;
   final prefs = await SharedPreferences.getInstance();
   var fp = prefs.getString('mp_fp');
   if (fp == null) {
     fp = const Uuid().v4();
     await prefs.setString('mp_fp', fp);
   }
+  _cachedFingerprint = fp;
   return fp;
 }
 
@@ -173,22 +181,11 @@ class _CommentsSectionState extends State<CommentsSection> {
   // ── Init ──────────────────────────────────────────────────────────────────
 
   Future<void> _init() async {
-    final session = _db.auth.currentSession;
-    if (session != null) {
-      _currentUserId = session.user.id;
-      try {
-        final profile = await _db
-            .from('profiles')
-            .select('username, avatar_url')
-            .eq('id', session.user.id)
-            .maybeSingle();
-        if (profile != null) {
-          _username = profile['username'] as String?;
-          _userAvatarUrl = profile['avatar_url'] as String?;
-        }
-      } catch (e) {
-        debugPrint('Profile fetch error: $e');
-      }
+    final authState = context.read<AuthBloc>().state;
+    if (authState is AuthAuthenticated) {
+      _currentUserId = authState.userId;
+      _username = authState.profile.username;
+      _userAvatarUrl = authState.profile.avatarUrl;
     }
     await _load();
   }
@@ -203,54 +200,32 @@ class _CommentsSectionState extends State<CommentsSection> {
       final fp = await _getFingerprint();
       final uid = _currentUserId;
 
-      // ── 1. Like count — v2 API: chain .count() after filters ──────────────
-      final countResponse = await _db
-          .from('article_likes')
-          .select()
-          .eq('article_id', widget.articleId)
-          .count(CountOption.exact);
+      final myLikeFuture = uid != null
+          ? _db.from('article_likes').select('id').eq('article_id', widget.articleId).eq('user_id', uid).maybeSingle()
+          : _db.from('article_likes').select('id').eq('article_id', widget.articleId).eq('fingerprint', fp).isFilter('user_id', null).maybeSingle();
 
-      // ── 2. Did I like this? ────────────────────────────────────────────────
-      dynamic myLike;
-      if (uid != null) {
-        myLike = await _db
-            .from('article_likes')
-            .select('id')
+      final results = await Future.wait<dynamic>([
+        _db.from('article_likes').select().eq('article_id', widget.articleId).count(CountOption.exact),
+        myLikeFuture,
+        _db.from('article_comments')
+            .select('id, display_name, body, created_at, user_id, profiles(avatar_url)')
             .eq('article_id', widget.articleId)
-            .eq('user_id', uid)
-            .maybeSingle();
-      } else {
-        myLike = await _db
-            .from('article_likes')
-            .select('id')
-            .eq('article_id', widget.articleId)
-            .eq('fingerprint', fp)
-            .isFilter('user_id', null)
-            .maybeSingle();
-      }
-
-      // ── 3. Comments ────────────────────────────────────────────────────────
-      final cmts = await _db
-          .from('article_comments')
-          .select(
-              'id, display_name, body, created_at, user_id, profiles(avatar_url)')
-          .eq('article_id', widget.articleId)
-          .order('created_at', ascending: false)
-          .limit(50);
+            .order('created_at', ascending: false)
+            .limit(50),
+      ]);
 
       if (!mounted) return;
 
       setState(() {
-        _likeCount = countResponse.count ?? 0;
-        _liked = myLike != null;
-        _comments = (cmts as List)
+        _likeCount = (results[0].count as int?) ?? 0;
+        _liked = results[1] != null;
+        _comments = (results[2] as List)
             .map((c) => ArticleComment.fromJson(Map<String, dynamic>.from(c)))
             .toList();
         _loading = false;
       });
     } catch (e, st) {
-      debugPrint('CommentsSection _load error: $e');
-      debugPrint('$st');
+      debugPrint('CommentsSection _load error: $e\n$st');
       if (mounted) setState(() => _loading = false);
     }
   }
@@ -618,7 +593,7 @@ class _CommentForm extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -677,7 +652,7 @@ class _CommentForm extends StatelessWidget {
           if (username == null) ...[
             const SizedBox(height: 4),
             GestureDetector(
-              onTap: () => Navigator.pushNamed(context, '/login'),
+              onTap: () => context.push('/login'),
               child: Text(
                 'Sign in to use your name',
                 style: TextStyle(
@@ -691,7 +666,7 @@ class _CommentForm extends StatelessWidget {
           const SizedBox(height: 12),
           ValueListenableBuilder<TextEditingValue>(
             valueListenable: controller,
-            builder: (_, value, __) => TextField(
+            builder: (context, value, child) => TextField(
               controller: controller,
               focusNode: focusNode,
               maxLength: 1000,
@@ -748,13 +723,13 @@ class _CommentForm extends StatelessWidget {
               const SizedBox(width: 8),
               ValueListenableBuilder<TextEditingValue>(
                 valueListenable: controller,
-                builder: (_, value, __) => ElevatedButton(
+                builder: (context, value, child) => ElevatedButton(
                   onPressed:
                       (submitting || value.text.trim().isEmpty) ? null : onPost,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.greenPrimary,
                     disabledBackgroundColor:
-                        AppTheme.greenPrimary.withOpacity(0.4),
+                        AppTheme.greenPrimary.withValues(alpha: 0.4),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
                         horizontal: 16, vertical: 8),

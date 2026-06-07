@@ -776,10 +776,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
                         child: a.thumbnailUrl != null
-                            ? Image.network(a.thumbnailUrl!,
+                            ? CachedNetworkImage(
+                                imageUrl: a.thumbnailUrl!,
                                 width: 52,
                                 height: 52,
-                                fit: BoxFit.cover)
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => Container(
+                                    width: 52,
+                                    height: 52,
+                                    color: Colors.grey[200]),
+                                errorWidget: (context, url, error) => Container(
+                                    width: 52,
+                                    height: 52,
+                                    color: Colors.grey[200],
+                                    child: const Icon(Icons.broken_image,
+                                        color: Colors.grey)),
+                              )
                             : Container(
                                 width: 52,
                                 height: 52,

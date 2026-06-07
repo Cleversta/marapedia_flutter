@@ -19,6 +19,7 @@ class ArticleBloc extends Bloc<ArticleEvent, ArticleState> {
     on<ArticleFeatureToggleRequested>(_onFeatureToggle);
     on<ArticleFavoritesLoadRequested>(_onFavoritesLoad);
     on<ArticleFavoriteToggleRequested>(_onFavoriteToggle);
+    on<ArticleFavoriteStatusChecked>(_onFavoriteStatusChecked);
   }
 
   // ── Home ──────────────────────────────────────────────────────────────────
@@ -27,23 +28,20 @@ class ArticleBloc extends Bloc<ArticleEvent, ArticleState> {
     ArticleHomeLoadRequested event,
     Emitter<ArticleState> emit,
   ) async {
-    emit(ArticleLoading());
+    final cached = _repo.getCachedHomeData();
+    if (cached != null) {
+      emit(_homeFromMap(cached, isOffline: false));
+    } else {
+      emit(ArticleLoading());
+    }
     try {
-      // Fetch home data and category counts in parallel
-      final results = await Future.wait([
-        _repo.fetchHomeData(),
-        _repo.fetchCategoryCounts(), // ← added
-      ]);
-      final data   = results[0];
-      final counts = results[1] as Map<String, int>;
-      emit(_homeFromMap(data, categoryCounts: counts, isOffline: false));
+      final data = await _repo.fetchHomeData();
+      emit(_homeFromMap(data, isOffline: false));
     } catch (_) {
-      final cached = _repo.getCachedHomeData();
-      if (cached != null) {
-        // Offline: no counts available — pills still render, just without badges
-        emit(_homeFromMap(cached, isOffline: true));
-      } else {
+      if (cached == null) {
         emit(ArticleError('No internet connection and no cached data.'));
+      } else {
+        emit(_homeFromMap(cached, isOffline: true));
       }
     }
   }
@@ -51,7 +49,6 @@ class ArticleBloc extends Bloc<ArticleEvent, ArticleState> {
 ArticleHomeLoaded _homeFromMap(
     Map<String, dynamic> data, {
     required bool isOffline,
-    Map<String, int> categoryCounts = const {},
   }) {
     ArticleModel? featured;
     if (data['featured'] != null) {
@@ -70,7 +67,7 @@ ArticleHomeLoaded _homeFromMap(
     final resolvedCounts = rawCounts is Map
         ? Map<String, int>.from(
             (rawCounts).map((k, v) => MapEntry(k.toString(), (v as num).toInt())))
-        : categoryCounts;
+        : const <String, int>{};
 
     return ArticleHomeLoaded(
       featured: featured,
@@ -293,6 +290,16 @@ ArticleHomeLoaded _homeFromMap(
       if (current is ArticleDetailLoaded) {
         emit(current.copyWith(isFavorited: event.isFavorited));
       }
+    }
+  }
+
+  void _onFavoriteStatusChecked(
+    ArticleFavoriteStatusChecked event,
+    Emitter<ArticleState> emit,
+  ) {
+    final current = state;
+    if (current is ArticleDetailLoaded) {
+      emit(current.copyWith(isFavorited: event.isFavorited));
     }
   }
 }

@@ -33,7 +33,7 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: const Color(0xFFF9FAFB),
       body: BlocConsumer<AuthBloc, AuthState>(
         listener: (context, state) {
-          if (state is AuthAuthenticated) context.go('/');
+          if (state is AuthAuthenticated) context.go('/home');
           if (state is AuthNeedsUsername) context.go('/complete-profile');
           if (state is AuthError) {
             ScaffoldMessenger.of(context).showSnackBar(

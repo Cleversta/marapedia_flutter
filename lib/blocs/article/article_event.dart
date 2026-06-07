@@ -86,3 +86,10 @@ class ArticleFavoriteToggleRequested extends ArticleEvent {
   @override
   List<Object?> get props => [articleId, userId, isFavorited];
 }
+
+class ArticleFavoriteStatusChecked extends ArticleEvent {
+  final bool isFavorited;
+  const ArticleFavoriteStatusChecked(this.isFavorited);
+  @override
+  List<Object?> get props => [isFavorited];
+}

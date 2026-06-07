@@ -10,6 +10,9 @@ import '../utils/app_theme.dart';
 import '../utils/constants.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 
+// Session-level cache — avoids re-downloading all articles on every screen mount.
+Map<String, int>? _appBarCategoryCountsCache;
+
 // ─── Colour palette (mirrors web CAT_PALETTE) ─────────────────────────────────
 
 class _CatColor {
@@ -130,6 +133,10 @@ class _MarapediaAppBarState extends State<MarapediaAppBar> {
   }
 
   Future<void> _loadCategoryCounts() async {
+    if (_appBarCategoryCountsCache != null) {
+      if (mounted) setState(() => _categoryCounts = _appBarCategoryCountsCache!);
+      return;
+    }
     try {
       final data = await Supabase.instance.client
           .from('articles')
@@ -140,6 +147,7 @@ class _MarapediaAppBarState extends State<MarapediaAppBar> {
         final cat = row['category'] as String?;
         if (cat != null) counts[cat] = (counts[cat] ?? 0) + 1;
       }
+      _appBarCategoryCountsCache = counts;
       if (mounted) setState(() => _categoryCounts = counts);
     } catch (_) {}
   }

@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//home/marason/marapedia/src/app/**)",
+      "Read(//home/marason/marapedia/src/components/**)",
+      "Bash(find /home/marason/marapedia/src -name \"*.ts\" -path \"*/lib/*\" | sort)",
+      "Read(//home/marason/marapedia/src/**)",
+      "Bash(find /home/marason/marapedia -maxdepth 2 -name \"next.config*\" | head -3)",
+      "Read(//home/marason/marapedia/**)"
+    ],
+    "additionalDirectories": [
+      "/home/marason/marapedia/src/app"
+    ]
+  }
+}

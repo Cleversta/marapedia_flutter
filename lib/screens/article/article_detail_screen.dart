@@ -57,13 +57,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     final favorited = await repo.isFavorited(articleId, authState.userId);
 
     if (!context.mounted) return;
-    final current = context.read<ArticleBloc>().state;
-    if (current is ArticleDetailLoaded) {
-      // ignore: invalid_use_of_visible_for_testing_member
-      context.read<ArticleBloc>().emit(
-            current.copyWith(isFavorited: favorited),
-          );
-    }
+    context.read<ArticleBloc>().add(ArticleFavoriteStatusChecked(favorited));
   }
 
   @override
