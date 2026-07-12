@@ -307,7 +307,8 @@ class _MarapediaAppBarState extends State<MarapediaAppBar> {
               (Icons.info_outline_rounded, 'About Marapedia', '/about'),
               (Icons.shield_outlined, 'Privacy Policy', '/privacy'),
               (Icons.people_outline_rounded, 'Contributors', '/contributors'),
-              (Icons.edit_outlined, 'How to Contribute', '/about'),
+              (Icons.edit_outlined, 'How to Contribute', '/how-to-contribute'),
+              (Icons.code_rounded, 'About Developer', '/about-developer'),
             ])
               InkWell(
                 onTap: () {
@@ -1251,7 +1252,13 @@ class _ProfileDrawer extends StatelessWidget {
                       icon: Icons.edit_outlined,
                       label: 'How to Contribute',
                       subtitle: 'Help grow the encyclopedia',
-                      onTap: () => onNavigate('/about'),
+                      onTap: () => onNavigate('/how-to-contribute'),
+                    ),
+                    _DrawerItem(
+                      icon: Icons.code_rounded,
+                      label: 'About Developer',
+                      subtitle: 'Meet the founder',
+                      onTap: () => onNavigate('/about-developer'),
                     ),
                   ],
                 ),

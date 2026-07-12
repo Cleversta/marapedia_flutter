@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:marapedia_flutter/blocs/auth/auth_bloc.dart';
+import 'package:marapedia_flutter/blocs/auth/auth_state.dart';
 import 'package:marapedia_flutter/repositories/contributors_repository.dart';
 import 'package:marapedia_flutter/utils/helpers.dart';
 
@@ -126,7 +129,9 @@ class _ContributorsScreenState extends State<ContributorsScreen> {
   Widget _buildContent() {
     final all = _contributors ?? [];
 
-    // Split into three groups
+    final authState = context.read<AuthBloc>().state;
+    final isAdmin = authState is AuthAuthenticated && authState.profile.role == 'admin';
+
     final admins  = (all.where((c) => c.profile.role == 'admin').toList()  ..sort(_byArticles));
     final editors = (all.where((c) => c.profile.role == 'editor').toList() ..sort(_byArticles));
     final members = (all.where((c) => c.profile.role != 'admin' && c.profile.role != 'editor').toList()
@@ -162,11 +167,13 @@ class _ContributorsScreenState extends State<ContributorsScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _statItem('${all.length}', 'Members', _sage),
-                      Container(width: 1, height: 28, color: _border),
                       _statItem('${admins.length}', 'Admins', _adminFg),
                       Container(width: 1, height: 28, color: _border),
                       _statItem('${editors.length}', 'Editors', _editorFg),
+                      if (isAdmin) ...[
+                        Container(width: 1, height: 28, color: _border),
+                        _statItem('${members.length}', 'Members', _sage),
+                      ],
                       Container(width: 1, height: 28, color: _border),
                       _statItem('$totalPublished', 'Articles', _sage),
                     ],
@@ -198,8 +205,8 @@ class _ContributorsScreenState extends State<ContributorsScreen> {
             ),
           ],
 
-          // ── Members ───────────────────────────────────────────────────
-          if (members.isNotEmpty) ...[
+          // ── Members — admin only ──────────────────────────────────────
+          if (isAdmin && members.isNotEmpty) ...[
             _sectionHeader('MEMBERS', '◈', _inkLight),
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 16),

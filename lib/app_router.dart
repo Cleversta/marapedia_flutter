@@ -2,6 +2,8 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:marapedia_flutter/screens/home/about_screen.dart';
+import 'package:marapedia_flutter/screens/home/about_developer_screen.dart';
+import 'package:marapedia_flutter/screens/home/how_to_contribute_screen.dart';
 import 'package:marapedia_flutter/screens/home/privacy_screen.dart';
 import 'package:marapedia_flutter/screens/profile/my_articles_screen.dart';
 import 'package:marapedia_flutter/screens/splash_screen.dart';
@@ -130,6 +132,8 @@ final appRouter = GoRouter(
     ),
 
     GoRoute(path: '/about',   builder: (_, __) => const AboutScreen()),
+    GoRoute(path: '/how-to-contribute', builder: (_, __) => const HowToContributeScreen()),
+    GoRoute(path: '/about-developer', builder: (_, __) => const AboutDeveloperScreen()),
     GoRoute(path: '/privacy', builder: (_, __) => const PrivacyScreen()),
 
     GoRoute(path: '/contributors',

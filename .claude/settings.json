@@ -6,7 +6,20 @@
       "Bash(find /home/marason/marapedia/src -name \"*.ts\" -path \"*/lib/*\" | sort)",
       "Read(//home/marason/marapedia/src/**)",
       "Bash(find /home/marason/marapedia -maxdepth 2 -name \"next.config*\" | head -3)",
-      "Read(//home/marason/marapedia/**)"
+      "Read(//home/marason/marapedia/**)",
+      "Bash(cp -r /home/marason/marapedia_flutter/assets/marapedia_app_icon/android/res/mipmap-hdpi/* /home/marason/marapedia_flutter/android/app/src/main/res/mipmap-hdpi/)",
+      "Bash(cp -r /home/marason/marapedia_flutter/assets/marapedia_app_icon/android/res/mipmap-mdpi/* /home/marason/marapedia_flutter/android/app/src/main/res/mipmap-mdpi/)",
+      "Bash(cp -r /home/marason/marapedia_flutter/assets/marapedia_app_icon/android/res/mipmap-xhdpi/* /home/marason/marapedia_flutter/android/app/src/main/res/mipmap-xhdpi/)",
+      "Bash(cp -r /home/marason/marapedia_flutter/assets/marapedia_app_icon/android/res/mipmap-xxhdpi/* /home/marason/marapedia_flutter/android/app/src/main/res/mipmap-xxhdpi/)",
+      "Bash(cp -r /home/marason/marapedia_flutter/assets/marapedia_app_icon/android/res/mipmap-xxxhdpi/* /home/marason/marapedia_flutter/android/app/src/main/res/mipmap-xxxhdpi/)",
+      "Bash(rm /home/marason/marapedia_flutter/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-*.png)",
+      "Bash(cp /home/marason/marapedia_flutter/assets/marapedia_app_icon/ios/AppIcon*.png /home/marason/marapedia_flutter/ios/Runner/Assets.xcassets/AppIcon.appiconset/)",
+      "Bash(cp /home/marason/marapedia_flutter/assets/marapedia_app_icon/ios/Contents.json /home/marason/marapedia_flutter/ios/Runner/Assets.xcassets/AppIcon.appiconset/Contents.json)",
+      "Bash(cp /home/marason/marapedia_flutter/assets/marapedia_app_icon/web/favicon.ico /home/marason/marapedia_flutter/web/favicon.png)",
+      "Bash(cp /home/marason/marapedia_flutter/assets/marapedia_app_icon/web/icon-192.png /home/marason/marapedia_flutter/web/icons/Icon-192.png)",
+      "Bash(cp /home/marason/marapedia_flutter/assets/marapedia_app_icon/web/icon-512.png /home/marason/marapedia_flutter/web/icons/Icon-512.png)",
+      "Bash(cp /home/marason/marapedia_flutter/assets/marapedia_app_icon/web/icon-192-maskable.png /home/marason/marapedia_flutter/web/icons/Icon-maskable-192.png)",
+      "Bash(cp /home/marason/marapedia_flutter/assets/marapedia_app_icon/web/icon-512-maskable.png /home/marason/marapedia_flutter/web/icons/Icon-maskable-512.png)"
     ],
     "additionalDirectories": [
       "/home/marason/marapedia/src/app"
