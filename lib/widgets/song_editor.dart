@@ -977,17 +977,20 @@ class _SongEditorState extends State<SongEditor> {
                   color: Color(0xFF92400E),
                   fontFamily: 'monospace',
                   letterSpacing: 0.8),
-              decoration: const InputDecoration(
-                hintText: 'Am  G  C  F  |  G  Em  Am...',
-                hintStyle: TextStyle(fontSize: 12, color: Color(0xFFFBD38D)),
-                border: InputBorder.none,
-                filled: false,
-                contentPadding: EdgeInsets.zero,
-              ),
+decoration: const InputDecoration(
+  hintText: 'Am  G  C  F  |  G  Em  Am...',
+  hintStyle: TextStyle(fontSize: 12, color: Color(0xFFFBD38D)),
+  border: InputBorder.none,
+  enabledBorder: InputBorder.none,
+  focusedBorder: InputBorder.none,
+  filled: false,
+  contentPadding: EdgeInsets.zero,
+),
             ),
           ),
         ]),
       );
+
 
   Widget _lyricsRow(SongSection s, double bottomInset) => Container(
         decoration: const BoxDecoration(
@@ -1017,13 +1020,15 @@ class _SongEditorState extends State<SongEditor> {
               scrollPadding: EdgeInsets.only(bottom: bottomInset + 80),
               style: const TextStyle(
                   fontSize: 14, height: 1.9, fontFamily: 'monospace', color: Color(0xFF374151)),
-              decoration: InputDecoration(
-                hintText: _placeholder,
-                hintStyle: const TextStyle(fontSize: 13, color: Color(0xFFD1D5DB)),
-                border: InputBorder.none,
-                filled: false,
-                contentPadding: EdgeInsets.zero,
-              ),
+decoration: InputDecoration(
+  hintText: _placeholder,
+  hintStyle: const TextStyle(fontSize: 13, color: Color(0xFFD1D5DB)),
+  border: InputBorder.none,
+  enabledBorder: InputBorder.none,
+  focusedBorder: InputBorder.none,
+  filled: false,
+  contentPadding: EdgeInsets.zero,
+),
             ),
           ),
           Padding(

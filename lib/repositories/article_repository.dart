@@ -5,7 +5,6 @@ import '../models/article_model.dart';
 import '../services/cache_service.dart';
 
 const _base = 'https://marapedia.org/api';
-const _revalidateSecret = 'marapedia_revalidate_2026';
 
 class ArticleRepository {
   final _db = Supabase.instance.client;
@@ -17,7 +16,7 @@ class ArticleRepository {
       await http.post(
         Uri.parse('$_base/revalidate'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'slug': slug, 'secret': _revalidateSecret}),
+        body: jsonEncode({'slug': slug}),
       );
     } catch (_) {
       // Non-critical — ignore failures silently

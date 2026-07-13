@@ -21,6 +21,8 @@ class AppConstants {
     {'value': 'religion', 'label': 'Religion', 'icon': '⛪'},
     {'value': 'language', 'label': 'Language', 'icon': '🗣️'},
     {'value': 'photos', 'label': 'Photos', 'icon': '📷'},
+    {'value': 'about', 'label': 'About', 'icon': '📌'},
+    {'value': 'knowledge', 'label': 'Knowledge', 'icon': '📚'},
     {'value': 'other', 'label': 'Other', 'icon': '📁'},
   ];
   static const Map<String, List<Map<String, String>>> articleTypes = {
@@ -32,6 +34,8 @@ class AppConstants {
       {'value': 'childrens', 'label': "🧒 Children's Song"},
       {'value': 'lullaby', 'label': '🌙 Lullaby'},
       {'value': 'patriotic', 'label': '🏔️ Patriotic Song'},
+      {'value': 'homeland', 'label': '🏞️ Homeland Song'},
+      {'value': 'historical', 'label': '📜 Historical Song'},
       {'value': 'other', 'label': '📁 Other'},
     ],
     'poems': [
@@ -42,6 +46,7 @@ class AppConstants {
       {'value': 'lament', 'label': '😔 Lament'},
       {'value': 'praise', 'label': '🙌 Praise'},
       {'value': 'historical', 'label': '📜 Historical'},
+      {'value': 'proverb', 'label': '💬 Proverb / Riddle Poem'},
       {'value': 'other', 'label': '📁 Other'},
     ],
     'history': [
@@ -52,6 +57,9 @@ class AppConstants {
       {'value': 'war', 'label': '⚔️ War & Conflict'},
       {'value': 'leadership', 'label': '👑 Leadership'},
       {'value': 'church', 'label': '⛪ Church History'},
+      {'value': 'colonial', 'label': '🏛️ Colonial Era'},
+      {'value': 'independence', 'label': '🕊️ Independence Movement'},
+      {'value': 'genealogy', 'label': '🌳 Genealogy & Clan History'},
       {'value': 'other', 'label': '📁 Other'},
     ],
     'stories': [
@@ -59,6 +67,8 @@ class AppConstants {
       {'value': 'legend', 'label': '⚡ Legend'},
       {'value': 'moral', 'label': '📖 Moral Story'},
       {'value': 'creation', 'label': '🌏 Creation Story'},
+      {'value': 'ghost', 'label': '👻 Ghost / Spirit Story'},
+      {'value': 'fable', 'label': '🐾 Animal Fable'},
       {'value': 'other', 'label': '📁 Other'},
     ],
     'people': [
@@ -68,6 +78,9 @@ class AppConstants {
       {'value': 'teacher', 'label': '📚 Teacher / Scholar'},
       {'value': 'warrior', 'label': '⚔️ Warrior'},
       {'value': 'missionary', 'label': '🌍 Missionary'},
+      {'value': 'politician', 'label': '🏛️ Political Leader'},
+      {'value': 'writer', 'label': '✍️ Writer / Author'},
+      {'value': 'athlete', 'label': '🏅 Sports Figure'},
       {'value': 'other', 'label': '📁 Other'},
     ],
     'places': [
@@ -76,6 +89,8 @@ class AppConstants {
       {'value': 'sacred', 'label': '✝️ Sacred Site'},
       {'value': 'river', 'label': '🌊 River'},
       {'value': 'mountain', 'label': '⛰️ Mountain'},
+      {'value': 'burial', 'label': '⚱️ Burial Ground'},
+      {'value': 'farmland', 'label': '🌾 Farmland / Agricultural Site'},
       {'value': 'other', 'label': '📁 Other'},
     ],
     'culture': [
@@ -84,6 +99,10 @@ class AppConstants {
       {'value': 'food', 'label': '🍽️ Food & Cuisine'},
       {'value': 'clothing', 'label': '👘 Clothing & Dress'},
       {'value': 'ceremony', 'label': '🕯️ Ceremony & Ritual'},
+      {'value': 'wedding', 'label': '💍 Wedding Customs'},
+      {'value': 'funeral', 'label': '🕊️ Funeral Customs'},
+      {'value': 'farming', 'label': '🌾 Farming Traditions'},
+      {'value': 'oral', 'label': '🗣️ Oral Tradition / Storytelling'},
       {'value': 'other', 'label': '📁 Other'},
     ],
     'religion': [
@@ -104,6 +123,19 @@ class AppConstants {
     ],
     'other': [
       {'value': 'general', 'label': '📁 General'},
+      {'value': 'other', 'label': '📁 Other'},
+    ],
+    'about': [
+      {'value': 'project', 'label': '📌 About the Project'},
+      {'value': 'mission', 'label': '🎯 Mission & Vision'},
+      {'value': 'team', 'label': '👥 Team & Contributors'},
+      {'value': 'other', 'label': '📁 Other'},
+    ],
+    'knowledge': [
+      {'value': 'reference', 'label': '📚 Reference'},
+      {'value': 'calendar', 'label': '🗓️ Calendar & Dates'},
+      {'value': 'guide', 'label': '📋 Guide / How-to'},
+      {'value': 'faq', 'label': '❓ FAQ'},
       {'value': 'other', 'label': '📁 Other'},
     ],
   };
