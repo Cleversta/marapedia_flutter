@@ -9,12 +9,13 @@ class GoogleSignInButton extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       height: 46,
-      child: OutlinedButton(
+      child: ElevatedButton(
         onPressed: onPressed,
-        style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: Color(0xFFD1D5DB)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF4285F4),
+          foregroundColor: Colors.white,
+          elevation: 1,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          backgroundColor: Colors.white,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -23,7 +24,7 @@ class GoogleSignInButton extends StatelessWidget {
             const SizedBox(width: 10),
             const Text(
               'Continue with Google',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF374151)),
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.white),
             ),
           ],
         ),
@@ -31,19 +32,17 @@ class GoogleSignInButton extends StatelessWidget {
     );
   }
 
+  // Same 4-arc "G" shape as before, just recolored to white so it reads
+  // cleanly against the solid blue background (matches the web version).
   Widget _googleIcon() {
-    return SizedBox(
+    return const SizedBox(
       width: 18,
       height: 18,
       child: Stack(children: [
-        // Blue arc (left + bottom)
-        _Arc(color: const Color(0xFF4285F4), start: 0.5, sweep: 1.5),
-        // Red arc (top-right)
-        _Arc(color: const Color(0xFFEA4335), start: -0.5, sweep: 0.75),
-        // Yellow arc (bottom-right)
-        _Arc(color: const Color(0xFFFBBC05), start: 0.25, sweep: 0.5),
-        // Green arc (bottom-left)
-        _Arc(color: const Color(0xFF34A853), start: 0.75, sweep: 0.5),
+        _Arc(color: Colors.white, start: 0.5, sweep: 1.5),
+        _Arc(color: Colors.white, start: -0.5, sweep: 0.75),
+        _Arc(color: Colors.white, start: 0.25, sweep: 0.5),
+        _Arc(color: Colors.white, start: 0.75, sweep: 0.5),
       ]),
     );
   }
