@@ -47,6 +47,11 @@ class AuthRepository {
   Future<void> signOut() async {
     await _auth.signOut();
     await SecureStorageService.clearAll();
+
+  final webClientId = dotenv.env['GOOGLE_WEB_CLIENT_ID']!;
+  final googleSignIn = GoogleSignIn(serverClientId: webClientId);
+  await googleSignIn.signOut();
+    
   }
 
   Future<ProfileModel?> fetchProfile(String userId) async {

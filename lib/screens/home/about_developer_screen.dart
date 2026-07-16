@@ -66,6 +66,58 @@ class AboutDeveloperScreen extends StatelessWidget {
           const Divider(color: _border),
           const SizedBox(height: 16),
 
+          _sectionTitle('👋', 'Introduction'),
+          const SizedBox(height: 10),
+          const Text(
+            'My name is Marason Tleitu. I\'m 25 years old, from the Mara community, '
+            'currently based in Malaysia. I\'m a self-taught developer, building apps '
+            'and websites for the Mara people in whatever time I can find outside my '
+            'day-to-day life abroad.',
+            style: TextStyle(fontSize: 13, color: _inkMid, height: 1.75),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Being away from home made me think more, not less, about where I come '
+            'from. In 2023, I wrote Mara Hlabu, a book collecting Mara song lyrics, '
+            'and later turned it into a mobile app so anyone could carry the songs '
+            'with them and read the lyrics on the go.',
+            style: TextStyle(fontSize: 13, color: _inkMid, height: 1.75),
+          ),
+          const SizedBox(height: 10),
+          GestureDetector(
+            onTap: () => launchUrl(Uri.parse(
+                'https://play.google.com/store/apps/details?id=com.marahlabu.marahlaapp&pcampaignid=web_share')),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('📱', style: TextStyle(fontSize: 14)),
+                const SizedBox(width: 6),
+                Text(
+                  'Mara Hlabu on Google Play',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: _sage,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Icon(Icons.open_in_new, size: 12, color: _sage),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Marapedia grew out of that same motivation: Mara Hlabu preserved the '
+            'songs, and Marapedia expands that mission to history, language, stories, '
+            'and culture — making sure it all has a home online that anyone, anywhere, '
+            'can reach.',
+            style: TextStyle(fontSize: 13, color: _inkMid, height: 1.75),
+          ),
+
+          const SizedBox(height: 16),
+          const Divider(color: _border),
+          const SizedBox(height: 16),
+
           _founderPara(
             '💡',
             'The Idea',

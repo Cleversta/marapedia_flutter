@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'package:marapedia_flutter/services/cache_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import '../../blocs/auth/auth_bloc.dart';
 import '../../blocs/auth/auth_event.dart';
@@ -131,6 +132,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
 
       await Supabase.instance.client.auth.signOut();
+      await CacheService.clearAll();
       if (mounted) context.go('/');
     } catch (e) {
       if (mounted) {

@@ -40,8 +40,8 @@ signingConfigs {
         applicationId = "app.marason.marapedia"
         minSdk = flutter.minSdkVersion
         targetSdk = 36
-        versionCode = 30
-        versionName = "1.0.30"
+        versionCode = 33
+        versionName = "1.0.33"
     }
 
     buildTypes {
